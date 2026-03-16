@@ -1,0 +1,33 @@
+---
+const partners = [
+  { name: 'Home Assistant', logo: 'HA' },
+  { name: 'Philips Hue', logo: 'PH' },
+  { name: 'Shelly', logo: 'SH' },
+  { name: 'Zigbee', logo: 'ZB' },
+  { name: 'Matter', logo: 'MT' },
+  { name: 'Thread', logo: 'TH' },
+];
+---
+
+<section class="py-16 bg-white border-y border-dark-100">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-10 animate-on-scroll">
+      <p class="text-sm font-medium text-dark-500 uppercase tracking-wider">
+        Technologies & partenaires
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+      {partners.map((partner, index) => (
+        <div class={`animate-on-scroll animation-delay-${index % 4}00`}>
+          <div class="group flex items-center gap-3 px-6 py-3 bg-dark-50 rounded-xl hover:bg-dark-100 transition-colors">
+            <div class="w-10 h-10 bg-dark-200 rounded-lg flex items-center justify-center text-dark-500 font-bold text-sm group-hover:bg-primary-500 group-hover:text-white transition-colors">
+              {partner.logo}
+            </div>
+            <span class="text-dark-600 font-medium">{partner.name}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

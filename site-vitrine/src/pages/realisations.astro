@@ -1,0 +1,176 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CTA from '../components/sections/CTA.astro';
+import { MapPin, Home, Euro, Check, ArrowRight } from '@lucide/astro';
+
+const projects = [
+  {
+    id: 1,
+    title: 'Appartement haussmannien',
+    location: 'Paris 16ème',
+    type: 'Appartement',
+    surface: '150m²',
+    budget: '4 500€',
+    services: ['Éclairage', 'Chauffage', 'Volets'],
+    description: 'Intégration domotique complète dans un appartement haussmannien, avec respect du cachet historique. Éclairage connecté dans toutes les pièces, thermostat intelligent et motorisation des volets.',
+    testimonial: 'Installation parfaite, l\'équipe a su s\'adapter aux contraintes de notre appartement ancien.',
+    client: 'Marie L.',
+    gradient: 'from-primary-500 to-blue-500',
+  },
+  {
+    id: 2,
+    title: 'Maison contemporaine',
+    location: 'Neuilly-sur-Seine',
+    type: 'Maison',
+    surface: '250m²',
+    budget: '12 000€',
+    services: ['Éclairage', 'Chauffage', 'Sécurité', 'Multimédia'],
+    description: 'Projet complet pour une maison sur 3 niveaux. Système de sécurité avec caméras, éclairage scénarisé, chauffage zone par zone et système audio multiroom.',
+    testimonial: 'Un projet ambitieux mené avec professionnalisme. La maison est vraiment devenue intelligente.',
+    client: 'Thomas B.',
+    gradient: 'from-accent-500 to-emerald-500',
+  },
+  {
+    id: 3,
+    title: 'Loft moderne',
+    location: 'Paris 11ème',
+    type: 'Loft',
+    surface: '90m²',
+    budget: '2 800€',
+    services: ['Éclairage', 'Volets'],
+    description: 'Mise en valeur d\'un loft avec éclairage connecté RGB et motorisation des stores. Focus sur l\'ambiance et les scénarios lumineux personnalisés.',
+    testimonial: 'Les ambiances lumineuses ont transformé l\'atmosphère de notre loft. C\'est bluffant !',
+    client: 'Sophie M.',
+    gradient: 'from-violet-500 to-purple-500',
+  },
+  {
+    id: 4,
+    title: 'Appartement familial',
+    location: 'Boulogne-Billancourt',
+    type: 'Appartement',
+    surface: '110m²',
+    budget: '3 500€',
+    services: ['Éclairage', 'Chauffage', 'Sécurité'],
+    description: 'Installation adaptée à une famille avec enfants : sécurité renforcée, éclairage automatique et contrôle parental sur les appareils connectés.',
+    testimonial: 'Parfait pour notre famille, la sécurité des enfants était notre priorité.',
+    client: 'Pierre et Julie D.',
+    gradient: 'from-orange-500 to-amber-500',
+  },
+  {
+    id: 5,
+    title: 'Studio connecté',
+    location: 'Paris 3ème',
+    type: 'Studio',
+    surface: '35m²',
+    budget: '1 200€',
+    services: ['Éclairage', 'Chauffage'],
+    description: 'Optimisation d\'un petit espace avec domotique essentielle : éclairage ambiance, thermostat connecté et prises intelligentes.',
+    testimonial: 'Même dans un petit espace, la domotique change la vie quotidienne.',
+    client: 'Julien R.',
+    gradient: 'from-cyan-500 to-blue-500',
+  },
+  {
+    id: 6,
+    title: 'Maison de ville',
+    location: 'Vincennes',
+    type: 'Maison',
+    surface: '180m²',
+    budget: '8 500€',
+    services: ['Éclairage', 'Chauffage', 'Volets', 'Multimédia'],
+    description: 'Rénovation domotique complète d\'une maison de ville. Intégration Home Assistant avec contrôle centralisé de tous les équipements.',
+    testimonial: 'Le système Home Assistant est incroyable, tout est contrôlable depuis une seule app.',
+    client: 'François C.',
+    gradient: 'from-pink-500 to-rose-500',
+  },
+];
+---
+
+<BaseLayout
+  title="Nos réalisations - Portfolio projets domotiques"
+  description="Découvrez nos projets domotiques : appartements, maisons, lofts. Éclairage connecté, sécurité, chauffage intelligent à Paris et Île-de-France."
+  canonical="/realisations"
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-16 bg-dark-950 gradient-mesh">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto">
+        <span class="inline-block px-4 py-1.5 bg-primary-500/10 text-primary-400 text-sm font-medium rounded-full mb-6">
+          Nos réalisations
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6">
+          <span class="gradient-text">+150 projets</span> réalisés à Paris
+        </h1>
+        <p class="text-lg text-dark-300">
+          Appartements, maisons, lofts... Découvrez comment nous avons transformé ces espaces en habitats intelligents.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects Grid -->
+  <section class="section-padding bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {projects.map((project, index) => (
+          <div class={`card group animate-on-scroll animation-delay-${index % 3}00`}>
+            <!-- Visual -->
+            <div class={`aspect-[4/3] rounded-xl mb-6 bg-gradient-to-br ${project.gradient} opacity-90 flex items-center justify-center`}>
+              <div class="text-center text-white">
+                <Home class="w-12 h-12 mx-auto mb-2 opacity-80" />
+                <p class="text-sm font-medium opacity-80">{project.type}</p>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <h3 class="text-xl font-bold text-dark-900 mb-2 group-hover:text-primary-500 transition-colors">
+              {project.title}
+            </h3>
+
+            <div class="flex items-center gap-4 text-sm text-dark-500 mb-4">
+              <span class="flex items-center gap-1">
+                <MapPin class="w-4 h-4" />
+                {project.location}
+              </span>
+              <span>{project.surface}</span>
+            </div>
+
+            <p class="text-dark-600 text-sm mb-4 line-clamp-2">
+              {project.description}
+            </p>
+
+            <!-- Tags -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              {project.services.map((service) => (
+                <span class="px-2 py-1 bg-dark-100 text-dark-600 text-xs rounded-md">
+                  {service}
+                </span>
+              ))}
+            </div>
+
+            <!-- Budget -->
+            <div class="flex items-center justify-between pt-4 border-t border-dark-100">
+              <div class="flex items-center gap-1 text-dark-600">
+                <Euro class="w-4 h-4" />
+                <span class="font-semibold">{project.budget}</span>
+              </div>
+              <span class="text-sm text-dark-500">{project.client}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- CTA -->
+      <div class="text-center mt-16 animate-on-scroll">
+        <p class="text-lg text-dark-600 mb-6">
+          Votre projet pourrait être le prochain !
+        </p>
+        <a href="/contact" class="btn-primary text-lg px-8 py-4">
+          Discuter de mon projet
+          <ArrowRight class="w-5 h-5" />
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <CTA />
+</BaseLayout>

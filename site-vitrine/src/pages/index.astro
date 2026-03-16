@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/sections/Hero.astro';
+import ProblemSolution from '../components/sections/ProblemSolution.astro';
+import ServicesPreview from '../components/sections/ServicesPreview.astro';
+import HowItWorks from '../components/sections/HowItWorks.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import Partners from '../components/sections/Partners.astro';
+import CTA from '../components/sections/CTA.astro';
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Accueil - Neo Domotique",
+  "description": "Transformez votre logement en maison intelligente. Audit gratuit, installation clé en main, maintenance incluse. Paris et Île-de-France."
+};
+---
+
+<BaseLayout
+  title="Domotique Paris - Installation maison connectée"
+  description="Transformez votre logement en maison intelligente. Audit gratuit, installation clé en main, maintenance incluse. Paris et Île-de-France."
+  canonical="/"
+  schema={schema}
+>
+  <Hero />
+  <ProblemSolution />
+  <ServicesPreview />
+  <HowItWorks />
+  <Testimonials />
+  <Partners />
+  <CTA />
+</BaseLayout>

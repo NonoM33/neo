@@ -1,0 +1,195 @@
+---
+import { ArrowRight, Star, CheckCircle, Shield, Zap, Thermometer } from '@lucide/astro';
+---
+
+<section class="relative min-h-screen flex items-center hero-gradient overflow-hidden">
+  <!-- Animated Background Elements -->
+  <div class="absolute inset-0 overflow-hidden">
+    <div
+      class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl animate-float"
+    >
+    </div>
+    <div
+      class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent-500/10 rounded-full blur-3xl animate-float animation-delay-200"
+    >
+    </div>
+    <div
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-600/5 rounded-full blur-3xl"
+    >
+    </div>
+  </div>
+
+  <!-- Grid Pattern Overlay -->
+  <div
+    class="absolute inset-0 opacity-[0.02]"
+    style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;60&quot; height=&quot;60&quot; viewBox=&quot;0 0 60 60&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cg fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;%3E%3Cg fill=&quot;%23ffffff&quot; fill-opacity=&quot;1&quot;%3E%3Cpath d=&quot;M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z&quot;/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"
+  >
+  </div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <!-- Content -->
+      <div class="text-center lg:text-left">
+        <!-- Badge -->
+        <div
+          class="inline-flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full text-sm text-dark-300 mb-8 animate-fade-in"
+        >
+          <span class="w-2 h-2 bg-accent-500 rounded-full animate-pulse"></span>
+          Expert en domotique à Paris
+        </div>
+
+        <!-- Headline -->
+        <h1
+          class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-slide-up"
+        >
+          Votre maison
+          <span class="gradient-text">intelligente</span>,<br />
+          sans la complexité.
+        </h1>
+
+        <!-- Subheadline -->
+        <p
+          class="text-lg sm:text-xl text-dark-300 max-w-xl mx-auto lg:mx-0 mb-8 animate-slide-up animation-delay-100"
+        >
+          De l'audit à la maintenance, nous vous accompagnons pour transformer
+          votre habitat. Installation clé en main, formations et support inclus.
+        </p>
+
+        <!-- CTAs -->
+        <div
+          class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12 animate-slide-up animation-delay-200"
+        >
+          <a href="/contact" class="btn-primary group">
+            Audit gratuit
+            <ArrowRight
+              class="w-5 h-5 group-hover:translate-x-1 transition-transform"
+            />
+          </a>
+          <a
+            href="/comment-ca-marche"
+            class="btn-ghost text-dark-300 hover:text-white"
+          >
+            Comment ça marche ?
+          </a>
+        </div>
+
+        <!-- Trust Indicators -->
+        <div
+          class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-6 animate-slide-up animation-delay-300"
+        >
+          <div class="flex items-center gap-1">
+            {Array.from({ length: 5 }).map(() => (
+              <Star class="w-5 h-5 text-yellow-400 fill-yellow-400" />
+            ))}
+          </div>
+          <span class="text-dark-400">
+            <span class="text-white font-semibold">+150</span> clients satisfaits
+          </span>
+        </div>
+      </div>
+
+      <!-- Visual -->
+      <div class="relative hidden lg:block">
+        <!-- Main Card -->
+        <div
+          class="relative bg-dark-800/40 backdrop-blur-xl border border-dark-700/50 rounded-3xl p-8 shadow-2xl animate-scale-in"
+        >
+          <!-- Smart Home Illustration -->
+          <div class="aspect-square relative">
+            <!-- House Outline -->
+            <div
+              class="absolute inset-8 border-2 border-dashed border-dark-600 rounded-2xl flex items-center justify-center"
+            >
+              <div class="text-center">
+                <div
+                  class="w-20 h-20 mx-auto bg-gradient-to-br from-primary-500 to-accent-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-primary-500/25"
+                >
+                  <svg
+                    class="w-10 h-10 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    ></path>
+                  </svg>
+                </div>
+                <p class="text-dark-400 text-sm">Maison connectée</p>
+              </div>
+            </div>
+
+            <!-- Floating Feature Cards -->
+            <div
+              class="absolute top-4 right-4 bg-dark-900/90 backdrop-blur-sm border border-dark-700 rounded-xl p-3 animate-float animation-delay-100"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-10 h-10 bg-primary-500/20 rounded-lg flex items-center justify-center"
+                >
+                  <Zap class="w-5 h-5 text-primary-400" />
+                </div>
+                <div>
+                  <p class="text-xs text-dark-400">Éclairage</p>
+                  <p class="text-sm text-white font-medium">100% automatisé</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="absolute bottom-4 left-4 bg-dark-900/90 backdrop-blur-sm border border-dark-700 rounded-xl p-3 animate-float animation-delay-300"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-10 h-10 bg-accent-500/20 rounded-lg flex items-center justify-center"
+                >
+                  <Thermometer class="w-5 h-5 text-accent-400" />
+                </div>
+                <div>
+                  <p class="text-xs text-dark-400">Température</p>
+                  <p class="text-sm text-white font-medium">21°C optimisée</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="absolute top-1/2 left-4 -translate-y-1/2 bg-dark-900/90 backdrop-blur-sm border border-dark-700 rounded-xl p-3 animate-float animation-delay-200"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center"
+                >
+                  <Shield class="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p class="text-xs text-dark-400">Sécurité</p>
+                  <p class="text-sm text-white font-medium">Active 24/7</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decorative Elements -->
+        <div
+          class="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl opacity-20 blur-xl"
+        >
+        </div>
+        <div
+          class="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl opacity-20 blur-xl"
+        >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll Indicator -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+    <div class="w-6 h-10 border-2 border-dark-600 rounded-full flex justify-center pt-2">
+      <div class="w-1.5 h-1.5 bg-primary-500 rounded-full animate-pulse"></div>
+    </div>
+  </div>
+</section>

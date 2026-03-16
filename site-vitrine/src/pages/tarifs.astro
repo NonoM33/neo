@@ -1,0 +1,244 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CTA from '../components/sections/CTA.astro';
+import { Check, ArrowRight, HelpCircle } from '@lucide/astro';
+
+const installationPlans = [
+  {
+    name: 'Starter',
+    price: '500 - 1 500€',
+    description: 'Idéal pour découvrir la domotique',
+    features: [
+      '5 à 15 appareils',
+      '2 à 3 pièces',
+      'Éclairage connecté',
+      '1 à 2 scénarios',
+      'Application mobile',
+      'Formation de base',
+    ],
+    popular: false,
+  },
+  {
+    name: 'Confort',
+    price: '2 000 - 5 000€',
+    description: 'Solution complète pour votre logement',
+    features: [
+      '15 à 40 appareils',
+      'Logement complet',
+      'Multi-services',
+      'Scénarios avancés',
+      'Contrôle vocal',
+      'Formation complète',
+      'Support prioritaire 3 mois',
+    ],
+    popular: true,
+  },
+  {
+    name: 'Premium',
+    price: '5 000€+',
+    description: 'Sur-mesure pour grandes surfaces',
+    features: [
+      '40+ appareils',
+      'Maison complète',
+      'Tous services inclus',
+      'Intégrations spéciales',
+      'Développements sur-mesure',
+      'Formation approfondie',
+      'Support prioritaire 6 mois',
+    ],
+    popular: false,
+  },
+];
+
+const maintenancePlans = [
+  {
+    name: 'Essentiel',
+    price: '9,90€',
+    period: '/mois',
+    features: [
+      'Cloud sécurisé',
+      'Application mobile',
+      'Mises à jour automatiques',
+      'Support email',
+    ],
+  },
+  {
+    name: 'Confort',
+    price: '19,90€',
+    period: '/mois',
+    features: [
+      'Tout Essentiel +',
+      'Support prioritaire',
+      'Assistance téléphonique',
+      'Diagnostics à distance',
+    ],
+    popular: true,
+  },
+  {
+    name: 'Premium',
+    price: '34,90€',
+    period: '/mois',
+    features: [
+      'Tout Confort +',
+      'Support 24/7',
+      'Monitoring proactif',
+      'Intervention sur site/an',
+    ],
+  },
+];
+
+const faqs = [
+  {
+    question: "Qu'est-ce qui est inclus dans l'installation ?",
+    answer: "Le prix comprend le matériel, l'installation par nos techniciens, la configuration complète du système, la création des scénarios d'automatisation et une formation à l'utilisation. Tout est clé en main.",
+  },
+  {
+    question: "Y a-t-il des frais cachés ?",
+    answer: "Non, le devis que nous vous fournissons est définitif. Nous sommes transparents sur tous les coûts. Si des imprévus surviennent pendant l'installation, nous vous en informons avant toute dépense supplémentaire.",
+  },
+  {
+    question: "Puis-je payer en plusieurs fois ?",
+    answer: "Oui, nous proposons un paiement en 3 ou 4 fois sans frais pour les projets supérieurs à 1 000€. Pour les projets plus importants, nous pouvons étudier des solutions de financement adaptées.",
+  },
+  {
+    question: "L'abonnement maintenance est-il obligatoire ?",
+    answer: "Non, l'abonnement n'est pas obligatoire. Votre système fonctionnera sans. Cependant, l'abonnement vous garantit des mises à jour régulières, un support réactif et la tranquillité d'esprit.",
+  },
+];
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "PriceSpecification",
+  "priceCurrency": "EUR",
+  "price": "500-15000",
+  "description": "Installation domotique à Paris"
+};
+---
+
+<BaseLayout
+  title="Tarifs domotique - Devis gratuit"
+  description="Nos tarifs transparents pour votre projet domotique. À partir de 500€. Abonnement maintenance dès 9,90€/mois. Devis gratuit."
+  canonical="/tarifs"
+  schema={schema}
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-16 bg-dark-950 gradient-mesh">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto">
+        <span class="inline-block px-4 py-1.5 bg-accent-500/10 text-accent-400 text-sm font-medium rounded-full mb-6">
+          Tarifs transparents
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6">
+          Des <span class="gradient-text">prix clairs</span> pour votre projet
+        </h1>
+        <p class="text-lg text-dark-300">
+          Chaque projet est unique. Ces fourchettes vous donnent une idée du budget à prévoir. Le devis personnalisé est gratuit et sans engagement.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation Plans -->
+  <section class="section-padding bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-dark-900 mb-4">Forfaits installation</h2>
+        <p class="text-dark-600">Tout inclus : matériel, installation, configuration et formation</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        {installationPlans.map((plan, index) => (
+          <div class={`relative card animate-on-scroll animation-delay-${index}00 ${plan.popular ? 'ring-2 ring-primary-500' : ''}`}>
+            {plan.popular && (
+              <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+                <span class="px-4 py-1.5 bg-primary-500 text-white text-sm font-medium rounded-full">
+                  Le plus populaire
+                </span>
+              </div>
+            )}
+
+            <div class="text-center mb-6">
+              <h3 class="text-xl font-bold text-dark-900 mb-2">{plan.name}</h3>
+              <p class="text-dark-500 text-sm mb-4">{plan.description}</p>
+              <div class="text-3xl font-bold text-dark-900">{plan.price}</div>
+            </div>
+
+            <ul class="space-y-3 mb-8">
+              {plan.features.map((feature) => (
+                <li class="flex items-start gap-3">
+                  <Check class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5" />
+                  <span class="text-dark-600 text-sm">{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            <a href="/contact" class={`block w-full text-center py-3 rounded-xl font-semibold transition-colors ${plan.popular ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-dark-100 text-dark-700 hover:bg-dark-200'}`}>
+              Demander un devis
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Maintenance Plans -->
+  <section class="section-padding bg-dark-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-dark-900 mb-4">Abonnements maintenance</h2>
+        <p class="text-dark-600">Gardez votre système à jour et bénéficiez d'un support réactif</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        {maintenancePlans.map((plan, index) => (
+          <div class={`card text-center animate-on-scroll animation-delay-${index}00 ${plan.popular ? 'ring-2 ring-primary-500' : ''}`}>
+            <h3 class="text-lg font-bold text-dark-900 mb-2">{plan.name}</h3>
+            <div class="mb-6">
+              <span class="text-3xl font-bold text-dark-900">{plan.price}</span>
+              <span class="text-dark-500">{plan.period}</span>
+            </div>
+
+            <ul class="space-y-3 text-left">
+              {plan.features.map((feature) => (
+                <li class="flex items-start gap-3">
+                  <Check class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5" />
+                  <span class="text-dark-600 text-sm">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section-padding bg-white">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-dark-900 mb-4">Questions fréquentes</h2>
+      </div>
+
+      <div class="space-y-6">
+        {faqs.map((faq, index) => (
+          <div class={`card animate-on-scroll animation-delay-${index % 3}00`}>
+            <h3 class="flex items-start gap-3 text-lg font-semibold text-dark-900 mb-3">
+              <HelpCircle class="w-6 h-6 text-primary-500 flex-shrink-0" />
+              {faq.question}
+            </h3>
+            <p class="text-dark-600 pl-9">{faq.answer}</p>
+          </div>
+        ))}
+      </div>
+
+      <div class="text-center mt-12">
+        <a href="/faq" class="btn-secondary">
+          Voir toutes les FAQ
+          <ArrowRight class="w-4 h-4" />
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <CTA />
+</BaseLayout>

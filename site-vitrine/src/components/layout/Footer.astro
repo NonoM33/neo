@@ -1,0 +1,171 @@
+---
+import { Home, Mail, Phone, MapPin, Linkedin, Instagram, Facebook } from '@lucide/astro';
+
+const services = [
+  { name: 'Éclairage connecté', href: '/services#eclairage' },
+  { name: 'Volets & ouvrants', href: '/services#volets' },
+  { name: 'Chauffage intelligent', href: '/services#chauffage' },
+  { name: 'Sécurité connectée', href: '/services#securite' },
+  { name: 'Multimédia', href: '/services#multimedia' },
+];
+
+const company = [
+  { name: 'À propos', href: '/a-propos' },
+  { name: 'Réalisations', href: '/realisations' },
+  { name: 'FAQ', href: '/faq' },
+  { name: 'Contact', href: '/contact' },
+];
+
+const legal = [
+  { name: 'Mentions légales', href: '/mentions-legales' },
+  { name: 'Politique de confidentialité', href: '/mentions-legales#confidentialite' },
+  { name: 'CGV', href: '/mentions-legales#cgv' },
+];
+---
+
+<footer class="bg-dark-950 text-dark-300">
+  <!-- Main Footer -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+      <!-- Brand -->
+      <div class="lg:col-span-1">
+        <a href="/" class="flex items-center gap-2 group mb-6">
+          <div
+            class="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl flex items-center justify-center"
+          >
+            <Home class="w-5 h-5 text-white" />
+          </div>
+          <span class="text-xl font-bold text-white">Neo Domotique</span>
+        </a>
+        <p class="text-dark-400 mb-6 leading-relaxed">
+          Transformez votre maison en habitat intelligent. Installation
+          professionnelle et maintenance incluse.
+        </p>
+        <div class="flex gap-4">
+          <a
+            href="https://linkedin.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-10 h-10 flex items-center justify-center rounded-lg bg-dark-800 hover:bg-primary-500 text-dark-400 hover:text-white transition-all duration-300"
+            aria-label="LinkedIn"
+          >
+            <Linkedin class="w-5 h-5" />
+          </a>
+          <a
+            href="https://instagram.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-10 h-10 flex items-center justify-center rounded-lg bg-dark-800 hover:bg-primary-500 text-dark-400 hover:text-white transition-all duration-300"
+            aria-label="Instagram"
+          >
+            <Instagram class="w-5 h-5" />
+          </a>
+          <a
+            href="https://facebook.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-10 h-10 flex items-center justify-center rounded-lg bg-dark-800 hover:bg-primary-500 text-dark-400 hover:text-white transition-all duration-300"
+            aria-label="Facebook"
+          >
+            <Facebook class="w-5 h-5" />
+          </a>
+        </div>
+      </div>
+
+      <!-- Services -->
+      <div>
+        <h3 class="text-white font-semibold mb-6">Services</h3>
+        <ul class="space-y-3">
+          {
+            services.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class="text-dark-400 hover:text-white transition-colors"
+                >
+                  {item.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- Company -->
+      <div>
+        <h3 class="text-white font-semibold mb-6">Entreprise</h3>
+        <ul class="space-y-3">
+          {
+            company.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class="text-dark-400 hover:text-white transition-colors"
+                >
+                  {item.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- Contact -->
+      <div>
+        <h3 class="text-white font-semibold mb-6">Contact</h3>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <MapPin class="w-5 h-5 text-primary-500 flex-shrink-0 mt-0.5" />
+            <span class="text-dark-400">Paris et Île-de-France</span>
+          </li>
+          <li>
+            <a
+              href="mailto:contact@neo-domotique.fr"
+              class="flex items-center gap-3 text-dark-400 hover:text-white transition-colors"
+            >
+              <Mail class="w-5 h-5 text-primary-500 flex-shrink-0" />
+              contact@neo-domotique.fr
+            </a>
+          </li>
+          <li>
+            <a
+              href="tel:+33123456789"
+              class="flex items-center gap-3 text-dark-400 hover:text-white transition-colors"
+            >
+              <Phone class="w-5 h-5 text-primary-500 flex-shrink-0" />
+              01 23 45 67 89
+            </a>
+          </li>
+        </ul>
+        <p class="mt-6 text-sm text-dark-500">
+          Du lundi au vendredi<br />9h00 - 18h00
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="border-t border-dark-800">
+    <div
+      class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4"
+    >
+      <p class="text-sm text-dark-500">
+        © {new Date().getFullYear()} Neo Domotique. Tous droits réservés.
+      </p>
+      <ul class="flex flex-wrap items-center justify-center gap-6 text-sm">
+        {
+          legal.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="text-dark-500 hover:text-white transition-colors"
+              >
+                {item.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</footer>

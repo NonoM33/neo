@@ -1,0 +1,76 @@
+---
+import { ClipboardList, FileText, Wrench, ArrowRight } from '@lucide/astro';
+
+const steps = [
+  {
+    number: '01',
+    icon: 'ClipboardList',
+    title: 'Audit gratuit',
+    description: 'Nous analysons vos besoins et votre installation existante lors d\'un rendez-vous à votre domicile.',
+    duration: '1 heure',
+  },
+  {
+    number: '02',
+    icon: 'FileText',
+    title: 'Devis détaillé',
+    description: 'Vous recevez une proposition claire sous 48h avec les équipements, scénarios et tarifs.',
+    duration: 'Sous 48h',
+  },
+  {
+    number: '03',
+    icon: 'Wrench',
+    title: 'Installation & formation',
+    description: 'Nos techniciens installent, configurent et vous forment à l\'utilisation de votre système.',
+    duration: '1-2 jours',
+  },
+];
+---
+
+<section class="section-padding bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16 animate-on-scroll">
+      <span class="inline-block px-4 py-1.5 bg-accent-500/10 text-accent-600 text-sm font-medium rounded-full mb-4">
+        Processus simple
+      </span>
+      <h2 class="text-3xl sm:text-4xl font-bold text-dark-900 mb-4">
+        Comment ça marche ?
+      </h2>
+      <p class="text-lg text-dark-600 max-w-2xl mx-auto">
+        En 3 étapes simples, passez d'une maison classique à un habitat intelligent.
+      </p>
+    </div>
+
+    <div class="relative">
+      <!-- Connection Line -->
+      <div class="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 via-accent-500 to-primary-500 -translate-y-1/2" style="top: 80px;"></div>
+
+      <div class="grid lg:grid-cols-3 gap-8">
+        {steps.map((step, index) => (
+          <div class={`relative animate-on-scroll animation-delay-${index}00`}>
+            <div class="card text-center relative z-10">
+              <!-- Step Number -->
+              <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-primary-500 to-accent-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/25">
+                <span class="text-2xl font-bold text-white">{step.number}</span>
+              </div>
+
+              <h3 class="text-xl font-semibold text-dark-900 mb-3">{step.title}</h3>
+              <p class="text-dark-600 mb-4">{step.description}</p>
+
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-dark-100 rounded-full text-sm text-dark-600">
+                <span class="w-2 h-2 bg-accent-500 rounded-full"></span>
+                {step.duration}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div class="text-center mt-12 animate-on-scroll">
+      <a href="/comment-ca-marche" class="btn-secondary group">
+        En savoir plus sur notre processus
+        <ArrowRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+      </a>
+    </div>
+  </div>
+</section>

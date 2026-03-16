@@ -1,0 +1,82 @@
+---
+import { X, Check, ArrowRight } from '@lucide/astro';
+
+const problems = [
+  "Trop de systèmes incompatibles entre eux",
+  "Installation complexe et chronophage",
+  "Manque de temps pour tout configurer",
+  "Pas de support en cas de problème"
+];
+
+const solutions = [
+  "Un seul système unifié et cohérent",
+  "Installation professionnelle clé en main",
+  "Configuration optimisée par nos experts",
+  "Support réactif et maintenance incluse"
+];
+---
+
+<section class="section-padding bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16 animate-on-scroll">
+      <h2 class="text-3xl sm:text-4xl font-bold text-dark-900 mb-4">
+        Vous rêvez de domotique mais...
+      </h2>
+      <p class="text-lg text-dark-600 max-w-2xl mx-auto">
+        La complexité vous freine ? Nous avons la solution.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-8 lg:gap-16">
+      <!-- Problems -->
+      <div class="animate-on-scroll">
+        <div class="bg-dark-50 rounded-2xl p-8 border border-dark-100">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+              <X class="w-6 h-6 text-red-500" />
+            </div>
+            <h3 class="text-xl font-semibold text-dark-900">Sans Neo Domotique</h3>
+          </div>
+          <ul class="space-y-4">
+            {problems.map((problem) => (
+              <li class="flex items-start gap-3">
+                <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <X class="w-4 h-4 text-red-500" />
+                </div>
+                <span class="text-dark-600">{problem}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Solutions -->
+      <div class="animate-on-scroll animation-delay-200">
+        <div class="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-8 text-white shadow-xl shadow-primary-500/25">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Check class="w-6 h-6 text-white" />
+            </div>
+            <h3 class="text-xl font-semibold">Avec Neo Domotique</h3>
+          </div>
+          <ul class="space-y-4">
+            {solutions.map((solution) => (
+              <li class="flex items-start gap-3">
+                <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check class="w-4 h-4 text-white" />
+                </div>
+                <span class="text-white/90">{solution}</span>
+              </li>
+            ))}
+          </ul>
+          <div class="mt-8">
+            <a href="/contact" class="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-colors">
+              Nous nous occupons de tout
+              <ArrowRight class="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

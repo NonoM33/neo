@@ -1,0 +1,201 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CTA from '../components/sections/CTA.astro';
+import { ChevronDown } from '@lucide/astro';
+
+const faqCategories = [
+  {
+    title: 'Général',
+    questions: [
+      {
+        question: "C'est quoi la domotique ?",
+        answer: "La domotique, c'est l'ensemble des technologies qui permettent de rendre votre maison \"intelligente\". Concrètement, cela signifie automatiser et contrôler à distance vos éclairages, chauffage, volets, sécurité et autres équipements depuis votre smartphone ou par la voix. L'objectif est de gagner en confort, sécurité et économies d'énergie."
+      },
+      {
+        question: "Pourquoi passer par un professionnel ?",
+        answer: "Bien que certains équipements soient présentés comme faciles à installer, la domotique implique souvent des compétences en électricité, en réseau et en configuration. Un professionnel vous garantit une installation sûre, optimisée et pérenne. De plus, nous assurons le support et la maintenance de votre système sur le long terme."
+      },
+      {
+        question: "Est-ce compatible avec mon logement ?",
+        answer: "Oui, dans la grande majorité des cas. Que vous habitiez un appartement ancien ou une maison récente, nous trouvons des solutions adaptées. Lors de l'audit gratuit, nous évaluons les contraintes techniques de votre logement et vous proposons les meilleures options."
+      },
+      {
+        question: "Faut-il un logement récent ?",
+        answer: "Non, la domotique s'adapte à tous les logements. Les équipements sans fil (Zigbee, WiFi) permettent d'équiper des logements anciens sans gros travaux. Pour les constructions neuves ou rénovations, nous pouvons intégrer des solutions filaires plus avancées."
+      },
+    ]
+  },
+  {
+    title: 'Technique',
+    questions: [
+      {
+        question: "Qu'est-ce que Home Assistant ?",
+        answer: "Home Assistant est une plateforme domotique open source qui sert de cerveau central à votre maison connectée. Elle est compatible avec plus de 2000 marques d'appareils et permet de créer des automatisations puissantes. Contrairement aux solutions propriétaires, Home Assistant fonctionne en local et ne dépend pas du cloud, garantissant votre vie privée."
+      },
+      {
+        question: "Zigbee, WiFi, c'est quoi la différence ?",
+        answer: "Ce sont des protocoles de communication sans fil. Le WiFi utilise votre réseau internet existant mais consomme plus d'énergie. Le Zigbee est un protocole basse consommation spécialement conçu pour la domotique, créant un réseau maillé robuste. Nous recommandons généralement le Zigbee pour sa fiabilité et son efficacité énergétique."
+      },
+      {
+        question: "Ça fonctionne sans internet ?",
+        answer: "Oui ! Avec Home Assistant, l'essentiel de votre système fonctionne en local, sans dépendre d'internet. Les automatisations, le contrôle vocal local et les commandes manuelles restent opérationnels même en cas de panne internet. Seul l'accès à distance nécessite une connexion."
+      },
+      {
+        question: "Est-ce sécurisé ?",
+        answer: "Absolument. Nous configurons votre système avec les meilleures pratiques de sécurité : réseau séparé pour les objets connectés, chiffrement des communications, mises à jour régulières. Home Assistant fonctionnant en local, vos données restent chez vous et ne transitent pas par des serveurs externes."
+      },
+    ]
+  },
+  {
+    title: 'Installation',
+    questions: [
+      {
+        question: "Combien de temps dure l'installation ?",
+        answer: "Cela dépend de la complexité du projet. Pour un éclairage simple (5-10 ampoules), comptez une demi-journée. Pour un projet complet avec plusieurs services, prévoyez 1 à 3 jours. Nous vous donnons une estimation précise lors du devis."
+      },
+      {
+        question: "Faut-il refaire l'électricité ?",
+        answer: "Non, dans la plupart des cas. Les équipements sans fil modernes s'installent sans modification de votre installation électrique. Seuls certains modules (comme les interrupteurs connectés) nécessitent une intervention sur le tableau électrique, réalisée par nos électriciens certifiés."
+      },
+      {
+        question: "C'est compatible avec mon installation actuelle ?",
+        answer: "Très probablement oui. Nous travaillons avec une large gamme de marques et protocoles. Lors de l'audit, nous faisons l'inventaire de vos équipements existants et vérifions leur compatibilité. Dans de rares cas, certains appareils très anciens peuvent nécessiter un remplacement."
+      },
+      {
+        question: "Puis-je garder mes interrupteurs actuels ?",
+        answer: "Oui, c'est possible. Des modules discrets peuvent être installés derrière vos interrupteurs existants pour les rendre connectés tout en conservant leur fonctionnement manuel habituel. C'est important car la maison doit rester utilisable par tous, même sans smartphone."
+      },
+    ]
+  },
+  {
+    title: 'Prix & Abonnement',
+    questions: [
+      {
+        question: "Pourquoi un abonnement mensuel ?",
+        answer: "L'abonnement finance le cloud sécurisé (pour l'accès à distance), les mises à jour régulières du système, et notre support technique. Il garantit que votre installation reste performante et sécurisée dans le temps. L'abonnement n'est pas obligatoire, mais fortement recommandé."
+      },
+      {
+        question: "Que se passe-t-il si je résilie ?",
+        answer: "Votre système continue de fonctionner en local : toutes les automatisations, le contrôle via l'application sur votre réseau local restent opérationnels. Vous perdez uniquement l'accès à distance et le support prioritaire. Vous restez propriétaire de votre équipement."
+      },
+      {
+        question: "Y a-t-il une garantie ?",
+        answer: "Oui, tous les équipements sont garantis 2 ans minimum (garantie fabricant). Notre travail d'installation est garanti 1 an. Avec un abonnement maintenance, vous bénéficiez d'interventions incluses en cas de problème."
+      },
+      {
+        question: "Peut-on payer en plusieurs fois ?",
+        answer: "Oui, nous proposons le paiement en 3 ou 4 fois sans frais pour les projets supérieurs à 1 000€. Pour les projets plus importants, des solutions de financement peuvent être étudiées."
+      },
+    ]
+  },
+  {
+    title: 'Support & Évolution',
+    questions: [
+      {
+        question: "Comment contacter le support ?",
+        answer: "Selon votre abonnement : par email (tous), par téléphone (Confort et Premium), ou 24/7 (Premium). Notre équipe est basée en France et connaît votre installation. Nous pouvons également intervenir à distance pour diagnostiquer et résoudre la plupart des problèmes."
+      },
+      {
+        question: "Les mises à jour sont-elles automatiques ?",
+        answer: "Avec un abonnement maintenance, oui. Nous gérons les mises à jour de Home Assistant et de vos appareils pour garantir sécurité et compatibilité. Sans abonnement, vous pouvez faire les mises à jour vous-même mais nous ne pouvons pas garantir le support en cas de problème."
+      },
+      {
+        question: "Puis-je ajouter des équipements plus tard ?",
+        answer: "Absolument ! C'est l'un des avantages de Home Assistant : le système est évolutif. Vous pouvez commencer petit et ajouter des fonctionnalités au fil du temps. Nous proposons des forfaits d'extension pour ajouter de nouveaux équipements à votre installation existante."
+      },
+      {
+        question: "Que faire si je déménage ?",
+        answer: "La plupart des équipements sans fil peuvent être démontés et réinstallés dans votre nouveau logement. Nous proposons un service de désinstallation/réinstallation. Le serveur Home Assistant vous suit également."
+      },
+    ]
+  },
+];
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqCategories.flatMap(cat =>
+    cat.questions.map(q => ({
+      "@type": "Question",
+      "name": q.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": q.answer
+      }
+    }))
+  )
+};
+---
+
+<BaseLayout
+  title="FAQ - Questions fréquentes sur la domotique"
+  description="Toutes les réponses à vos questions sur la domotique, Home Assistant, l'installation et nos services. Général, technique, tarifs, support."
+  canonical="/faq"
+  schema={schema}
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-16 bg-dark-950 gradient-mesh">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto">
+        <span class="inline-block px-4 py-1.5 bg-primary-500/10 text-primary-400 text-sm font-medium rounded-full mb-6">
+          FAQ
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6">
+          Questions <span class="gradient-text">fréquentes</span>
+        </h1>
+        <p class="text-lg text-dark-300">
+          Retrouvez les réponses aux questions les plus courantes sur la domotique et nos services.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Content -->
+  <section class="section-padding bg-white">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="space-y-12">
+        {faqCategories.map((category, catIndex) => (
+          <div class={`animate-on-scroll animation-delay-${catIndex % 3}00`}>
+            <h2 class="text-2xl font-bold text-dark-900 mb-6 pb-2 border-b border-dark-200">
+              {category.title}
+            </h2>
+            <div class="space-y-4">
+              {category.questions.map((faq, index) => (
+                <details class="group card cursor-pointer">
+                  <summary class="flex items-center justify-between font-semibold text-dark-900 list-none">
+                    <span class="pr-4">{faq.question}</span>
+                    <ChevronDown class="w-5 h-5 text-dark-400 group-open:rotate-180 transition-transform flex-shrink-0" />
+                  </summary>
+                  <p class="mt-4 text-dark-600 leading-relaxed">
+                    {faq.answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- CTA -->
+      <div class="text-center mt-16 p-8 bg-dark-50 rounded-2xl animate-on-scroll">
+        <h3 class="text-xl font-bold text-dark-900 mb-3">
+          Vous n'avez pas trouvé votre réponse ?
+        </h3>
+        <p class="text-dark-600 mb-6">
+          Contactez-nous directement, nous serons ravis de vous aider.
+        </p>
+        <a href="/contact" class="btn-primary">
+          Nous contacter
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <CTA />
+</BaseLayout>
+
+<style>
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+</style>

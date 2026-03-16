@@ -1,0 +1,221 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CTA from '../components/sections/CTA.astro';
+import { Lightbulb, Blinds, Thermometer, Shield, Tv, Cpu, ArrowRight, Check } from '@lucide/astro';
+
+const services = [
+  {
+    id: 'eclairage',
+    icon: 'Lightbulb',
+    title: 'Éclairage connecté',
+    description: 'Transformez l\'ambiance de votre intérieur avec un éclairage intelligent et personnalisable.',
+    benefits: [
+      'Automatisation selon l\'heure et la luminosité',
+      'Création de scènes et ambiances',
+      'Contrôle vocal et via smartphone',
+      'Détection de présence',
+      'Économies d\'énergie jusqu\'à 30%',
+    ],
+    products: ['Philips Hue', 'IKEA Tradfri', 'Shelly', 'Zigbee'],
+    price: 'À partir de 300€',
+    color: 'primary',
+  },
+  {
+    id: 'volets',
+    icon: 'Blinds',
+    title: 'Volets & ouvrants',
+    description: 'Motorisation et automatisation de vos volets, stores et portails pour plus de confort et sécurité.',
+    benefits: [
+      'Ouverture/fermeture programmée',
+      'Simulation de présence',
+      'Intégration météo',
+      'Contrôle centralisé',
+      'Protection solaire automatique',
+    ],
+    products: ['Somfy', 'Shelly', 'Tuya', 'Zigbee'],
+    price: 'À partir de 150€/volet',
+    color: 'accent',
+  },
+  {
+    id: 'chauffage',
+    icon: 'Thermometer',
+    title: 'Chauffage & climatisation',
+    description: 'Optimisez votre confort thermique tout en réduisant votre consommation énergétique.',
+    benefits: [
+      'Température pièce par pièce',
+      'Programmation intelligente',
+      'Géolocalisation (chauffe avant votre arrivée)',
+      'Analyse de consommation',
+      'Économies jusqu\'à 25%',
+    ],
+    products: ['Tado', 'Netatmo', 'Shelly TRV', 'Zigbee TRV'],
+    price: 'À partir de 400€',
+    color: 'orange',
+  },
+  {
+    id: 'securite',
+    icon: 'Shield',
+    title: 'Sécurité & alarme',
+    description: 'Protégez votre domicile avec un système de sécurité intelligent et connecté.',
+    benefits: [
+      'Alarme avec détecteurs de mouvement',
+      'Caméras de surveillance HD',
+      'Détection d\'intrusion et d\'ouverture',
+      'Alertes en temps réel',
+      'Historique et enregistrements',
+    ],
+    products: ['Reolink', 'Aqara', 'Shelly', 'Zigbee'],
+    price: 'À partir de 500€',
+    color: 'red',
+  },
+  {
+    id: 'multimedia',
+    icon: 'Tv',
+    title: 'Multimédia',
+    description: 'Centralisez et simplifiez le contrôle de tous vos appareils audio-vidéo.',
+    benefits: [
+      'Contrôle TV, audio, streaming',
+      'Système multiroom audio',
+      'Télécommande universelle',
+      'Automatisations média',
+      'Intégration assistants vocaux',
+    ],
+    products: ['Sonos', 'Google Home', 'Alexa', 'Chromecast'],
+    price: 'À partir de 250€',
+    color: 'violet',
+  },
+  {
+    id: 'surmesure',
+    icon: 'Cpu',
+    title: 'Sur-mesure & ESP32',
+    description: 'Solutions personnalisées pour des besoins spécifiques avec développements sur-mesure.',
+    benefits: [
+      'Développements ESP32/ESPHome',
+      'Intégrations spéciales',
+      'Capteurs personnalisés',
+      'Automatisations complexes',
+      'API et connexions tierces',
+    ],
+    products: ['ESP32', 'ESPHome', 'MQTT', 'Home Assistant'],
+    price: 'Sur devis',
+    color: 'cyan',
+  },
+];
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "Installation domotique",
+  "provider": {
+    "@type": "LocalBusiness",
+    "name": "Neo Domotique"
+  },
+  "areaServed": "Paris et Île-de-France",
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Services domotiques",
+    "itemListElement": services.map(s => ({
+      "@type": "Service",
+      "name": s.title,
+      "description": s.description
+    }))
+  }
+};
+---
+
+<BaseLayout
+  title="Nos services domotique - Éclairage, sécurité, confort"
+  description="Découvrez nos solutions domotiques : éclairage connecté, volets, chauffage intelligent, sécurité. Sur-mesure pour votre logement."
+  canonical="/services"
+  schema={schema}
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-16 bg-dark-950 gradient-mesh">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto">
+        <span class="inline-block px-4 py-1.5 bg-primary-500/10 text-primary-400 text-sm font-medium rounded-full mb-6">
+          Nos services
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6">
+          Des solutions <span class="gradient-text">sur-mesure</span> pour votre habitat
+        </h1>
+        <p class="text-lg text-dark-300">
+          De l'éclairage à la sécurité, nous transformons votre logement en maison intelligente avec des équipements fiables et une installation professionnelle.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services Grid -->
+  <section class="section-padding bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="space-y-24">
+        {services.map((service, index) => (
+          <div id={service.id} class={`grid lg:grid-cols-2 gap-12 items-center animate-on-scroll ${index % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
+            <div class={index % 2 === 1 ? 'lg:order-2' : ''}>
+              <!-- Icon -->
+              <div class={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${
+                service.color === 'primary' ? 'bg-primary-500/10 text-primary-500' :
+                service.color === 'accent' ? 'bg-accent-500/10 text-accent-500' :
+                service.color === 'orange' ? 'bg-orange-500/10 text-orange-500' :
+                service.color === 'red' ? 'bg-red-500/10 text-red-500' :
+                service.color === 'violet' ? 'bg-violet-500/10 text-violet-500' :
+                'bg-cyan-500/10 text-cyan-500'
+              }`}>
+                {service.icon === 'Lightbulb' && <Lightbulb class="w-8 h-8" />}
+                {service.icon === 'Blinds' && <Blinds class="w-8 h-8" />}
+                {service.icon === 'Thermometer' && <Thermometer class="w-8 h-8" />}
+                {service.icon === 'Shield' && <Shield class="w-8 h-8" />}
+                {service.icon === 'Tv' && <Tv class="w-8 h-8" />}
+                {service.icon === 'Cpu' && <Cpu class="w-8 h-8" />}
+              </div>
+
+              <h2 class="text-3xl font-bold text-dark-900 mb-4">{service.title}</h2>
+              <p class="text-lg text-dark-600 mb-6">{service.description}</p>
+
+              <!-- Benefits -->
+              <ul class="space-y-3 mb-8">
+                {service.benefits.map((benefit) => (
+                  <li class="flex items-start gap-3">
+                    <Check class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5" />
+                    <span class="text-dark-600">{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <!-- Price & CTA -->
+              <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <span class="text-2xl font-bold text-dark-900">{service.price}</span>
+                <a href="/contact" class="btn-primary">
+                  Demander un devis
+                  <ArrowRight class="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+            <div class={index % 2 === 1 ? 'lg:order-1' : ''}>
+              <div class={`aspect-[4/3] rounded-2xl p-8 flex items-center justify-center ${
+                service.color === 'primary' ? 'bg-gradient-to-br from-primary-500/10 to-primary-500/5' :
+                service.color === 'accent' ? 'bg-gradient-to-br from-accent-500/10 to-accent-500/5' :
+                service.color === 'orange' ? 'bg-gradient-to-br from-orange-500/10 to-orange-500/5' :
+                service.color === 'red' ? 'bg-gradient-to-br from-red-500/10 to-red-500/5' :
+                service.color === 'violet' ? 'bg-gradient-to-br from-violet-500/10 to-violet-500/5' :
+                'bg-gradient-to-br from-cyan-500/10 to-cyan-500/5'
+              }`}>
+                <div class="grid grid-cols-2 gap-4">
+                  {service.products.map((product) => (
+                    <div class="px-4 py-3 bg-white rounded-xl shadow-sm text-center">
+                      <span class="text-dark-600 font-medium text-sm">{product}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <CTA />
+</BaseLayout>

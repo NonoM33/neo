@@ -1,0 +1,144 @@
+---
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  ogImage?: string;
+  canonical?: string;
+  schema?: object;
+}
+
+const {
+  title,
+  description,
+  ogImage = '/og-image.jpg',
+  canonical,
+  schema,
+} = Astro.props;
+
+const siteUrl = 'https://neo-domotique.fr';
+const fullTitle = `${title} | Neo Domotique`;
+const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="author" content="Neo Domotique" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href={canonicalUrl} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={`${siteUrl}${ogImage}`} />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="Neo Domotique" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={`${siteUrl}${ogImage}`} />
+
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>{fullTitle}</title>
+
+    <!-- Schema.org -->
+    {
+      schema && (
+        <script
+          type="application/ld+json"
+          set:html={JSON.stringify(schema)}
+        />
+      )
+    }
+
+    <!-- Default LocalBusiness Schema -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "Neo Domotique",
+        "description": "Installation et maintenance de solutions domotiques pour particuliers. Maison connectée, éclairage intelligent, sécurité, chauffage.",
+        "url": "https://neo-domotique.fr",
+        "telephone": "+33 1 23 45 67 89",
+        "email": "contact@neo-domotique.fr",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Paris",
+          "addressRegion": "Île-de-France",
+          "addressCountry": "FR"
+        },
+        "areaServed": {
+          "@type": "GeoCircle",
+          "geoMidpoint": {
+            "@type": "GeoCoordinates",
+            "latitude": 48.8566,
+            "longitude": 2.3522
+          },
+          "geoRadius": "50000"
+        },
+        "priceRange": "€€",
+        "openingHours": "Mo-Fr 09:00-18:00",
+        "sameAs": [
+          "https://www.linkedin.com/company/neo-domotique",
+          "https://www.instagram.com/neodomotique",
+          "https://www.facebook.com/neodomotique"
+        ]
+      }
+    </script>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <Header />
+    <main class="flex-grow">
+      <slot />
+    </main>
+    <Footer />
+
+    <!-- Intersection Observer for scroll animations -->
+    <script>
+      const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1,
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, observerOptions);
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.animate-on-scroll').forEach((el) => {
+          observer.observe(el);
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,249 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Mail, Phone, MapPin, Clock, CheckCircle, Send } from '@lucide/astro';
+
+const housingTypes = [
+  { value: 'appartement', label: 'Appartement' },
+  { value: 'maison', label: 'Maison' },
+  { value: 'autre', label: 'Autre' },
+];
+
+const needs = [
+  { value: 'eclairage', label: 'Éclairage' },
+  { value: 'volets', label: 'Volets' },
+  { value: 'chauffage', label: 'Chauffage' },
+  { value: 'securite', label: 'Sécurité' },
+  { value: 'multimedia', label: 'Multimédia' },
+  { value: 'autre', label: 'Autre' },
+];
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": "Contact - Neo Domotique",
+  "description": "Prenez rendez-vous pour un audit gratuit de votre logement."
+};
+---
+
+<BaseLayout
+  title="Contact & RDV - Audit gratuit"
+  description="Prenez rendez-vous pour un audit gratuit de votre logement. Réponse sous 24h. Intervention Paris et Île-de-France."
+  canonical="/contact"
+  schema={schema}
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-16 bg-dark-950 gradient-mesh">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto">
+        <span class="inline-block px-4 py-1.5 bg-primary-500/10 text-primary-400 text-sm font-medium rounded-full mb-6">
+          Contact
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6">
+          Demandez votre <span class="gradient-text">audit gratuit</span>
+        </h1>
+        <p class="text-lg text-dark-300">
+          Remplissez le formulaire et nous vous recontactons sous 24h pour planifier votre audit à domicile.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section class="section-padding bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid lg:grid-cols-3 gap-12">
+        <!-- Contact Info -->
+        <div class="lg:col-span-1 space-y-8">
+          <div class="card">
+            <h2 class="text-xl font-bold text-dark-900 mb-6">Coordonnées</h2>
+            <ul class="space-y-6">
+              <li>
+                <a href="mailto:contact@neo-domotique.fr" class="flex items-start gap-4 group">
+                  <div class="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
+                    <Mail class="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p class="text-sm text-dark-500 mb-1">Email</p>
+                    <p class="font-medium text-dark-900 group-hover:text-primary-500 transition-colors">contact@neo-domotique.fr</p>
+                  </div>
+                </a>
+              </li>
+              <li>
+                <a href="tel:+33123456789" class="flex items-start gap-4 group">
+                  <div class="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
+                    <Phone class="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p class="text-sm text-dark-500 mb-1">Téléphone</p>
+                    <p class="font-medium text-dark-900 group-hover:text-primary-500 transition-colors">01 23 45 67 89</p>
+                  </div>
+                </a>
+              </li>
+              <li class="flex items-start gap-4">
+                <div class="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500">
+                  <MapPin class="w-5 h-5" />
+                </div>
+                <div>
+                  <p class="text-sm text-dark-500 mb-1">Zone d'intervention</p>
+                  <p class="font-medium text-dark-900">Paris et Île-de-France</p>
+                </div>
+              </li>
+              <li class="flex items-start gap-4">
+                <div class="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500">
+                  <Clock class="w-5 h-5" />
+                </div>
+                <div>
+                  <p class="text-sm text-dark-500 mb-1">Horaires</p>
+                  <p class="font-medium text-dark-900">Lun - Ven : 9h - 18h</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card bg-dark-950 text-white">
+            <h3 class="font-semibold mb-4">Ce qu'inclut l'audit gratuit</h3>
+            <ul class="space-y-3">
+              {['Visite à domicile (1h)', 'Analyse de vos besoins', 'Étude technique', 'Conseils personnalisés', 'Devis détaillé sous 48h'].map((item) => (
+                <li class="flex items-center gap-2 text-dark-300">
+                  <CheckCircle class="w-4 h-4 text-accent-500" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <!-- Contact Form -->
+        <div class="lg:col-span-2">
+          <div class="card">
+            <h2 class="text-xl font-bold text-dark-900 mb-6">Formulaire de contact</h2>
+
+            <form id="contact-form" class="space-y-6">
+              <div class="grid sm:grid-cols-2 gap-6">
+                <div>
+                  <label for="lastName" class="block text-sm font-medium text-dark-700 mb-2">Nom *</label>
+                  <input type="text" id="lastName" name="lastName" required class="input-field" placeholder="Dupont">
+                </div>
+                <div>
+                  <label for="firstName" class="block text-sm font-medium text-dark-700 mb-2">Prénom *</label>
+                  <input type="text" id="firstName" name="firstName" required class="input-field" placeholder="Jean">
+                </div>
+              </div>
+
+              <div class="grid sm:grid-cols-2 gap-6">
+                <div>
+                  <label for="email" class="block text-sm font-medium text-dark-700 mb-2">Email *</label>
+                  <input type="email" id="email" name="email" required class="input-field" placeholder="jean.dupont@email.com">
+                </div>
+                <div>
+                  <label for="phone" class="block text-sm font-medium text-dark-700 mb-2">Téléphone *</label>
+                  <input type="tel" id="phone" name="phone" required class="input-field" placeholder="06 12 34 56 78">
+                </div>
+              </div>
+
+              <div class="grid sm:grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-dark-700 mb-2">Type de logement *</label>
+                  <div class="flex flex-wrap gap-3">
+                    {housingTypes.map((type) => (
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="housingType" value={type.value} class="w-4 h-4 text-primary-500 focus:ring-primary-500" required>
+                        <span class="text-dark-600">{type.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label for="postalCode" class="block text-sm font-medium text-dark-700 mb-2">Code postal *</label>
+                  <input type="text" id="postalCode" name="postalCode" required pattern="[0-9]{5}" class="input-field" placeholder="75016">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-dark-700 mb-2">Vos besoins (plusieurs choix possibles) *</label>
+                <div class="flex flex-wrap gap-4">
+                  {needs.map((need) => (
+                    <label class="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" name="needs" value={need.value} class="w-4 h-4 text-primary-500 rounded focus:ring-primary-500">
+                      <span class="text-dark-600">{need.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label for="message" class="block text-sm font-medium text-dark-700 mb-2">Message (optionnel)</label>
+                <textarea id="message" name="message" rows="4" class="input-field resize-none" placeholder="Décrivez votre projet ou posez vos questions..."></textarea>
+              </div>
+
+              <div>
+                <label class="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" name="consent" required class="w-4 h-4 mt-0.5 text-primary-500 rounded focus:ring-primary-500">
+                  <span class="text-sm text-dark-600">
+                    J'accepte d'être recontacté par Neo Domotique pour mon projet. Mes données sont traitées conformément à la <a href="/mentions-legales#confidentialite" class="text-primary-500 hover:underline">politique de confidentialité</a>.
+                  </span>
+                </label>
+              </div>
+
+              <button type="submit" class="btn-primary w-full sm:w-auto">
+                <Send class="w-5 h-5" />
+                Envoyer ma demande
+              </button>
+
+              <div id="form-success" class="hidden p-4 bg-accent-500/10 border border-accent-500/20 rounded-xl">
+                <div class="flex items-center gap-3 text-accent-600">
+                  <CheckCircle class="w-5 h-5" />
+                  <span class="font-medium">Merci ! Votre demande a été envoyée. Nous vous recontactons sous 24h.</span>
+                </div>
+              </div>
+
+              <div id="form-error" class="hidden p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                <p class="text-red-600">Une erreur est survenue. Veuillez réessayer ou nous contacter par téléphone.</p>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const form = document.getElementById('contact-form') as HTMLFormElement;
+  const successMessage = document.getElementById('form-success');
+  const errorMessage = document.getElementById('form-error');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const data: Record<string, string | string[]> = {};
+
+    formData.forEach((value, key) => {
+      if (key === 'needs') {
+        if (!data[key]) {
+          data[key] = [];
+        }
+        (data[key] as string[]).push(value as string);
+      } else {
+        data[key] = value as string;
+      }
+    });
+
+    // Log submission to console (in production, integrate with a form service)
+    console.log('='.repeat(50));
+    console.log('CONTACT FORM SUBMISSION');
+    console.log('='.repeat(50));
+    console.log('Date:', new Date().toISOString());
+    console.log('Data:', JSON.stringify(data, null, 2));
+    console.log('='.repeat(50));
+
+    // Show success message
+    form.reset();
+    successMessage?.classList.remove('hidden');
+    errorMessage?.classList.add('hidden');
+
+    // Scroll to success message
+    successMessage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+</script>
