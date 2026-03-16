@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_storage.dart';
 import '../../models/project_model.dart';
-import '../../models/room_model.dart';
 
 /// Local data source for projects
 abstract class ProjectLocalDataSource {

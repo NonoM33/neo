@@ -1,3 +1,4 @@
+import '../../core/errors/failures.dart';
 import '../entities/project.dart';
 import '../entities/room.dart';
 import '../repositories/auth_repository.dart';
@@ -42,13 +43,13 @@ class CreateProjectUseCase {
   Future<Result<Project>> call(Project project) async {
     // Validate project data
     if (project.client.firstName.isEmpty || project.client.lastName.isEmpty) {
-      return const Error(
-        _ValidationFailure(message: 'Les informations client sont requises'),
+      return Error(
+        ValidationFailure(message: 'Les informations client sont requises'),
       );
     }
     if (project.client.email.isEmpty) {
-      return const Error(
-        _ValidationFailure(message: 'L\'email du client est requis'),
+      return Error(
+        ValidationFailure(message: 'L\'email du client est requis'),
       );
     }
 
@@ -131,8 +132,4 @@ class AddPhotoUseCase {
   Future<Result<RoomPhoto>> call(String roomId, String localPath) async {
     return _repository.addPhoto(roomId, localPath);
   }
-}
-
-class _ValidationFailure extends Failure {
-  const _ValidationFailure({required super.message});
 }

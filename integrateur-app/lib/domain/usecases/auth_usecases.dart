@@ -1,3 +1,4 @@
+import '../../core/errors/failures.dart';
 import '../entities/user.dart';
 import '../repositories/auth_repository.dart';
 
@@ -13,11 +14,10 @@ class LoginUseCase {
   }) async {
     // Validate input
     if (email.isEmpty) {
-      return const Error(ValidationFailure(message: 'L\'email est requis'));
+      return Error(ValidationFailure(message: 'L\'email est requis'));
     }
     if (password.isEmpty) {
-      return const Error(
-          ValidationFailure(message: 'Le mot de passe est requis'));
+      return Error(ValidationFailure(message: 'Le mot de passe est requis'));
     }
 
     return _repository.login(email: email, password: password);
@@ -56,11 +56,3 @@ class CheckAuthStatusUseCase {
     return _repository.isAuthenticated();
   }
 }
-
-/// Validation failure for use case validation
-class ValidationFailure extends Failure {
-  const ValidationFailure({required super.message, super.code});
-}
-
-// Re-export Failure from core for convenience
-export '../../core/errors/failures.dart' show Failure;

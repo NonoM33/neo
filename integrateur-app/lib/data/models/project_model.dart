@@ -1,7 +1,5 @@
 import '../../domain/entities/project.dart';
 import '../../domain/entities/client.dart';
-import '../../domain/entities/room.dart';
-import '../../domain/entities/quote.dart';
 import 'room_model.dart';
 import 'quote_model.dart';
 

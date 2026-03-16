@@ -1,3 +1,4 @@
+import '../../core/errors/failures.dart';
 import '../entities/quote.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/quote_repository.dart';
@@ -55,18 +56,18 @@ class AddQuoteLineUseCase {
   Future<Result<Quote>> call(String quoteId, QuoteLine line) async {
     // Validate line data
     if (line.description.isEmpty) {
-      return const Error(
-        _ValidationFailure(message: 'La description est requise'),
+      return Error(
+        ValidationFailure(message: 'La description est requise'),
       );
     }
     if (line.quantity <= 0) {
-      return const Error(
-        _ValidationFailure(message: 'La quantité doit être supérieure à 0'),
+      return Error(
+        ValidationFailure(message: 'La quantité doit être supérieure à 0'),
       );
     }
     if (line.unitPriceHT < 0) {
-      return const Error(
-        _ValidationFailure(message: 'Le prix ne peut pas être négatif'),
+      return Error(
+        ValidationFailure(message: 'Le prix ne peut pas être négatif'),
       );
     }
 
@@ -104,8 +105,8 @@ class ApplyDiscountUseCase {
 
   Future<Result<Quote>> call(String quoteId, double discountHT) async {
     if (discountHT < 0) {
-      return const Error(
-        _ValidationFailure(message: 'La remise ne peut pas être négative'),
+      return Error(
+        ValidationFailure(message: 'La remise ne peut pas être négative'),
       );
     }
     return _repository.updateDiscount(quoteId, discountHT);
@@ -142,17 +143,10 @@ class SignQuoteUseCase {
 
   Future<Result<Quote>> call(String quoteId, String signatureBase64) async {
     if (signatureBase64.isEmpty) {
-      return const Error(
-        _ValidationFailure(message: 'La signature est requise'),
+      return Error(
+        ValidationFailure(message: 'La signature est requise'),
       );
     }
     return _repository.sign(quoteId, signatureBase64);
   }
 }
-
-class _ValidationFailure extends Failure {
-  const _ValidationFailure({required super.message});
-}
-
-// Re-export Failure
-export '../../core/errors/failures.dart' show Failure;

@@ -1,4 +1,5 @@
 import '../../../core/storage/secure_storage.dart';
+import '../../../domain/entities/user.dart';
 import '../../models/user_model.dart';
 
 /// Local data source for authentication

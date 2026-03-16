@@ -208,8 +208,6 @@ class QuotesBloc extends Bloc<QuotesEvent, QuotesState> {
   final GenerateQuotePdfUseCase _generatePdfUseCase;
   final SignQuoteUseCase _signQuoteUseCase;
 
-  String? _currentProjectId;
-
   QuotesBloc({
     required QuoteRepository quoteRepository,
     required GetQuotesForProjectUseCase getQuotesUseCase,
@@ -249,7 +247,6 @@ class QuotesBloc extends Bloc<QuotesEvent, QuotesState> {
     Emitter<QuotesState> emit,
   ) async {
     emit(const QuotesLoading());
-    _currentProjectId = event.projectId;
 
     final result = await _getQuotesUseCase(event.projectId);
 
@@ -292,7 +289,7 @@ class QuotesBloc extends Bloc<QuotesEvent, QuotesState> {
     final result = await _createQuoteUseCase(quote);
 
     switch (result) {
-      case Success(data: final newQuote):
+      case Success():
         add(QuotesLoadRequested(event.projectId));
       case Error(failure: final failure):
         emit(QuotesError(failure.message));

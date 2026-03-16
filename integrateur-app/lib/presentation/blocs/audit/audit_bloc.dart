@@ -12,8 +12,6 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
   final ProjectRepository _projectRepository;
   final Uuid _uuid;
 
-  String? _currentProjectId;
-
   AuditBloc({
     required ProjectRepository projectRepository,
     Uuid? uuid,
@@ -38,7 +36,6 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
     Emitter<AuditState> emit,
   ) async {
     emit(const AuditLoading());
-    _currentProjectId = event.projectId;
 
     final result = await _projectRepository.getProject(event.projectId);
 
