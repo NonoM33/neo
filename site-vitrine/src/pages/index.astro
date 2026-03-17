@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/sections/Hero.astro';
 import ProblemSolution from '../components/sections/ProblemSolution.astro';
 import ServicesPreview from '../components/sections/ServicesPreview.astro';
+import SecurityHighlight from '../components/sections/SecurityHighlight.astro';
 import HowItWorks from '../components/sections/HowItWorks.astro';
 import Testimonials from '../components/sections/Testimonials.astro';
 import Partners from '../components/sections/Partners.astro';
@@ -17,14 +18,15 @@ const schema = {
 ---
 
 <BaseLayout
-  title="Domotique Paris - Installation maison connectée"
-  description="Transformez votre logement en maison intelligente. Audit gratuit, installation clé en main, maintenance incluse. Paris et Île-de-France."
+  title="Domotique Paris - Sécurité & maison connectée"
+  description="Sécurisez votre maison avec la simulation de présence. Installation domotique clé en main : éclairage, volets, sécurité. Audit gratuit à Paris et Île-de-France."
   canonical="/"
   schema={schema}
 >
   <Hero />
   <ProblemSolution />
   <ServicesPreview />
+  <SecurityHighlight />
   <HowItWorks />
   <Testimonials />
   <Partners />

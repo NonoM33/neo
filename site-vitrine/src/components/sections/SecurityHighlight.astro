@@ -1,0 +1,174 @@
+---
+import { Shield, Eye, Lightbulb, Blinds, Tv, Clock, Smartphone, Plane, ArrowRight } from '@lucide/astro';
+
+const features = [
+  {
+    icon: 'Lightbulb',
+    title: 'Lumières aléatoires',
+    description: 'Vos éclairages s\'allument et s\'éteignent comme si vous étiez là, avec des horaires variables.',
+  },
+  {
+    icon: 'Blinds',
+    title: 'Volets automatisés',
+    description: 'Ouverture le matin, fermeture le soir. Exactement comme vos habitudes quotidiennes.',
+  },
+  {
+    icon: 'Tv',
+    title: 'Simulation multimédia',
+    description: 'La TV ou la radio s\'activent aux heures habituelles pour une présence sonore réaliste.',
+  },
+  {
+    icon: 'Eye',
+    title: 'Surveillance en direct',
+    description: 'Caméras HD, détecteurs de mouvement et alertes instantanées sur votre smartphone.',
+  },
+];
+---
+
+<section class="section-padding bg-dark-950 relative overflow-hidden">
+  <!-- Background Effects -->
+  <div class="absolute inset-0">
+    <div class="absolute top-0 right-0 w-96 h-96 bg-red-500/5 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-primary-500/5 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center mb-16 animate-on-scroll">
+      <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 text-red-400 text-sm font-medium rounded-full mb-4">
+        <Shield class="w-4 h-4" />
+        Sécurité & Tranquillité
+      </span>
+      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
+        Partez en vacances<br />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">votre maison reste vivante</span>
+      </h2>
+      <p class="text-lg text-dark-300 max-w-3xl mx-auto">
+        Grâce à la <strong class="text-white">simulation de présence</strong>, votre logement reproduit vos habitudes quotidiennes : lumières, volets, sons. Les cambrioleurs ne peuvent pas savoir que vous n'êtes pas là.
+      </p>
+    </div>
+
+    <!-- Main Content: 2 columns -->
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <!-- Left: Visual / Timeline -->
+      <div class="animate-on-scroll">
+        <div class="bg-dark-800/40 backdrop-blur-xl border border-dark-700/50 rounded-3xl p-8 shadow-2xl">
+          <div class="flex items-center gap-3 mb-8">
+            <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+              <Clock class="w-5 h-5 text-red-400" />
+            </div>
+            <div>
+              <p class="text-white font-semibold">Journée type simulée</p>
+              <p class="text-dark-400 text-sm">Pendant vos vacances</p>
+            </div>
+          </div>
+
+          <!-- Timeline -->
+          <div class="space-y-6">
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                  <span class="text-yellow-400 text-sm font-bold">7h</span>
+                </div>
+                <div class="w-0.5 h-8 bg-dark-700"></div>
+              </div>
+              <div>
+                <p class="text-white font-medium">Les volets s'ouvrent progressivement</p>
+                <p class="text-dark-400 text-sm">Chambre, puis salon, comme chaque matin</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                  <span class="text-orange-400 text-sm font-bold">8h</span>
+                </div>
+                <div class="w-0.5 h-8 bg-dark-700"></div>
+              </div>
+              <div>
+                <p class="text-white font-medium">La radio s'allume dans la cuisine</p>
+                <p class="text-dark-400 text-sm">Comme votre routine du petit-déjeuner</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <span class="text-blue-400 text-sm font-bold">19h</span>
+                </div>
+                <div class="w-0.5 h-8 bg-dark-700"></div>
+              </div>
+              <div>
+                <p class="text-white font-medium">Éclairage salon + TV allumée</p>
+                <p class="text-dark-400 text-sm">Variation aléatoire de +/- 20 min chaque jour</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 bg-violet-500/20 rounded-full flex items-center justify-center">
+                  <span class="text-violet-400 text-sm font-bold">23h</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-white font-medium">Tout s'éteint, volets se ferment</p>
+                <p class="text-dark-400 text-sm">Bonne nuit... même sans personne</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Feature Cards -->
+      <div class="space-y-4">
+        {features.map((feature, index) => (
+          <div class={`flex items-start gap-4 p-5 bg-dark-800/30 backdrop-blur-sm border border-dark-700/30 rounded-2xl hover:border-red-500/30 transition-colors animate-on-scroll animation-delay-${index}00`}>
+            <div class="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              {feature.icon === 'Lightbulb' && <Lightbulb class="w-6 h-6 text-red-400" />}
+              {feature.icon === 'Blinds' && <Blinds class="w-6 h-6 text-red-400" />}
+              {feature.icon === 'Tv' && <Tv class="w-6 h-6 text-red-400" />}
+              {feature.icon === 'Eye' && <Eye class="w-6 h-6 text-red-400" />}
+            </div>
+            <div>
+              <h3 class="text-white font-semibold mb-1">{feature.title}</h3>
+              <p class="text-dark-400 text-sm leading-relaxed">{feature.description}</p>
+            </div>
+          </div>
+        ))}
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 gap-4 mt-6">
+          <div class="text-center p-4 bg-dark-800/30 rounded-2xl border border-dark-700/30 animate-on-scroll">
+            <p class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">-80%</p>
+            <p class="text-dark-400 text-sm mt-1">de risque de cambriolage</p>
+          </div>
+          <div class="text-center p-4 bg-dark-800/30 rounded-2xl border border-dark-700/30 animate-on-scroll animation-delay-100">
+            <p class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">24/7</p>
+            <p class="text-dark-400 text-sm mt-1">surveillance active</p>
+          </div>
+        </div>
+
+        <!-- Mobile alert mockup -->
+        <div class="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl animate-on-scroll animation-delay-200">
+          <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Smartphone class="w-5 h-5 text-red-400" />
+          </div>
+          <div class="flex-1">
+            <p class="text-white text-sm font-medium">Alerte Neo Domotique</p>
+            <p class="text-dark-400 text-xs">Mouvement détecté - Entrée principale - 14:32</p>
+          </div>
+          <Plane class="w-5 h-5 text-dark-500" />
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center mt-16 animate-on-scroll">
+      <a href="/contact" class="btn-primary group text-lg px-8 py-4">
+        Sécuriser ma maison
+        <ArrowRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+      </a>
+      <p class="text-dark-500 text-sm mt-4">Audit sécurité gratuit et sans engagement</p>
+    </div>
+  </div>
+</section>
