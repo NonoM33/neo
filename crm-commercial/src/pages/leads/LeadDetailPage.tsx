@@ -7,6 +7,7 @@ import { LEAD_STATUS_LABELS, LEAD_SOURCE_LABELS, ACTIVITY_TYPE_LABELS, PIPELINE_
 import { useGamificationStore } from '../../stores';
 import { XPIndicator } from '../../components/gamification';
 import { ScoreGauge, ScoreBreakdown, SuggestionsList, QuickActionBar } from '../../components/prospection';
+import { CallRecorderWidget, CallHistoryList } from '../../components/calls';
 import { computeLeadScore } from '../../services/scoring.engine';
 import { generateSuggestions } from '../../services/suggestions.engine';
 
@@ -259,6 +260,25 @@ export function LeadDetailPage() {
               )}
             </CardBody>
           </Card>
+
+          {/* Enregistrements d'appels */}
+          <Card className="mb-4">
+            <CardHeader>
+              <div className="d-flex justify-content-between align-items-center">
+                <span>
+                  <i className="bi bi-mic me-2"></i>
+                  Enregistrements d'appels
+                </span>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <CallRecorderWidget leadId={lead.id} onCallComplete={() => loadLead()} />
+            </CardBody>
+          </Card>
+
+          <div className="mb-4">
+            <CallHistoryList leadId={lead.id} />
+          </div>
 
           {/* Stage History */}
           <Card>

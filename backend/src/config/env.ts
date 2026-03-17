@@ -27,6 +27,9 @@ const envSchema = z.object({
   AI_MAX_TOKENS: z.coerce.number().default(2048),
   AI_MONTHLY_BUDGET_CENTS: z.coerce.number().default(50000),
 
+  // Whisper (Speech-to-Text)
+  WHISPER_URL: z.string().default('http://localhost:8000'),
+
   // Client Auth
   CLIENT_JWT_SECRET: z.string().min(32).optional(),
   CLIENT_JWT_EXPIRES_IN: z.string().default('1h'),

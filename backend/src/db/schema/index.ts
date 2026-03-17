@@ -14,3 +14,4 @@ export * from './crm';
 export * from './support';
 export * from './appointments';
 export * from './calendar-sync';
+export * from './calls';

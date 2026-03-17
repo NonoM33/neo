@@ -24,6 +24,7 @@ import { kpisRoutes } from './modules/kpis';
 import { appointmentsRoutes, availabilityRoutes } from './modules/appointments';
 import { bookingRoutes } from './modules/booking';
 import { calendarSyncRoutes } from './modules/calendar-sync';
+import { callsRoutes } from './modules/calls';
 import { clientAuthRoutes, ticketsRoutes, kbRoutes, chatRoutes } from './support';
 
 import { scanSessionsRoutes } from './modules/scan-sessions';
@@ -97,6 +98,7 @@ app.route('/api/activities', activitiesRoutes);
 app.route('/api/kpis', kpisRoutes);
 app.route('/api/appointments', appointmentsRoutes);
 app.route('/api/availability', availabilityRoutes);
+app.route('/api/calls', callsRoutes);
 
 // Swagger
 app.route('/swagger', swaggerRoutes);

@@ -4,6 +4,7 @@ export { default as leadsService } from './leads.service';
 export { default as activitiesService } from './activities.service';
 export { default as kpisService } from './kpis.service';
 export { default as appointmentsService } from './appointments.service';
+export { default as callsService } from './calls.service';
 export * from './gamification.engine';
 export * from './gamification.badges';
 export * from './scoring.engine';
