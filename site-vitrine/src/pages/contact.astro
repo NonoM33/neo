@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
+import { SITE_CONFIG } from '../config/site';
 import { Mail, Phone, MapPin, Clock, CheckCircle, Send } from '@lucide/astro';
 
 const housingTypes = [
@@ -48,6 +50,8 @@ const schema = {
     </div>
   </section>
 
+  <Breadcrumbs items={[{ label: 'Contact' }]} />
+
   <!-- Contact Section -->
   <section class="section-padding bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,24 +62,24 @@ const schema = {
             <h2 class="text-xl font-bold text-dark-900 mb-6">Coordonnées</h2>
             <ul class="space-y-6">
               <li>
-                <a href="mailto:contact@neo-domotique.fr" class="flex items-start gap-4 group">
+                <a href={`mailto:${SITE_CONFIG.email}`} class="flex items-start gap-4 group">
                   <div class="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
                     <Mail class="w-5 h-5" />
                   </div>
                   <div>
                     <p class="text-sm text-dark-500 mb-1">Email</p>
-                    <p class="font-medium text-dark-900 group-hover:text-primary-500 transition-colors">contact@neo-domotique.fr</p>
+                    <p class="font-medium text-dark-900 group-hover:text-primary-500 transition-colors">{SITE_CONFIG.email}</p>
                   </div>
                 </a>
               </li>
               <li>
-                <a href="tel:+33123456789" class="flex items-start gap-4 group">
+                <a href={SITE_CONFIG.phoneHref} class="flex items-start gap-4 group">
                   <div class="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
                     <Phone class="w-5 h-5" />
                   </div>
                   <div>
                     <p class="text-sm text-dark-500 mb-1">Téléphone</p>
-                    <p class="font-medium text-dark-900 group-hover:text-primary-500 transition-colors">01 23 45 67 89</p>
+                    <p class="font-medium text-dark-900 group-hover:text-primary-500 transition-colors">{SITE_CONFIG.phone}</p>
                   </div>
                 </a>
               </li>
@@ -85,7 +89,7 @@ const schema = {
                 </div>
                 <div>
                   <p class="text-sm text-dark-500 mb-1">Zone d'intervention</p>
-                  <p class="font-medium text-dark-900">Paris et Île-de-France</p>
+                  <p class="font-medium text-dark-900">{SITE_CONFIG.address.areaServed}</p>
                 </div>
               </li>
               <li class="flex items-start gap-4">
@@ -94,7 +98,7 @@ const schema = {
                 </div>
                 <div>
                   <p class="text-sm text-dark-500 mb-1">Horaires</p>
-                  <p class="font-medium text-dark-900">Lun - Ven : 9h - 18h</p>
+                  <p class="font-medium text-dark-900">{SITE_CONFIG.openingHoursDisplay}</p>
                 </div>
               </li>
             </ul>
@@ -118,7 +122,7 @@ const schema = {
           <div class="card">
             <h2 class="text-xl font-bold text-dark-900 mb-6">Formulaire de contact</h2>
 
-            <form id="contact-form" class="space-y-6">
+            <form id="contact-form" class="space-y-6" data-formspree-id={SITE_CONFIG.formspreeId}>
               <div class="grid sm:grid-cols-2 gap-6">
                 <div>
                   <label for="lastName" class="block text-sm font-medium text-dark-700 mb-2">Nom *</label>
@@ -185,9 +189,13 @@ const schema = {
                 </label>
               </div>
 
-              <button type="submit" class="btn-primary w-full sm:w-auto">
-                <Send class="w-5 h-5" />
-                Envoyer ma demande
+              <button type="submit" id="submit-btn" class="btn-primary w-full sm:w-auto">
+                <Send class="w-5 h-5" id="submit-icon" />
+                <svg id="submit-spinner" class="hidden animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span id="submit-text">Envoyer ma demande</span>
               </button>
 
               <div id="form-success" class="hidden p-4 bg-accent-500/10 border border-accent-500/20 rounded-xl">
@@ -212,38 +220,122 @@ const schema = {
   const form = document.getElementById('contact-form') as HTMLFormElement;
   const successMessage = document.getElementById('form-success');
   const errorMessage = document.getElementById('form-error');
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const submitIcon = document.getElementById('submit-icon');
+  const submitSpinner = document.getElementById('submit-spinner');
+  const submitText = document.getElementById('submit-text');
+
+  // --- Phase 3.1: Real-time validation ---
+  const validators: Record<string, { regex: RegExp; message: string }> = {
+    email: {
+      regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'Adresse email invalide',
+    },
+    phone: {
+      regex: /^(?:(?:\+33|0)\s*[1-9])(?:[\s.-]*\d{2}){4}$/,
+      message: 'Numéro de téléphone français invalide',
+    },
+    postalCode: {
+      regex: /^[0-9]{5}$/,
+      message: 'Code postal à 5 chiffres requis',
+    },
+  };
+
+  function validateField(input: HTMLInputElement) {
+    const validator = validators[input.id];
+    if (!validator || !input.value) return;
+
+    const errorEl = input.parentElement?.querySelector('.field-error');
+
+    if (validator.regex.test(input.value)) {
+      input.classList.remove('border-red-500');
+      input.classList.add('border-accent-500');
+      if (errorEl) errorEl.remove();
+    } else {
+      input.classList.remove('border-accent-500');
+      input.classList.add('border-red-500');
+      if (!errorEl) {
+        const msg = document.createElement('p');
+        msg.className = 'field-error text-red-500 text-xs mt-1';
+        msg.textContent = validator.message;
+        input.parentElement?.appendChild(msg);
+      }
+    }
+  }
+
+  function clearValidation(input: HTMLInputElement) {
+    input.classList.remove('border-red-500', 'border-accent-500');
+    const errorEl = input.parentElement?.querySelector('.field-error');
+    if (errorEl) errorEl.remove();
+  }
+
+  Object.keys(validators).forEach((fieldId) => {
+    const input = document.getElementById(fieldId) as HTMLInputElement;
+    if (!input) return;
+    input.addEventListener('blur', () => validateField(input));
+    input.addEventListener('input', () => {
+      if (input.classList.contains('border-red-500') || input.classList.contains('border-accent-500')) {
+        validateField(input);
+      }
+    });
+  });
+
+  // --- Form submission via Formspree ---
+  // The FORMSPREE_ID is embedded as a data attribute to keep config in one place
+  const FORMSPREE_URL = `https://formspree.io/f/${document.querySelector<HTMLFormElement>('#contact-form')?.dataset.formspreeId || 'TODO_FORM_ID'}`;
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const formData = new FormData(form);
-    const data: Record<string, string | string[]> = {};
-
-    formData.forEach((value, key) => {
-      if (key === 'needs') {
-        if (!data[key]) {
-          data[key] = [];
-        }
-        (data[key] as string[]).push(value as string);
-      } else {
-        data[key] = value as string;
+    // Validate all fields before submitting
+    let hasErrors = false;
+    Object.keys(validators).forEach((fieldId) => {
+      const input = document.getElementById(fieldId) as HTMLInputElement;
+      if (input?.value) {
+        validateField(input);
+        if (input.classList.contains('border-red-500')) hasErrors = true;
       }
     });
+    if (hasErrors) return;
 
-    // Log submission to console (in production, integrate with a form service)
-    console.log('='.repeat(50));
-    console.log('CONTACT FORM SUBMISSION');
-    console.log('='.repeat(50));
-    console.log('Date:', new Date().toISOString());
-    console.log('Data:', JSON.stringify(data, null, 2));
-    console.log('='.repeat(50));
+    // Set loading state
+    submitBtn.disabled = true;
+    submitIcon?.classList.add('hidden');
+    submitSpinner?.classList.remove('hidden');
+    if (submitText) submitText.textContent = 'Envoi en cours...';
 
-    // Show success message
-    form.reset();
-    successMessage?.classList.remove('hidden');
-    errorMessage?.classList.add('hidden');
+    try {
+      const formData = new FormData(form);
 
-    // Scroll to success message
-    successMessage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const response = await fetch(FORMSPREE_URL, {
+        method: 'POST',
+        body: formData,
+        headers: { Accept: 'application/json' },
+      });
+
+      if (response.ok) {
+        form.reset();
+        // Clear all validation styles
+        Object.keys(validators).forEach((fieldId) => {
+          const input = document.getElementById(fieldId) as HTMLInputElement;
+          if (input) clearValidation(input);
+        });
+        successMessage?.classList.remove('hidden');
+        errorMessage?.classList.add('hidden');
+        successMessage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        throw new Error('Form submission failed');
+      }
+    } catch {
+      errorMessage?.classList.remove('hidden');
+      successMessage?.classList.add('hidden');
+      errorMessage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } finally {
+      // Reset button state
+      submitBtn.disabled = false;
+      submitIcon?.classList.remove('hidden');
+      submitSpinner?.classList.add('hidden');
+      if (submitText) submitText.textContent = 'Envoyer ma demande';
+    }
   });
 </script>

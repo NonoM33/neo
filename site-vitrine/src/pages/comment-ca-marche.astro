@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CTA from '../components/sections/CTA.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
 import { Calendar, FileText, Wrench, Smartphone, HeadphonesIcon, Check, ArrowRight } from '@lucide/astro';
 
 const steps = [
@@ -98,6 +99,8 @@ const steps = [
       </div>
     </div>
   </section>
+
+  <Breadcrumbs items={[{ label: 'Comment ça marche' }]} />
 
   <!-- Timeline -->
   <section class="section-padding bg-white">

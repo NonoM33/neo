@@ -1,10 +1,12 @@
 ---
+import { Lightbulb, Wifi, Radio, Cpu, Link } from '@lucide/astro';
+
 const partners = [
-  { name: 'Philips Hue', logo: 'PH' },
-  { name: 'Shelly', logo: 'SH' },
-  { name: 'Zigbee', logo: 'ZB' },
-  { name: 'Matter', logo: 'MT' },
-  { name: 'Thread', logo: 'TH' },
+  { name: 'Philips Hue', icon: 'Lightbulb', color: 'text-yellow-500 bg-yellow-500/10' },
+  { name: 'Shelly', icon: 'Wifi', color: 'text-blue-500 bg-blue-500/10' },
+  { name: 'Zigbee', icon: 'Radio', color: 'text-green-500 bg-green-500/10' },
+  { name: 'Matter', icon: 'Link', color: 'text-purple-500 bg-purple-500/10' },
+  { name: 'Thread', icon: 'Cpu', color: 'text-cyan-500 bg-cyan-500/10' },
 ];
 ---
 
@@ -20,8 +22,12 @@ const partners = [
       {partners.map((partner, index) => (
         <div class={`animate-on-scroll animation-delay-${index % 4}00`}>
           <div class="group flex items-center gap-3 px-6 py-3 bg-dark-50 rounded-xl hover:bg-dark-100 transition-colors">
-            <div class="w-10 h-10 bg-dark-200 rounded-lg flex items-center justify-center text-dark-500 font-bold text-sm group-hover:bg-primary-500 group-hover:text-white transition-colors">
-              {partner.logo}
+            <div class={`w-10 h-10 rounded-lg flex items-center justify-center ${partner.color} group-hover:bg-primary-500 group-hover:text-white transition-colors`}>
+              {partner.icon === 'Lightbulb' && <Lightbulb class="w-5 h-5" />}
+              {partner.icon === 'Wifi' && <Wifi class="w-5 h-5" />}
+              {partner.icon === 'Radio' && <Radio class="w-5 h-5" />}
+              {partner.icon === 'Link' && <Link class="w-5 h-5" />}
+              {partner.icon === 'Cpu' && <Cpu class="w-5 h-5" />}
             </div>
             <span class="text-dark-600 font-medium">{partner.name}</span>
           </div>

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CTA from '../components/sections/CTA.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
 import { Heart, Shield, Zap, Users, Award, CheckCircle } from '@lucide/astro';
 
 const values = [
@@ -79,6 +80,8 @@ const commitments = [
     </div>
   </section>
 
+  <Breadcrumbs items={[{ label: 'À propos' }]} />
+
   <!-- Story -->
   <section class="section-padding bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,7 +118,7 @@ const commitments = [
               </li>
               <li class="flex items-start gap-3">
                 <CheckCircle class="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>Open source et évolutif</span>
+                <span>Évolutif et personnalisable</span>
               </li>
               <li class="flex items-start gap-3">
                 <CheckCircle class="w-5 h-5 flex-shrink-0 mt-0.5" />

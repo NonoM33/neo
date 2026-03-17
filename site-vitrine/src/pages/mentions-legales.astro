@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
+import { SITE_CONFIG } from '../config/site';
 ---
 
 <BaseLayout
@@ -21,6 +23,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </section>
 
+  <Breadcrumbs items={[{ label: 'Mentions légales' }]} />
+
   <!-- Content -->
   <section class="section-padding bg-white">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,37 +38,36 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
           <h3 class="text-lg font-semibold text-dark-900 mt-6 mb-3">Éditeur du site</h3>
           <p class="text-dark-600 mb-4">
-            <strong>Neo Domotique</strong><br>
-            Société par actions simplifiée (SAS)<br>
-            Capital social : 10 000 €<br>
-            RCS Paris : XXX XXX XXX<br>
-            SIRET : XXX XXX XXX XXXXX<br>
-            N° TVA intracommunautaire : FR XX XXX XXX XXX
+            <strong>{SITE_CONFIG.name}</strong><br>
+            {SITE_CONFIG.legal.formeJuridique}<br>
+            Capital social : {SITE_CONFIG.legal.capitalSocial}<br>
+            RCS Paris : {SITE_CONFIG.legal.rcs}<br>
+            SIRET : {SITE_CONFIG.legal.siret}<br>
+            N° TVA intracommunautaire : {SITE_CONFIG.legal.tvaIntra}
           </p>
 
           <p class="text-dark-600 mb-4">
             <strong>Siège social :</strong><br>
-            123 Rue de la Domotique<br>
-            75016 Paris, France
+            {SITE_CONFIG.address.street}<br>
+            {SITE_CONFIG.address.postalCode} {SITE_CONFIG.address.city}, {SITE_CONFIG.address.country}
           </p>
 
           <p class="text-dark-600 mb-4">
             <strong>Contact :</strong><br>
-            Téléphone : 01 23 45 67 89<br>
-            Email : contact@neo-domotique.fr
+            Téléphone : {SITE_CONFIG.phone}<br>
+            Email : {SITE_CONFIG.email}
           </p>
 
           <p class="text-dark-600 mb-4">
             <strong>Directeur de la publication :</strong><br>
-            M. Alexandre Martin, Président
+            {SITE_CONFIG.legal.directeurPublication}
           </p>
 
           <h3 class="text-lg font-semibold text-dark-900 mt-6 mb-3">Hébergement</h3>
           <p class="text-dark-600 mb-4">
             Ce site est hébergé par :<br>
-            Vercel Inc.<br>
-            340 S Lemon Ave #4133<br>
-            Walnut, CA 91789, États-Unis
+            {SITE_CONFIG.hosting.name}<br>
+            {SITE_CONFIG.hosting.address}
           </p>
 
           <h3 class="text-lg font-semibold text-dark-900 mt-6 mb-3">Propriété intellectuelle</h3>
@@ -157,7 +160,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             - Droit à la portabilité<br>
             - Droit d'opposition<br>
             - Droit de limitation du traitement<br><br>
-            Pour exercer ces droits, contactez-nous à : dpo@neo-domotique.fr
+            Pour exercer ces droits, contactez-nous à : {SITE_CONFIG.dpoEmail}
           </p>
 
           <h3 class="text-lg font-semibold text-dark-900 mt-6 mb-3">Cookies</h3>

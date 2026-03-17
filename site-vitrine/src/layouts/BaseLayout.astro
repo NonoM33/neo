@@ -1,6 +1,8 @@
 ---
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
+import CookieBanner from '../components/layout/CookieBanner.astro';
+import { SITE_CONFIG } from '../config/site';
 import '../styles/global.css';
 
 interface Props {
@@ -9,18 +11,20 @@ interface Props {
   ogImage?: string;
   canonical?: string;
   schema?: object;
+  robots?: string;
 }
 
 const {
   title,
   description,
-  ogImage = '/og-image.jpg',
+  ogImage = '/og-image.svg',
   canonical,
   schema,
+  robots = 'index, follow',
 } = Astro.props;
 
-const siteUrl = 'https://neo-domotique.fr';
-const fullTitle = `${title} | Neo Domotique`;
+const siteUrl = SITE_CONFIG.url;
+const fullTitle = `${title} | ${SITE_CONFIG.name}`;
 const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
 ---
 
@@ -30,8 +34,8 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <meta name="author" content="Neo Domotique" />
-    <meta name="robots" content="index, follow" />
+    <meta name="author" content={SITE_CONFIG.name} />
+    <meta name="robots" content={robots} />
 
     <!-- Canonical -->
     <link rel="canonical" href={canonicalUrl} />
@@ -47,7 +51,7 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
     <meta property="og:description" content={description} />
     <meta property="og:image" content={`${siteUrl}${ogImage}`} />
     <meta property="og:locale" content="fr_FR" />
-    <meta property="og:site_name" content="Neo Domotique" />
+    <meta property="og:site_name" content={SITE_CONFIG.name} />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -76,19 +80,22 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
     }
 
     <!-- Default LocalBusiness Schema -->
-    <script type="application/ld+json">
-      {
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
         "@context": "https://schema.org",
         "@type": "LocalBusiness",
-        "name": "Neo Domotique",
+        "name": SITE_CONFIG.name,
         "description": "Installation et maintenance de solutions domotiques pour particuliers. Maison connectée, éclairage intelligent, sécurité, chauffage.",
-        "url": "https://neo-domotique.fr",
-        "telephone": "+33 1 23 45 67 89",
-        "email": "contact@neo-domotique.fr",
+        "url": SITE_CONFIG.url,
+        "telephone": SITE_CONFIG.phoneHref.replace('tel:', ''),
+        "email": SITE_CONFIG.email,
         "address": {
           "@type": "PostalAddress",
-          "addressLocality": "Paris",
-          "addressRegion": "Île-de-France",
+          "streetAddress": SITE_CONFIG.address.street,
+          "postalCode": SITE_CONFIG.address.postalCode,
+          "addressLocality": SITE_CONFIG.address.city,
+          "addressRegion": SITE_CONFIG.address.region,
           "addressCountry": "FR"
         },
         "areaServed": {
@@ -101,14 +108,17 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
           "geoRadius": "50000"
         },
         "priceRange": "€€",
-        "openingHours": "Mo-Fr 09:00-18:00",
+        "openingHours": SITE_CONFIG.openingHours,
         "sameAs": [
-          "https://www.linkedin.com/company/neo-domotique",
-          "https://www.instagram.com/neodomotique",
-          "https://www.facebook.com/neodomotique"
+          SITE_CONFIG.social.linkedin,
+          SITE_CONFIG.social.instagram,
+          SITE_CONFIG.social.facebook
         ]
-      }
-    </script>
+      })}
+    />
+
+    <!-- Plausible Analytics (cookie-free) -->
+    <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
   </head>
   <body class="min-h-screen flex flex-col">
     <Header />
@@ -116,6 +126,7 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
       <slot />
     </main>
     <Footer />
+    <CookieBanner />
 
     <!-- Intersection Observer for scroll animations -->
     <script>

@@ -1,5 +1,6 @@
 ---
 import { Home, Mail, Phone, MapPin, Linkedin, Instagram, Facebook } from '@lucide/astro';
+import { SITE_CONFIG } from '../../config/site';
 
 const services = [
   { name: 'Éclairage connecté', href: '/services#eclairage' },
@@ -43,7 +44,7 @@ const legal = [
         </p>
         <div class="flex gap-4">
           <a
-            href="https://linkedin.com"
+            href={SITE_CONFIG.social.linkedin}
             target="_blank"
             rel="noopener noreferrer"
             class="w-10 h-10 flex items-center justify-center rounded-lg bg-dark-800 hover:bg-primary-500 text-dark-400 hover:text-white transition-all duration-300"
@@ -52,7 +53,7 @@ const legal = [
             <Linkedin class="w-5 h-5" />
           </a>
           <a
-            href="https://instagram.com"
+            href={SITE_CONFIG.social.instagram}
             target="_blank"
             rel="noopener noreferrer"
             class="w-10 h-10 flex items-center justify-center rounded-lg bg-dark-800 hover:bg-primary-500 text-dark-400 hover:text-white transition-all duration-300"
@@ -61,7 +62,7 @@ const legal = [
             <Instagram class="w-5 h-5" />
           </a>
           <a
-            href="https://facebook.com"
+            href={SITE_CONFIG.social.facebook}
             target="_blank"
             rel="noopener noreferrer"
             class="w-10 h-10 flex items-center justify-center rounded-lg bg-dark-800 hover:bg-primary-500 text-dark-400 hover:text-white transition-all duration-300"
@@ -116,24 +117,24 @@ const legal = [
         <ul class="space-y-4">
           <li class="flex items-start gap-3">
             <MapPin class="w-5 h-5 text-primary-500 flex-shrink-0 mt-0.5" />
-            <span class="text-dark-400">Paris et Île-de-France</span>
+            <span class="text-dark-400">{SITE_CONFIG.address.areaServed}</span>
           </li>
           <li>
             <a
-              href="mailto:contact@neo-domotique.fr"
+              href={`mailto:${SITE_CONFIG.email}`}
               class="flex items-center gap-3 text-dark-400 hover:text-white transition-colors"
             >
               <Mail class="w-5 h-5 text-primary-500 flex-shrink-0" />
-              contact@neo-domotique.fr
+              {SITE_CONFIG.email}
             </a>
           </li>
           <li>
             <a
-              href="tel:+33123456789"
+              href={SITE_CONFIG.phoneHref}
               class="flex items-center gap-3 text-dark-400 hover:text-white transition-colors"
             >
               <Phone class="w-5 h-5 text-primary-500 flex-shrink-0" />
-              01 23 45 67 89
+              {SITE_CONFIG.phone}
             </a>
           </li>
         </ul>

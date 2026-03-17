@@ -1,0 +1,33 @@
+---
+---
+
+<div id="cookie-banner" class="fixed bottom-0 left-0 right-0 z-50 hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+    <div class="bg-dark-900 border border-dark-700 rounded-2xl p-4 sm:p-6 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <p class="text-sm text-dark-300 flex-grow">
+        Ce site utilise uniquement des cookies techniques nécessaires à son fonctionnement et un outil d'analyse respectueux de votre vie privée (sans cookies publicitaires).
+        <a href="/mentions-legales#confidentialite" class="text-primary-400 hover:underline ml-1">En savoir plus</a>
+      </p>
+      <button
+        id="cookie-accept"
+        class="flex-shrink-0 px-5 py-2 bg-primary-500 text-white text-sm font-semibold rounded-xl hover:bg-primary-600 transition-colors"
+      >
+        Compris
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const banner = document.getElementById('cookie-banner');
+  const acceptBtn = document.getElementById('cookie-accept');
+
+  if (!localStorage.getItem('cookie-consent')) {
+    banner?.classList.remove('hidden');
+  }
+
+  acceptBtn?.addEventListener('click', () => {
+    localStorage.setItem('cookie-consent', 'accepted');
+    banner?.classList.add('hidden');
+  });
+</script>

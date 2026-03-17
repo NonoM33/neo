@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CTA from '../components/sections/CTA.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
 import { Lightbulb, Blinds, Thermometer, Shield, Tv, Cpu, ArrowRight, Check } from '@lucide/astro';
 
 const services = [
@@ -145,6 +146,8 @@ const schema = {
       </div>
     </div>
   </section>
+
+  <Breadcrumbs items={[{ label: 'Services' }]} />
 
   <!-- Services Grid -->
   <section class="section-padding bg-white">

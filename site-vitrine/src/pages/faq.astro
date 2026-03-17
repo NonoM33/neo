@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CTA from '../components/sections/CTA.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
 import { ChevronDown } from '@lucide/astro';
 
 const faqCategories = [
@@ -149,6 +150,8 @@ const schema = {
       </div>
     </div>
   </section>
+
+  <Breadcrumbs items={[{ label: 'FAQ' }]} />
 
   <!-- FAQ Content -->
   <section class="section-padding bg-white">

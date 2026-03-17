@@ -1,0 +1,58 @@
+---
+import { SITE_CONFIG } from '../../config/site';
+import { ChevronRight, Home } from '@lucide/astro';
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+
+const schemaItems = [
+  { "@type": "ListItem", "position": 1, "name": "Accueil", "item": SITE_CONFIG.url },
+  ...items.map((item, index) => ({
+    "@type": "ListItem",
+    "position": index + 2,
+    "name": item.label,
+    ...(item.href ? { "item": `${SITE_CONFIG.url}${item.href}` } : {}),
+  })),
+];
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": schemaItems,
+};
+---
+
+<nav aria-label="Fil d'Ariane" class="bg-dark-50 border-b border-dark-100">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ol class="flex items-center gap-2 py-3 text-sm text-dark-500 overflow-x-auto">
+      <li>
+        <a href="/" class="flex items-center gap-1 hover:text-primary-500 transition-colors">
+          <Home class="w-4 h-4" />
+          <span class="sr-only sm:not-sr-only">Accueil</span>
+        </a>
+      </li>
+      {items.map((item) => (
+        <li class="flex items-center gap-2">
+          <ChevronRight class="w-4 h-4 text-dark-300 flex-shrink-0" />
+          {item.href ? (
+            <a href={item.href} class="hover:text-primary-500 transition-colors whitespace-nowrap">
+              {item.label}
+            </a>
+          ) : (
+            <span class="text-dark-900 font-medium whitespace-nowrap">{item.label}</span>
+          )}
+        </li>
+      ))}
+    </ol>
+  </div>
+</nav>
+
+<script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />

@@ -88,7 +88,31 @@ import { ArrowRight, Star, CheckCircle, Shield, Zap, Thermometer } from '@lucide
         </div>
       </div>
 
-      <!-- Visual -->
+      <!-- Mobile Visual (simplified) -->
+      <div class="lg:hidden mt-8">
+        <div class="flex flex-wrap items-center justify-center gap-3 animate-slide-up animation-delay-300">
+          <div class="flex items-center gap-2 px-4 py-2.5 bg-dark-800/60 backdrop-blur-sm border border-dark-700/50 rounded-xl">
+            <div class="w-8 h-8 bg-primary-500/20 rounded-lg flex items-center justify-center">
+              <Zap class="w-4 h-4 text-primary-400" />
+            </div>
+            <span class="text-sm text-white font-medium">Éclairage</span>
+          </div>
+          <div class="flex items-center gap-2 px-4 py-2.5 bg-dark-800/60 backdrop-blur-sm border border-dark-700/50 rounded-xl">
+            <div class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+              <Shield class="w-4 h-4 text-green-400" />
+            </div>
+            <span class="text-sm text-white font-medium">Sécurité</span>
+          </div>
+          <div class="flex items-center gap-2 px-4 py-2.5 bg-dark-800/60 backdrop-blur-sm border border-dark-700/50 rounded-xl">
+            <div class="w-8 h-8 bg-accent-500/20 rounded-lg flex items-center justify-center">
+              <Thermometer class="w-4 h-4 text-accent-400" />
+            </div>
+            <span class="text-sm text-white font-medium">Température</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop Visual -->
       <div class="relative hidden lg:block">
         <!-- Main Card -->
         <div

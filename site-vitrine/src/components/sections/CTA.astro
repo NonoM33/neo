@@ -1,5 +1,6 @@
 ---
 import { ArrowRight, Phone, CheckCircle } from '@lucide/astro';
+import { SITE_CONFIG } from '../../config/site';
 
 const benefits = [
   'Audit 100% gratuit',
@@ -45,9 +46,9 @@ const benefits = [
           Demander mon audit gratuit
           <ArrowRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </a>
-        <a href="tel:+33123456789" class="btn-ghost text-dark-300 hover:text-white flex items-center gap-2">
+        <a href={SITE_CONFIG.phoneHref} class="btn-ghost text-dark-300 hover:text-white flex items-center gap-2">
           <Phone class="w-5 h-5" />
-          01 23 45 67 89
+          {SITE_CONFIG.phone}
         </a>
       </div>
     </div>

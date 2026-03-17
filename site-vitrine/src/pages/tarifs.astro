@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CTA from '../components/sections/CTA.astro';
+import Breadcrumbs from '../components/layout/Breadcrumbs.astro';
 import { Check, ArrowRight, HelpCircle } from '@lucide/astro';
 
 const installationPlans = [
@@ -137,6 +138,8 @@ const schema = {
       </div>
     </div>
   </section>
+
+  <Breadcrumbs items={[{ label: 'Tarifs' }]} />
 
   <!-- Installation Plans -->
   <section class="section-padding bg-white">
