@@ -14,6 +14,14 @@ import '../presentation/screens/catalogue/catalogue_screen.dart';
 import '../presentation/screens/catalogue/product_detail_screen.dart';
 import '../presentation/screens/quotes/quote_screen.dart';
 import '../presentation/screens/quotes/quote_preview_screen.dart';
+import '../presentation/screens/tickets/tickets_list_screen.dart';
+import '../presentation/screens/tickets/ticket_detail_screen.dart';
+import '../presentation/screens/tickets/ticket_form_screen.dart';
+import '../presentation/screens/floor_plan/floor_plan_screen.dart';
+import '../presentation/screens/appointments/calendar_screen.dart';
+import '../presentation/screens/appointments/appointment_detail_screen.dart';
+import '../presentation/screens/appointments/appointment_form_screen.dart';
+import '../presentation/screens/appointments/availability_screen.dart';
 import '../presentation/widgets/common/shell_scaffold.dart';
 
 /// Route names
@@ -29,6 +37,14 @@ class AppRoutes {
   static const String productDetail = 'product-detail';
   static const String quote = 'quote';
   static const String quotePreview = 'quote-preview';
+  static const String calendar = 'calendar';
+  static const String appointmentDetail = 'appointment-detail';
+  static const String appointmentCreate = 'appointment-create';
+  static const String availability = 'availability';
+  static const String tickets = 'tickets';
+  static const String ticketDetail = 'ticket-detail';
+  static const String ticketCreate = 'ticket-create';
+  static const String floorPlan = 'floor-plan';
 
   AppRoutes._();
 }
@@ -46,6 +62,14 @@ class AppPaths {
   static const String productDetail = '/catalogue/:id';
   static const String quote = '/projects/:id/quote';
   static const String quotePreview = '/quotes/:id/preview';
+  static const String calendar = '/calendar';
+  static const String appointmentDetail = '/calendar/:id';
+  static const String appointmentCreate = '/calendar/new';
+  static const String availability = '/availability';
+  static const String tickets = '/tickets';
+  static const String ticketDetail = '/tickets/:id';
+  static const String ticketCreate = '/tickets/new';
+  static const String floorPlan = '/projects/:id/rooms/:roomId/plan';
 
   AppPaths._();
 }
@@ -171,6 +195,26 @@ final routerProvider = Provider<GoRouter>((ref) {
                     },
                   ),
 
+                  // Floor plan for a room
+                  GoRoute(
+                    path: 'rooms/:roomId/plan',
+                    name: AppRoutes.floorPlan,
+                    pageBuilder: (context, state) {
+                      final projectId = state.pathParameters['id']!;
+                      final roomId = state.pathParameters['roomId']!;
+                      final roomName =
+                          state.uri.queryParameters['name'] ?? '';
+                      return NoTransitionPage(
+                        key: state.pageKey,
+                        child: FloorPlanScreen(
+                          projectId: projectId,
+                          roomId: roomId,
+                          roomName: roomName,
+                        ),
+                      );
+                    },
+                  ),
+
                   // Quote
                   GoRoute(
                     path: 'quote',
@@ -184,6 +228,86 @@ final routerProvider = Provider<GoRouter>((ref) {
                     },
                   ),
                 ],
+              ),
+            ],
+          ),
+
+          // Calendar (Agenda)
+          GoRoute(
+            path: AppPaths.calendar,
+            name: AppRoutes.calendar,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const CalendarScreen(),
+            ),
+            routes: [
+              // Create appointment
+              GoRoute(
+                path: 'new',
+                name: AppRoutes.appointmentCreate,
+                parentNavigatorKey: _rootNavigatorKey,
+                pageBuilder: (context, state) => MaterialPage(
+                  key: state.pageKey,
+                  child: const AppointmentFormScreen(),
+                ),
+              ),
+
+              // Appointment detail
+              GoRoute(
+                path: ':id',
+                name: AppRoutes.appointmentDetail,
+                pageBuilder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return NoTransitionPage(
+                    key: state.pageKey,
+                    child: AppointmentDetailScreen(appointmentId: id),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // Availability
+          GoRoute(
+            path: AppPaths.availability,
+            name: AppRoutes.availability,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const AvailabilityScreen(),
+            ),
+          ),
+
+          // Tickets (Support)
+          GoRoute(
+            path: AppPaths.tickets,
+            name: AppRoutes.tickets,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const TicketsListScreen(),
+            ),
+            routes: [
+              // Create ticket
+              GoRoute(
+                path: 'new',
+                name: AppRoutes.ticketCreate,
+                parentNavigatorKey: _rootNavigatorKey,
+                pageBuilder: (context, state) => MaterialPage(
+                  key: state.pageKey,
+                  child: const TicketFormScreen(),
+                ),
+              ),
+
+              // Ticket detail
+              GoRoute(
+                path: ':id',
+                name: AppRoutes.ticketDetail,
+                pageBuilder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return NoTransitionPage(
+                    key: state.pageKey,
+                    child: TicketDetailScreen(ticketId: id),
+                  );
+                },
               ),
             ],
           ),
@@ -276,6 +400,15 @@ extension GoRouterExtension on GoRouter {
   void goToProductDetail(String id) => go('/catalogue/$id');
   void goToQuote(String projectId) => go('/projects/$projectId/quote');
   void goToQuotePreview(String quoteId) => go('/quotes/$quoteId/preview');
+  void goToCalendar() => go(AppPaths.calendar);
+  void goToAppointmentDetail(String id) => go('/calendar/$id');
+  void goToAppointmentCreate() => go(AppPaths.appointmentCreate);
+  void goToAvailability() => go(AppPaths.availability);
+  void goToTickets() => go(AppPaths.tickets);
+  void goToTicketDetail(String id) => go('/tickets/$id');
+  void goToTicketCreate() => go(AppPaths.ticketCreate);
+  void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
+      go('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }
 
 /// Extension for BuildContext navigation
@@ -291,4 +424,13 @@ extension NavigationExtension on BuildContext {
   void goToProductDetail(String id) => go('/catalogue/$id');
   void goToQuote(String projectId) => go('/projects/$projectId/quote');
   void goToQuotePreview(String quoteId) => go('/quotes/$quoteId/preview');
+  void goToCalendar() => go(AppPaths.calendar);
+  void goToAppointmentDetail(String id) => go('/calendar/$id');
+  void goToAppointmentCreate() => go(AppPaths.appointmentCreate);
+  void goToAvailability() => go(AppPaths.availability);
+  void goToTickets() => go(AppPaths.tickets);
+  void goToTicketDetail(String id) => go('/tickets/$id');
+  void goToTicketCreate() => go(AppPaths.ticketCreate);
+  void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
+      go('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }

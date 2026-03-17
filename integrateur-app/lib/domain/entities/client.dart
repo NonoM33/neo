@@ -1,70 +1,31 @@
 import 'package:equatable/equatable.dart';
 
-/// Address value object
-class Address extends Equatable {
-  final String street;
-  final String postalCode;
-  final String city;
-  final String? complement;
-
-  const Address({
-    required this.street,
-    required this.postalCode,
-    required this.city,
-    this.complement,
-  });
-
-  String get fullAddress {
-    final buffer = StringBuffer()
-      ..write(street)
-      ..write(', ')
-      ..write(postalCode)
-      ..write(' ')
-      ..write(city);
-    if (complement != null && complement!.isNotEmpty) {
-      buffer.write(' - $complement');
-    }
-    return buffer.toString();
-  }
-
-  String get shortAddress => '$city ($postalCode)';
-
-  Address copyWith({
-    String? street,
-    String? postalCode,
-    String? city,
-    String? complement,
-  }) {
-    return Address(
-      street: street ?? this.street,
-      postalCode: postalCode ?? this.postalCode,
-      city: city ?? this.city,
-      complement: complement ?? this.complement,
-    );
-  }
-
-  @override
-  List<Object?> get props => [street, postalCode, city, complement];
-}
-
-/// Client entity
+/// Client entity matching backend clients table
 class Client extends Equatable {
-  final String? id;
+  final String id;
   final String firstName;
   final String lastName;
-  final String email;
-  final String phone;
-  final Address address;
+  final String? email;
+  final String? phone;
+  final String? address;
+  final String? city;
+  final String? postalCode;
   final String? notes;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const Client({
-    this.id,
+    required this.id,
     required this.firstName,
     required this.lastName,
-    required this.email,
-    required this.phone,
-    required this.address,
+    this.email,
+    this.phone,
+    this.address,
+    this.city,
+    this.postalCode,
     this.notes,
+    this.createdAt,
+    this.updatedAt,
   });
 
   String get fullName => '$firstName $lastName';
@@ -76,14 +37,33 @@ class Client extends Equatable {
     return '$firstInitial$lastInitial';
   }
 
+  String get fullAddress {
+    final parts = <String>[];
+    if (address != null && address!.isNotEmpty) parts.add(address!);
+    if (postalCode != null && postalCode!.isNotEmpty) parts.add(postalCode!);
+    if (city != null && city!.isNotEmpty) parts.add(city!);
+    return parts.join(', ');
+  }
+
+  String get shortAddress {
+    if (city != null && postalCode != null) {
+      return '$city ($postalCode)';
+    }
+    return city ?? '';
+  }
+
   Client copyWith({
     String? id,
     String? firstName,
     String? lastName,
     String? email,
     String? phone,
-    Address? address,
+    String? address,
+    String? city,
+    String? postalCode,
     String? notes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return Client(
       id: id ?? this.id,
@@ -92,7 +72,11 @@ class Client extends Equatable {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       address: address ?? this.address,
+      city: city ?? this.city,
+      postalCode: postalCode ?? this.postalCode,
       notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -104,6 +88,10 @@ class Client extends Equatable {
         email,
         phone,
         address,
+        city,
+        postalCode,
         notes,
+        createdAt,
+        updatedAt,
       ];
 }

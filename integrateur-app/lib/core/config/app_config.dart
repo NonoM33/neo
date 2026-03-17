@@ -47,14 +47,31 @@ enum Environment {
 class EnvironmentConfig {
   static Environment current = Environment.development;
 
+  /// For physical devices, use the Mac's local IP instead of localhost.
+  /// localhost only works on iOS simulators.
+  /// Change this to your Mac's IP (run: ipconfig getifaddr en0)
+  static const String _devHost = '192.168.1.30';
+
   static String get baseUrl {
     switch (current) {
       case Environment.development:
-        return 'http://localhost:8080/api';
+        return 'http://$_devHost:3000/api';
       case Environment.staging:
         return 'https://staging-api.neo-integrateur.com';
       case Environment.production:
         return 'https://api.neo-integrateur.com';
+    }
+  }
+
+  /// Base URL without /api (for web pages, QR codes, etc.)
+  static String get baseHost {
+    switch (current) {
+      case Environment.development:
+        return 'http://$_devHost:3000';
+      case Environment.staging:
+        return 'https://staging.neo-integrateur.com';
+      case Environment.production:
+        return 'https://neo-integrateur.com';
     }
   }
 

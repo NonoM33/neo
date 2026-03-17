@@ -5,7 +5,8 @@ enum QuoteStatus {
   brouillon,
   envoye,
   accepte,
-  refuse;
+  refuse,
+  expire;
 
   String get displayName {
     switch (this) {
@@ -17,6 +18,8 @@ enum QuoteStatus {
         return 'Accepté';
       case QuoteStatus.refuse:
         return 'Refusé';
+      case QuoteStatus.expire:
+        return 'Expiré';
     }
   }
 
@@ -30,6 +33,8 @@ enum QuoteStatus {
         return 'accepte';
       case QuoteStatus.refuse:
         return 'refuse';
+      case QuoteStatus.expire:
+        return 'expire';
     }
   }
 
@@ -76,6 +81,8 @@ class QuoteLine extends Equatable {
   final double unitPriceHT;
   final double tvaPercent;
   final String? roomName;
+  final bool clientOwned;
+  final String? clientOwnedPhotoUrl;
 
   const QuoteLine({
     required this.id,
@@ -86,6 +93,8 @@ class QuoteLine extends Equatable {
     required this.unitPriceHT,
     this.tvaPercent = 20.0,
     this.roomName,
+    this.clientOwned = false,
+    this.clientOwnedPhotoUrl,
   });
 
   /// Calculate total HT for this line
@@ -106,6 +115,8 @@ class QuoteLine extends Equatable {
     double? unitPriceHT,
     double? tvaPercent,
     String? roomName,
+    bool? clientOwned,
+    String? clientOwnedPhotoUrl,
   }) {
     return QuoteLine(
       id: id ?? this.id,
@@ -116,6 +127,8 @@ class QuoteLine extends Equatable {
       unitPriceHT: unitPriceHT ?? this.unitPriceHT,
       tvaPercent: tvaPercent ?? this.tvaPercent,
       roomName: roomName ?? this.roomName,
+      clientOwned: clientOwned ?? this.clientOwned,
+      clientOwnedPhotoUrl: clientOwnedPhotoUrl ?? this.clientOwnedPhotoUrl,
     );
   }
 
@@ -129,6 +142,8 @@ class QuoteLine extends Equatable {
         unitPriceHT,
         tvaPercent,
         roomName,
+        clientOwned,
+        clientOwnedPhotoUrl,
       ];
 }
 

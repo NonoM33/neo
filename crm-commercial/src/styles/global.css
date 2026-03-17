@@ -1,0 +1,279 @@
+@import './variables.css';
+@import './animations.css';
+@import './glassmorphism.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--neo-bg-body);
+  color: var(--neo-text-primary);
+  line-height: 1.5;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--neo-sidebar-width);
+  background: var(--neo-sidebar-bg);
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--neo-border-light);
+}
+
+.sidebar-brand {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-brand:hover {
+  color: #fff;
+}
+
+.sidebar-nav {
+  padding: 15px 0;
+}
+
+.nav-section {
+  padding: 0 15px;
+  margin-bottom: 5px;
+  margin-top: 15px;
+  color: var(--neo-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar .nav-link {
+  color: var(--neo-sidebar-text);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.sidebar .nav-link:hover {
+  color: var(--neo-sidebar-text-active);
+  background: var(--neo-sidebar-hover);
+}
+
+.sidebar .nav-link.active {
+  color: var(--neo-sidebar-text-active);
+  background: var(--neo-sidebar-hover);
+  border-left-color: var(--neo-primary);
+}
+
+.sidebar .nav-link i {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+/* Main Content */
+.main-content {
+  margin-left: var(--neo-sidebar-width);
+  min-height: 100vh;
+}
+
+.top-bar {
+  background: var(--neo-bg-card);
+  padding: 15px 25px;
+  border-bottom: 1px solid var(--neo-border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--neo-text-primary);
+}
+
+.content-area {
+  padding: 25px;
+}
+
+/* User Dropdown */
+.user-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: var(--neo-radius-full);
+  background: var(--neo-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Cards */
+.card {
+  background: var(--neo-bg-card);
+  border: none;
+  border-radius: var(--neo-radius-md);
+  box-shadow: var(--neo-shadow-sm);
+}
+
+.card-header {
+  background: var(--neo-bg-card);
+  border-bottom: 1px solid var(--neo-border-color);
+  padding: 15px 20px;
+  font-weight: 600;
+}
+
+/* Stat Cards */
+.stat-card {
+  border-radius: var(--neo-radius-md);
+  padding: 20px;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.stat-card .stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.stat-card .stat-icon {
+  font-size: 2.5rem;
+  opacity: 0.8;
+}
+
+/* Tables */
+.table th {
+  font-weight: 600;
+  color: var(--neo-text-secondary);
+  border-bottom-width: 1px;
+}
+
+/* Button Actions */
+.btn-action {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Pipeline Status Badges */
+.badge-prospect { background-color: var(--neo-status-prospect) !important; }
+.badge-qualifie { background-color: var(--neo-status-qualifie) !important; }
+.badge-proposition { background-color: var(--neo-status-proposition) !important; }
+.badge-negociation { background-color: var(--neo-status-negociation) !important; }
+.badge-gagne { background-color: var(--neo-status-gagne) !important; }
+.badge-perdu { background-color: var(--neo-status-perdu) !important; }
+
+/* Activity Type Badges */
+.badge-appel { background-color: var(--neo-info) !important; }
+.badge-email { background-color: var(--neo-primary) !important; }
+.badge-reunion { background-color: var(--neo-success) !important; }
+.badge-visite { background-color: var(--neo-warning) !important; color: #212529 !important; }
+.badge-note { background-color: var(--neo-status-prospect) !important; }
+.badge-tache { background-color: #212529 !important; }
+
+/* Kanban Board */
+.kanban-column {
+  min-height: 400px;
+}
+
+.kanban-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--neo-shadow-md);
+}
+
+/* Form Controls */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--neo-primary);
+  box-shadow: 0 0 0 0.2rem var(--neo-primary-light);
+}
+
+/* Loading */
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+/* Responsive */
+@media (max-width: 991.98px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .mobile-menu-btn {
+    display: block !important;
+  }
+}
+
+.mobile-menu-btn {
+  display: none;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--neo-text-secondary);
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+/* Progress Bar Custom */
+.progress-neo {
+  height: 8px;
+  border-radius: 4px;
+  background-color: var(--neo-bg-light);
+}

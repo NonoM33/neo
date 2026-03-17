@@ -1,0 +1,68 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "iPad (A16) - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "666001FF-2989-451C-AD6B-0CA1A9B96443",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "iPad Pro 11\" (M5) - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "9B962479-6342-454E-BEE9-B3090F1D6E9E",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "iPad Pro 13\" (M5) - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "97C1D6D1-E9E1-48E1-9B04-251554C62259",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "iPad Air 11\" (M3) - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "DBF041CE-9D99-4396-80EB-172CA15605DD",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "iPad Air 13\" (M3) - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "D433DF39-B559-48E8-9DA7-9488D6C7233A",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "iPad mini (A17 Pro) - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "A192946E-3D4F-4558-928A-CAE1AC569187",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "iPhone physique - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "00008150-000C0C441482401C",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Chrome - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Profile (iPad A16)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "666001FF-2989-451C-AD6B-0CA1A9B96443",
+      "flutterMode": "profile"
+    }
+  ]
+}

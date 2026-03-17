@@ -6,39 +6,39 @@ import 'api_interceptors.dart';
 /// HTTP API client using Dio
 class ApiClient {
   final Dio _dio;
+  final AuthInterceptor _authInterceptor;
 
-  ApiClient({Dio? dio}) : _dio = dio ?? _createDio();
-
-  static Dio _createDio() {
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: EnvironmentConfig.baseUrl,
-        connectTimeout: AppConfig.connectTimeout,
-        receiveTimeout: AppConfig.receiveTimeout,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ),
-    );
-
-    dio.interceptors.addAll([
-      AuthInterceptor(),
+  ApiClient({Dio? dio, AuthInterceptor? authInterceptor})
+      : _authInterceptor = authInterceptor ?? AuthInterceptor(),
+        _dio = dio ?? Dio(
+          BaseOptions(
+            baseUrl: EnvironmentConfig.baseUrl,
+            connectTimeout: AppConfig.connectTimeout,
+            receiveTimeout: AppConfig.receiveTimeout,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          ),
+        ) {
+    _dio.interceptors.addAll([
+      _authInterceptor,
       LoggingInterceptor(),
       ErrorInterceptor(),
     ]);
-
-    return dio;
   }
 
+  /// Get the base URL
+  String get baseUrl => _dio.options.baseUrl;
+
   /// Set the auth token for requests
-  void setAuthToken(String token) {
-    _dio.options.headers['Authorization'] = 'Bearer $token';
+  void setAuthToken(String token, {String? refreshToken}) {
+    _authInterceptor.setTokens(accessToken: token, refreshToken: refreshToken);
   }
 
   /// Clear the auth token
   void clearAuthToken() {
-    _dio.options.headers.remove('Authorization');
+    _authInterceptor.clearTokens();
   }
 
   /// GET request
@@ -190,8 +190,38 @@ class ApiClient {
     String? code;
 
     if (data is Map<String, dynamic>) {
-      message = data['message'] as String? ?? message;
-      code = data['code'] as String?;
+      // Backend format: { error: { message, code, details? } }
+      final errorObj = data['error'];
+      if (errorObj is Map<String, dynamic>) {
+        message = errorObj['message'] as String? ?? message;
+        code = errorObj['code'] as String?;
+        // Zod validation details
+        final details = errorObj['details'];
+        if (details is List && details.isNotEmpty) {
+          final issues = details
+              .map((d) => d is Map ? (d['message'] ?? d.toString()) : d.toString())
+              .join(', ');
+          message = '$message: $issues';
+        }
+      }
+      // Hono zValidator format: { success: false, error: { issues: [...] } }
+      else if (data['success'] == false && data['error'] is Map) {
+        final zodError = data['error'] as Map<String, dynamic>;
+        final issues = zodError['issues'] as List<dynamic>?;
+        if (issues != null && issues.isNotEmpty) {
+          message = issues
+              .map((i) => i is Map ? (i['message'] ?? '') : i.toString())
+              .where((m) => m.toString().isNotEmpty)
+              .join(', ');
+          if (message.isEmpty) message = 'Données invalides';
+        }
+        code = 'VALIDATION_ERROR';
+      }
+      // Fallback: root-level message
+      else {
+        message = data['message'] as String? ?? message;
+        code = data['code'] as String?;
+      }
     }
 
     switch (statusCode) {

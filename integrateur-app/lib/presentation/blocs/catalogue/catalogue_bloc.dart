@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/repositories/auth_repository.dart';
-import '../../../domain/repositories/catalogue_repository.dart';
 import '../../../domain/usecases/catalogue_usecases.dart';
 
 // Events
@@ -14,18 +13,7 @@ sealed class CatalogueEvent extends Equatable {
 }
 
 final class CatalogueLoadRequested extends CatalogueEvent {
-  final ProductFilter? filter;
-  final ProductSortBy sortBy;
-  final bool ascending;
-
-  const CatalogueLoadRequested({
-    this.filter,
-    this.sortBy = ProductSortBy.name,
-    this.ascending = true,
-  });
-
-  @override
-  List<Object?> get props => [filter, sortBy, ascending];
+  const CatalogueLoadRequested();
 }
 
 final class CatalogueSearchRequested extends CatalogueEvent {
@@ -38,12 +26,13 @@ final class CatalogueSearchRequested extends CatalogueEvent {
 }
 
 final class CatalogueFilterChanged extends CatalogueEvent {
-  final ProductFilter filter;
+  final ProductCategory? category;
+  final bool? favoritesOnly;
 
-  const CatalogueFilterChanged(this.filter);
+  const CatalogueFilterChanged({this.category, this.favoritesOnly});
 
   @override
-  List<Object?> get props => [filter];
+  List<Object?> get props => [category, favoritesOnly];
 }
 
 final class CatalogueToggleFavoriteRequested extends CatalogueEvent {
@@ -68,6 +57,10 @@ final class CatalogueProductSelected extends CatalogueEvent {
   List<Object?> get props => [product];
 }
 
+final class CatalogueProductDeselected extends CatalogueEvent {
+  const CatalogueProductDeselected();
+}
+
 // States
 sealed class CatalogueState extends Equatable {
   const CatalogueState();
@@ -85,50 +78,73 @@ final class CatalogueLoading extends CatalogueState {
 }
 
 final class CatalogueLoaded extends CatalogueState {
-  final List<Product> products;
-  final ProductFilter? filter;
-  final ProductSortBy sortBy;
-  final bool ascending;
+  /// All products from API (unfiltered)
+  final List<Product> allProducts;
   final List<String> brands;
+  final ProductCategory? activeCategory;
+  final String searchQuery;
+  final bool favoritesOnly;
   final Product? selectedProduct;
   final bool isSyncing;
 
   const CatalogueLoaded({
-    required this.products,
-    this.filter,
-    this.sortBy = ProductSortBy.name,
-    this.ascending = true,
+    required this.allProducts,
     this.brands = const [],
+    this.activeCategory,
+    this.searchQuery = '',
+    this.favoritesOnly = false,
     this.selectedProduct,
     this.isSyncing = false,
   });
 
-  List<Product> get favorites => products.where((p) => p.isFavorite).toList();
+  /// Filtered products for display
+  List<Product> get products {
+    var result = allProducts.toList();
 
-  Map<ProductCategory, List<Product>> get productsByCategory {
-    final map = <ProductCategory, List<Product>>{};
-    for (final product in products) {
-      map.putIfAbsent(product.category, () => []).add(product);
+    if (activeCategory != null) {
+      result = result.where((p) => p.category == activeCategory).toList();
     }
-    return map;
+
+    if (favoritesOnly) {
+      result = result.where((p) => p.isFavorite).toList();
+    }
+
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      result = result.where((p) =>
+          p.name.toLowerCase().contains(q) ||
+          p.brand.toLowerCase().contains(q) ||
+          p.reference.toLowerCase().contains(q) ||
+          p.description.toLowerCase().contains(q)).toList();
+    }
+
+    return result;
   }
 
+  List<Product> get favorites =>
+      allProducts.where((p) => p.isFavorite).toList();
+
+  int countForCategory(ProductCategory category) =>
+      allProducts.where((p) => p.category == category).length;
+
   CatalogueLoaded copyWith({
-    List<Product>? products,
-    ProductFilter? filter,
-    ProductSortBy? sortBy,
-    bool? ascending,
+    List<Product>? allProducts,
     List<String>? brands,
+    ProductCategory? activeCategory,
+    bool clearActiveCategory = false,
+    String? searchQuery,
+    bool? favoritesOnly,
     Product? selectedProduct,
     bool clearSelectedProduct = false,
     bool? isSyncing,
   }) {
     return CatalogueLoaded(
-      products: products ?? this.products,
-      filter: filter ?? this.filter,
-      sortBy: sortBy ?? this.sortBy,
-      ascending: ascending ?? this.ascending,
+      allProducts: allProducts ?? this.allProducts,
       brands: brands ?? this.brands,
+      activeCategory:
+          clearActiveCategory ? null : (activeCategory ?? this.activeCategory),
+      searchQuery: searchQuery ?? this.searchQuery,
+      favoritesOnly: favoritesOnly ?? this.favoritesOnly,
       selectedProduct:
           clearSelectedProduct ? null : (selectedProduct ?? this.selectedProduct),
       isSyncing: isSyncing ?? this.isSyncing,
@@ -137,11 +153,11 @@ final class CatalogueLoaded extends CatalogueState {
 
   @override
   List<Object?> get props => [
-        products,
-        filter,
-        sortBy,
-        ascending,
+        allProducts,
         brands,
+        activeCategory,
+        searchQuery,
+        favoritesOnly,
         selectedProduct,
         isSyncing,
       ];
@@ -159,10 +175,8 @@ final class CatalogueError extends CatalogueState {
 // BLoC
 class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
   final GetProductsUseCase _getProductsUseCase;
-  final SearchProductsUseCase _searchProductsUseCase;
-  final ToggleFavoriteUseCase _toggleFavoriteUseCase;
-  final SyncCatalogueUseCase _syncCatalogueUseCase;
   final GetBrandsUseCase _getBrandsUseCase;
+  final SyncCatalogueUseCase _syncCatalogueUseCase;
 
   CatalogueBloc({
     required GetProductsUseCase getProductsUseCase,
@@ -171,8 +185,6 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
     required SyncCatalogueUseCase syncCatalogueUseCase,
     required GetBrandsUseCase getBrandsUseCase,
   })  : _getProductsUseCase = getProductsUseCase,
-        _searchProductsUseCase = searchProductsUseCase,
-        _toggleFavoriteUseCase = toggleFavoriteUseCase,
         _syncCatalogueUseCase = syncCatalogueUseCase,
         _getBrandsUseCase = getBrandsUseCase,
         super(const CatalogueInitial()) {
@@ -182,20 +194,20 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
     on<CatalogueToggleFavoriteRequested>(_onToggleFavorite);
     on<CatalogueSyncRequested>(_onSyncRequested);
     on<CatalogueProductSelected>(_onProductSelected);
+    on<CatalogueProductDeselected>(_onProductDeselected);
   }
 
   Future<void> _onLoadRequested(
     CatalogueLoadRequested event,
     Emitter<CatalogueState> emit,
   ) async {
-    emit(const CatalogueLoading());
+    if (state is! CatalogueLoaded) {
+      emit(const CatalogueLoading());
+    }
 
+    // Always fetch ALL products (no server-side filter)
     final results = await Future.wait([
-      _getProductsUseCase(
-        filter: event.filter,
-        sortBy: event.sortBy,
-        ascending: event.ascending,
-      ),
+      _getProductsUseCase(),
       _getBrandsUseCase(),
     ]);
 
@@ -207,80 +219,94 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
         final brands = brandsResult is Success<List<String>>
             ? brandsResult.data
             : <String>[];
+        final currentState = state;
         emit(CatalogueLoaded(
-          products: products,
-          filter: event.filter,
-          sortBy: event.sortBy,
-          ascending: event.ascending,
+          allProducts: products,
           brands: brands,
+          // Preserve current filters if reloading
+          activeCategory: currentState is CatalogueLoaded
+              ? currentState.activeCategory
+              : null,
+          searchQuery: currentState is CatalogueLoaded
+              ? currentState.searchQuery
+              : '',
+          favoritesOnly: currentState is CatalogueLoaded
+              ? currentState.favoritesOnly
+              : false,
         ));
       case Error(failure: final failure):
-        emit(CatalogueError(failure.message));
+        if (state is! CatalogueLoaded) {
+          emit(CatalogueError(failure.message));
+        }
     }
   }
 
-  Future<void> _onSearchRequested(
+  void _onSearchRequested(
     CatalogueSearchRequested event,
     Emitter<CatalogueState> emit,
-  ) async {
+  ) {
     final currentState = state;
     if (currentState is! CatalogueLoaded) return;
 
-    if (event.query.isEmpty) {
-      add(CatalogueLoadRequested(
-        sortBy: currentState.sortBy,
-        ascending: currentState.ascending,
-      ));
-      return;
-    }
-
-    final result = await _searchProductsUseCase(event.query);
-
-    switch (result) {
-      case Success(data: final products):
-        emit(currentState.copyWith(products: products));
-      case Error(failure: final failure):
-        emit(CatalogueError(failure.message));
-    }
+    emit(currentState.copyWith(
+      searchQuery: event.query,
+      favoritesOnly: false,
+    ));
   }
 
-  Future<void> _onFilterChanged(
+  void _onFilterChanged(
     CatalogueFilterChanged event,
     Emitter<CatalogueState> emit,
-  ) async {
+  ) {
     final currentState = state;
-    if (currentState is CatalogueLoaded) {
-      add(CatalogueLoadRequested(
-        filter: event.filter,
-        sortBy: currentState.sortBy,
-        ascending: currentState.ascending,
+    if (currentState is! CatalogueLoaded) return;
+
+    if (event.favoritesOnly == true) {
+      emit(currentState.copyWith(
+        favoritesOnly: true,
+        clearActiveCategory: true,
+        searchQuery: '',
+      ));
+    } else {
+      emit(currentState.copyWith(
+        activeCategory: event.category,
+        clearActiveCategory: event.category == null,
+        favoritesOnly: false,
       ));
     }
   }
 
-  Future<void> _onToggleFavorite(
+  void _onToggleFavorite(
     CatalogueToggleFavoriteRequested event,
     Emitter<CatalogueState> emit,
-  ) async {
+  ) {
     final currentState = state;
     if (currentState is! CatalogueLoaded) return;
 
-    final result = await _toggleFavoriteUseCase(event.productId);
+    // Toggle favorite locally — no API call needed
+    final updatedProducts = currentState.allProducts.map((p) {
+      if (p.id == event.productId) {
+        return p.copyWith(isFavorite: !p.isFavorite);
+      }
+      return p;
+    }).toList();
 
-    switch (result) {
-      case Success(data: final product):
-        final updatedProducts = currentState.products.map((p) {
-          return p.id == product.id ? product : p;
-        }).toList();
-        emit(currentState.copyWith(
-          products: updatedProducts,
-          selectedProduct:
-              currentState.selectedProduct?.id == product.id ? product : null,
-        ));
-      case Error():
-        // Silently fail
-        break;
+    // Also update selectedProduct if it's the toggled one
+    Product? updatedSelected = currentState.selectedProduct;
+    if (updatedSelected != null && updatedSelected.id == event.productId) {
+      updatedSelected = updatedSelected.copyWith(
+          isFavorite: !updatedSelected.isFavorite);
     }
+
+    emit(CatalogueLoaded(
+      allProducts: updatedProducts,
+      brands: currentState.brands,
+      activeCategory: currentState.activeCategory,
+      searchQuery: currentState.searchQuery,
+      favoritesOnly: currentState.favoritesOnly,
+      selectedProduct: updatedSelected,
+      isSyncing: currentState.isSyncing,
+    ));
   }
 
   Future<void> _onSyncRequested(
@@ -295,11 +321,7 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
 
       switch (result) {
         case Success():
-          add(CatalogueLoadRequested(
-            filter: currentState.filter,
-            sortBy: currentState.sortBy,
-            ascending: currentState.ascending,
-          ));
+          add(const CatalogueLoadRequested());
         case Error(failure: final failure):
           emit(currentState.copyWith(isSyncing: false));
           emit(CatalogueError(failure.message));
@@ -314,6 +336,16 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
     final currentState = state;
     if (currentState is CatalogueLoaded) {
       emit(currentState.copyWith(selectedProduct: event.product));
+    }
+  }
+
+  void _onProductDeselected(
+    CatalogueProductDeselected event,
+    Emitter<CatalogueState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is CatalogueLoaded) {
+      emit(currentState.copyWith(clearSelectedProduct: true));
     }
   }
 }

@@ -79,6 +79,17 @@ class SyncCatalogueUseCase {
   }
 }
 
+/// Get product dependencies use case
+class GetProductDependenciesUseCase {
+  final CatalogueRepository _repository;
+
+  GetProductDependenciesUseCase(this._repository);
+
+  Future<Result<List<ProductDependency>>> call(String productId) async {
+    return _repository.getProductDependencies(productId);
+  }
+}
+
 /// Get brands use case
 class GetBrandsUseCase {
   final CatalogueRepository _repository;

@@ -28,30 +28,33 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
   Widget build(BuildContext context) {
     final syncBloc = ref.watch(syncBlocProvider);
     final colorScheme = Theme.of(context).colorScheme;
-    final isTablet = MediaQuery.sizeOf(context).width >= 600;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    // Tablet starts at 600px - always show NavigationRail on tablet
+    final isTabletOrLarger = screenWidth >= 600;
+    final isExtended = screenWidth >= 1200;
 
     // Determine current route for selection
     final currentLocation = GoRouterState.of(context).matchedLocation;
     _selectedIndex = _getIndexFromLocation(currentLocation);
 
-    if (isTablet) {
+    if (isTabletOrLarger) {
       return Scaffold(
         body: Row(
           children: [
             // Navigation Rail
             NavigationRail(
               selectedIndex: _selectedIndex,
-              extended: MediaQuery.sizeOf(context).width >= 1200,
-              minExtendedWidth: 200,
+              extended: isExtended,
+              minExtendedWidth: 220,
               leading: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: _buildLogo(context),
               ),
               trailing: Expanded(
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: 24),
                     child: _buildTrailingActions(context, syncBloc),
                   ),
                 ),
@@ -64,7 +67,9 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
             VerticalDivider(
               thickness: 1,
               width: 1,
-              color: colorScheme.outlineVariant,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withAlpha(8)
+                  : colorScheme.outlineVariant.withAlpha(40),
             ),
 
             // Content
@@ -86,16 +91,28 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
   }
 
   Widget _buildLogo(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colorScheme.primary, const Color(0xFF0D47A1)],
+        ),
+        borderRadius: AppRadius.borderRadiusMd,
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withAlpha(40),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Icon(
+      child: const Icon(
         Icons.home_work_rounded,
         size: 32,
-        color: Theme.of(context).colorScheme.primary,
+        color: Colors.white,
       ),
     );
   }
@@ -112,32 +129,62 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
             final state = snapshot.data;
             final isSyncing = state is SyncInProgress;
             final isOnline = state is SyncIdle ? state.isOnline : true;
+            final pendingCount = state is SyncIdle ? state.pendingUploads : 0;
 
-            return IconButton(
-              icon: isSyncing
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.primary,
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: isSyncing
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        )
+                      : Icon(
+                          isOnline ? Icons.sync : Icons.cloud_off,
+                          color: isOnline
+                              ? null
+                              : Theme.of(context).colorScheme.tertiary,
+                        ),
+                  onPressed: isSyncing
+                      ? null
+                      : () => syncBloc.add(const SyncRequested()),
+                  tooltip: isSyncing ? 'Synchronisation...' : 'Synchroniser',
+                ),
+                // Pending sync badge
+                if (pendingCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.error,
+                        shape: BoxShape.circle,
                       ),
-                    )
-                  : Icon(
-                      isOnline ? Icons.sync : Icons.cloud_off,
-                      color: isOnline ? null : Colors.orange,
+                      child: Text(
+                        '$pendingCount',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-              onPressed: isSyncing
-                  ? null
-                  : () => syncBloc.add(const SyncRequested()),
-              tooltip: isSyncing ? 'Synchronisation...' : 'Synchroniser',
+                  ),
+              ],
             );
           },
         ),
-        AppSpacing.vGapSm,
+        AppSpacing.vGapMd,
         // Profile/Logout button
         PopupMenuButton<String>(
           icon: const Icon(Icons.account_circle),
+          tooltip: 'Mon compte',
           onSelected: (value) {
             if (value == 'logout') {
               ref.read(authBlocProvider).add(const AuthLogoutRequested());
@@ -154,11 +201,11 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
               ),
             ),
             const PopupMenuDivider(),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'logout',
               child: ListTile(
-                leading: Icon(Icons.logout, color: Colors.red),
-                title: Text('Déconnexion', style: TextStyle(color: Colors.red)),
+                leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+                title: Text('Deconnexion', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 contentPadding: EdgeInsets.zero,
               ),
             ),
@@ -181,9 +228,19 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
         label: Text('Projets'),
       ),
       NavigationRailDestination(
+        icon: Icon(Icons.calendar_month_outlined),
+        selectedIcon: Icon(Icons.calendar_month),
+        label: Text('Agenda'),
+      ),
+      NavigationRailDestination(
         icon: Icon(Icons.inventory_2_outlined),
         selectedIcon: Icon(Icons.inventory_2),
         label: Text('Catalogue'),
+      ),
+      NavigationRailDestination(
+        icon: Icon(Icons.support_agent_outlined),
+        selectedIcon: Icon(Icons.support_agent),
+        label: Text('Support'),
       ),
     ];
   }
@@ -201,16 +258,28 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
         label: 'Projets',
       ),
       NavigationDestination(
+        icon: Icon(Icons.calendar_month_outlined),
+        selectedIcon: Icon(Icons.calendar_month),
+        label: 'Agenda',
+      ),
+      NavigationDestination(
         icon: Icon(Icons.inventory_2_outlined),
         selectedIcon: Icon(Icons.inventory_2),
         label: 'Catalogue',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.support_agent_outlined),
+        selectedIcon: Icon(Icons.support_agent),
+        label: 'Support',
       ),
     ];
   }
 
   int _getIndexFromLocation(String location) {
     if (location.startsWith('/projects')) return 1;
-    if (location.startsWith('/catalogue')) return 2;
+    if (location.startsWith('/calendar')) return 2;
+    if (location.startsWith('/catalogue')) return 3;
+    if (location.startsWith('/tickets')) return 4;
     return 0; // Dashboard
   }
 
@@ -221,7 +290,11 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
       case 1:
         context.goToProjects();
       case 2:
+        context.goToCalendar();
+      case 3:
         context.goToCatalogue();
+      case 4:
+        context.goToTickets();
     }
   }
 }

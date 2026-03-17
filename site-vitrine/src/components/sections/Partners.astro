@@ -10,10 +10,10 @@ const partners = [
 ];
 ---
 
-<section class="py-16 bg-white border-y border-dark-100">
+<section class="py-16 bg-dark-950 border-y border-dark-800">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-10 animate-on-scroll">
-      <p class="text-sm font-medium text-dark-500 uppercase tracking-wider">
+      <p class="text-sm font-medium text-dark-400 uppercase tracking-wider">
         Technologies & partenaires
       </p>
     </div>
@@ -21,7 +21,7 @@ const partners = [
     <div class="flex flex-wrap items-center justify-center gap-8 md:gap-12">
       {partners.map((partner, index) => (
         <div class={`animate-on-scroll animation-delay-${index % 4}00`}>
-          <div class="group flex items-center gap-3 px-6 py-3 bg-dark-50 rounded-xl hover:bg-dark-100 transition-colors">
+          <div class="group flex items-center gap-3 px-6 py-3 bg-dark-800/30 rounded-xl hover:bg-dark-700/50 transition-colors">
             <div class={`w-10 h-10 rounded-lg flex items-center justify-center ${partner.color} group-hover:bg-primary-500 group-hover:text-white transition-colors`}>
               {partner.icon === 'Lightbulb' && <Lightbulb class="w-5 h-5" />}
               {partner.icon === 'Wifi' && <Wifi class="w-5 h-5" />}
@@ -29,7 +29,7 @@ const partners = [
               {partner.icon === 'Link' && <Link class="w-5 h-5" />}
               {partner.icon === 'Cpu' && <Cpu class="w-5 h-5" />}
             </div>
-            <span class="text-dark-600 font-medium">{partner.name}</span>
+            <span class="text-dark-300 font-medium">{partner.name}</span>
           </div>
         </div>
       ))}

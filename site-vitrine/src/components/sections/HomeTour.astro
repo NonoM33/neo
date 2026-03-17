@@ -1,0 +1,316 @@
+---
+// HomeTour - Apple-style single-pin crossfade
+// Persistent clock element as visual thread between scenes
+---
+
+<section id="home-tour">
+  <div id="tour-pin">
+    <div id="tour-viewport" class="h-screen w-full relative overflow-hidden">
+
+      <!-- === BACKGROUNDS === -->
+      <div id="bg0" class="tour-bg" style="background:#0a0f1a">
+        <div class="absolute inset-0 opacity-[0.02]" style="background-image:radial-gradient(circle,#fff 1px,transparent 1px);background-size:30px 30px"></div>
+        <div class="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-primary-500/10 rounded-full blur-[150px] -translate-x-1/2 -translate-y-1/2"></div>
+      </div>
+      <div id="bg1" class="tour-bg" style="background:#080d1a">
+        <div class="absolute top-1/2 left-1/2 w-[800px] h-[500px] bg-blue-600/12 rounded-full blur-[150px] -translate-x-1/2 -translate-y-1/2"></div>
+      </div>
+      <div id="bg2" class="tour-bg" style="background:linear-gradient(135deg,#1a0f00,#0a0a14 50%,#0f1a0a)">
+        <div class="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[150px]"></div>
+      </div>
+      <div id="bg3" class="tour-bg" style="background:#04040c">
+        <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px]"></div>
+      </div>
+      <div id="bg4" class="tour-bg" style="background:#060a10">
+        <div class="absolute bottom-0 right-0 w-[600px] h-[600px] bg-green-500/8 rounded-full blur-[150px]"></div>
+      </div>
+      <div id="bg5" class="tour-bg" style="background:linear-gradient(180deg,#0a0a14,#0d1a2e 50%,#0a0a14)">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-primary-500/8 rounded-full blur-[150px]"></div>
+      </div>
+
+      <!-- Clock hidden - kept in DOM for script compatibility -->
+      <div id="tour-clock" class="hidden">
+        <div class="tour-clock-ring"><span id="clock-time"></span></div>
+        <span id="clock-label"></span>
+      </div>
+
+      <!-- === CONTENT LAYERS === -->
+
+      <!-- S0: 18h - Retour maison -->
+      <div id="s0" class="tour-content">
+        <div class="flex flex-col items-center justify-center h-full text-center px-6 pt-28">
+          <p id="s0-a" class="text-primary-400 text-sm font-semibold tracking-[0.3em] uppercase mb-6">Imaginez</p>
+          <h2 id="s0-b" class="text-5xl sm:text-7xl lg:text-[7rem] font-bold text-white leading-[1] mb-6">Vous rentrez<br/>chez vous.</h2>
+          <p id="s0-c" class="text-xl sm:text-2xl text-dark-300 max-w-2xl leading-relaxed mb-10">La porte vous reconnait. Les lumieres s'allument. Il fait 21°C.</p>
+          <div class="flex flex-wrap justify-center gap-4">
+            <div id="s0-f1" class="tour-chip"><span class="text-2xl">💡</span><span>Lumieres allumees</span></div>
+            <div id="s0-f2" class="tour-chip"><span class="text-2xl">🔓</span><span>Porte deverrouillee</span></div>
+            <div id="s0-f3" class="tour-chip"><span class="text-2xl">🌡️</span><span>21°C optimal</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S1: 20h - Cinema -->
+      <div id="s1" class="tour-content">
+        <div class="flex flex-col items-center justify-center h-full text-center px-6 pt-28">
+          <div id="s1-a" class="inline-flex items-center gap-3 px-6 py-3 bg-blue-500/10 border border-blue-500/20 rounded-full mb-10">
+            <span class="text-2xl">🎬</span><span class="text-blue-400 font-medium">Scene du soir</span>
+          </div>
+          <h2 class="text-5xl sm:text-7xl lg:text-[6.5rem] font-bold text-white leading-[1] mb-6">
+            <span id="s1-w1" class="inline-block">"Ok Neo,</span><br/>
+            <span id="s1-w2" class="inline-block gradient-text">mode cinema."</span>
+          </h2>
+          <p id="s1-b" class="text-xl text-dark-400 max-w-xl leading-relaxed mb-10">Une phrase. Trois actions simultanees.</p>
+          <div class="flex flex-wrap justify-center gap-4">
+            <div id="s1-f1" class="tour-chip"><span class="text-xl">🪟</span><span>Volets fermes</span></div>
+            <div id="s1-f2" class="tour-chip"><span class="text-xl">💡</span><span>Lumiere tamisee</span></div>
+            <div id="s1-f3" class="tour-chip"><span class="text-xl">📺</span><span>TV sur Netflix</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S2: 7h - Matin -->
+      <div id="s2" class="tour-content">
+        <div class="flex items-center h-full px-6 pt-28">
+          <div class="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center">
+            <div class="order-2 lg:order-1">
+              <div class="space-y-4 max-w-sm mx-auto lg:mx-0">
+                <div id="s2-t1" class="tour-timeline-card"><div class="tour-time bg-amber-500/20"><span class="text-amber-400">6:45</span></div><div><p class="text-white font-medium text-sm">Volets s'ouvrent</p><p class="text-dark-400 text-xs">Lever du soleil detecte</p></div></div>
+                <div id="s2-t2" class="tour-timeline-card"><div class="tour-time bg-amber-500/20"><span class="text-amber-400">7:00</span></div><div><p class="text-white font-medium text-sm">Cafe lance</p><p class="text-dark-400 text-xs">Machine programmee</p></div></div>
+                <div id="s2-t3" class="tour-timeline-card"><div class="tour-time bg-green-500/20"><span class="text-green-400">7:00</span></div><div><p class="text-white font-medium text-sm">Playlist matin</p><p class="text-dark-400 text-xs">Spotify - Bonne humeur</p></div></div>
+                <div id="s2-t4" class="tour-timeline-card"><div class="tour-time bg-primary-500/20"><span class="text-primary-400">7:15</span></div><div><p class="text-white font-medium text-sm">Briefing du jour</p><p class="text-dark-400 text-xs">Meteo, agenda, trafic</p></div></div>
+              </div>
+            </div>
+            <div class="order-1 lg:order-2">
+              <p id="s2-a" class="text-amber-400 text-sm font-semibold tracking-[0.3em] uppercase mb-6">Le lendemain matin</p>
+              <h2 id="s2-b" class="text-4xl sm:text-5xl lg:text-7xl font-bold text-white leading-[1.05] mb-8">7 heures.<br/><span class="text-amber-300">Tout est pret.</span></h2>
+              <p id="s2-c" class="text-lg text-dark-300 max-w-lg leading-relaxed">Avant meme votre reveil, votre maison a prepare votre matinee.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S3: 23h - Nuit -->
+      <div id="s3" class="tour-content">
+        <div class="flex flex-col items-center justify-center h-full text-center px-6 pt-28">
+          <div id="s3-moon" class="text-6xl sm:text-8xl mb-8">🌙</div>
+          <h2 id="s3-a" class="text-5xl sm:text-7xl lg:text-[7rem] font-bold text-white leading-[1] mb-8">Bonne nuit.</h2>
+          <p id="s3-b" class="text-xl sm:text-2xl text-dark-400 max-w-2xl leading-relaxed mb-12">Une seule commande. Les lumieres s'eteignent.<br class="hidden sm:block"/>Les volets se ferment. L'alarme s'active.</p>
+          <div class="flex flex-wrap justify-center gap-3">
+            <div id="s3-c1" class="tour-pill bg-indigo-500/10 border-indigo-500/20 text-indigo-300">Lumieres eteintes</div>
+            <div id="s3-c2" class="tour-pill bg-violet-500/10 border-violet-500/20 text-violet-300">Volets fermes</div>
+            <div id="s3-c3" class="tour-pill bg-red-500/10 border-red-500/20 text-red-300">Alarme active</div>
+            <div id="s3-c4" class="tour-pill bg-green-500/10 border-green-500/20 text-green-300">Securise</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S4: Vacances -->
+      <div id="s4" class="tour-content">
+        <div class="flex items-center h-full px-6 pt-28">
+          <div class="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <p id="s4-a" class="text-green-400 text-sm font-semibold tracking-[0.3em] uppercase mb-6">En vacances</p>
+              <h2 id="s4-b" class="text-4xl sm:text-5xl lg:text-7xl font-bold text-white leading-[1.05] mb-4">Vous etes<br/>a 800 km.</h2>
+              <h2 id="s4-c" class="text-4xl sm:text-5xl lg:text-7xl font-bold text-green-400 leading-[1.05]">Votre maison<br/>fait semblant<br/>que non.</h2>
+            </div>
+            <div id="s4-phone">
+              <div class="mx-auto w-72 bg-dark-800 rounded-[2.5rem] p-3 border border-dark-600 shadow-2xl">
+                <div class="bg-dark-900 rounded-[2rem] p-5 min-h-[400px]">
+                  <div class="flex items-center justify-between mb-6"><span class="text-dark-400 text-xs">9:41</span><div class="flex gap-1"><div class="w-4 h-2 bg-dark-600 rounded-sm"></div><div class="w-4 h-2 bg-green-500 rounded-sm"></div></div></div>
+                  <div class="text-center mb-6"><div class="w-12 h-12 mx-auto bg-green-500/20 rounded-2xl flex items-center justify-center mb-3"><span class="text-xl">🛡️</span></div><p class="text-white font-semibold">Tout est OK</p><p class="text-dark-400 text-xs">Maison securisee</p></div>
+                  <div class="space-y-3">
+                    <div id="s4-n1" class="tour-notif"><div class="w-1.5 h-1.5 bg-amber-400 rounded-full"></div><span class="text-xs text-amber-400">19:30</span><p class="text-dark-300 text-xs mt-1">Salon allume - Simulation</p></div>
+                    <div id="s4-n2" class="tour-notif"><div class="w-1.5 h-1.5 bg-blue-400 rounded-full"></div><span class="text-xs text-blue-400">20:00</span><p class="text-dark-300 text-xs mt-1">Volets fermes</p></div>
+                    <div id="s4-n3" class="tour-notif"><div class="w-1.5 h-1.5 bg-green-400 rounded-full"></div><span class="text-xs text-green-400">22:15</span><p class="text-dark-300 text-xs mt-1">Aucun mouvement - RAS</p></div>
+                    <div id="s4-n4" class="tour-notif"><div class="w-1.5 h-1.5 bg-violet-400 rounded-full"></div><span class="text-xs text-violet-400">23:00</span><p class="text-dark-300 text-xs mt-1">Mode nuit active</p></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S5: CTA -->
+      <div id="s5" class="tour-content">
+        <div class="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pt-28">
+          <div id="s5-badge" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500/10 border border-primary-500/20 rounded-full text-sm text-primary-400 mb-10">
+            <span class="w-2 h-2 bg-primary-400 rounded-full animate-pulse"></span>Audit gratuit · Sans engagement
+          </div>
+          <h2 id="s5-h" class="text-5xl sm:text-7xl lg:text-[7rem] font-bold text-white leading-[1] mb-8">Vous voulez<br/><span class="gradient-text">ca</span> chez vous ?</h2>
+          <p id="s5-p" class="text-xl text-dark-300 mb-12 leading-relaxed">On vient, on analyse, on propose. Devis en 48h.</p>
+          <div id="s5-btns" class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/prendre-rdv" class="btn-primary text-lg px-10 py-5 group">Demander mon audit gratuit<svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+            <a href="tel:+33123456789" class="inline-flex items-center justify-center gap-3 text-lg px-10 py-5 text-dark-300 hover:text-white border border-dark-600 hover:border-primary-500/50 rounded-xl transition-all"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>01 23 45 67 89</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="bg-dark-950"></div>
+</section>
+
+<style>
+  .tour-bg { position:absolute; inset:0; opacity:0; will-change:opacity; }
+  .tour-bg:first-child { opacity:1; }
+  .tour-content { position:absolute; inset:0; z-index:10; opacity:0; will-change:opacity,transform; pointer-events:none; }
+  .tour-content:first-of-type { opacity:1; pointer-events:auto; }
+
+  .tour-chip { display:flex; align-items:center; gap:.75rem; padding:.75rem 1.5rem; background:rgba(30,30,45,0.6); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.08); border-radius:1rem; color:#ddd; font-size:.875rem; font-weight:500; }
+  .tour-pill { padding:.625rem 1.25rem; border:1px solid; border-radius:9999px; font-size:.875rem; }
+  .tour-timeline-card { display:flex; align-items:center; gap:1rem; padding:1rem; background:rgba(30,30,45,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.06); border-radius:1rem; }
+  .tour-time { width:3.5rem; height:3.5rem; border-radius:.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; font-size:.875rem; }
+  .tour-notif { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; padding:.75rem; background:rgba(20,20,35,0.8); border:1px solid rgba(255,255,255,0.06); border-radius:.75rem; }
+  .tour-notif p { width:100%; margin:0; }
+
+  .tour-clock-ring { transition: border-color 0.6s, box-shadow 0.6s; }
+  #clock-time { transition: color 0.4s; }
+  #clock-label { transition: color 0.4s, opacity 0.4s; }
+</style>
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script is:inline src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+<script is:inline>
+gsap.registerPlugin(ScrollTrigger);
+
+var N = 6;
+var bgs = [], contents = [];
+for (var i = 0; i < N; i++) { bgs.push(document.getElementById('bg'+i)); contents.push(document.getElementById('s'+i)); }
+
+var clockTime = document.getElementById('clock-time');
+var clockLabel = document.getElementById('clock-label');
+var clockRing = document.querySelector('.tour-clock-ring');
+var tourClock = document.getElementById('tour-clock');
+
+// Clock data per scene
+var clockData = [
+  { time:'18:00', label:'Retour maison', color:'#3B82F6', ringColor:'rgba(59,130,246,0.3)' },
+  { time:'20:00', label:'Soiree cinema', color:'#60A5FA', ringColor:'rgba(96,165,250,0.3)' },
+  { time:'07:00', label:'Le lendemain', color:'#F59E0B', ringColor:'rgba(245,158,11,0.3)' },
+  { time:'23:00', label:'Bonne nuit', color:'#818CF8', ringColor:'rgba(129,140,248,0.3)' },
+  { time:'🌴',    label:'En vacances',  color:'#34D399', ringColor:'rgba(52,211,153,0.3)' },
+  { time:'✨',    label:'A vous',       color:'#3B82F6', ringColor:'rgba(59,130,246,0.3)' },
+];
+
+function setClock(idx) {
+  var d = clockData[idx];
+  if (!d) return;
+  clockTime.textContent = d.time;
+  clockTime.style.color = d.color;
+  clockLabel.textContent = d.label;
+  clockLabel.style.color = d.color;
+  clockRing.style.borderColor = d.ringColor;
+  clockRing.style.boxShadow = '0 0 30px ' + d.ringColor;
+}
+
+var D = 1; // scene duration in timeline
+var T = 0.12; // crossfade overlap
+
+// Master timeline pinned
+var tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: '#tour-pin',
+    start: 'top top',
+    end: '+=600%',
+    pin: true,
+    scrub: 0.5,
+    anticipatePin: 1,
+  }
+});
+
+// ===== CROSSFADES + CLOCK =====
+for (var i = 0; i < N; i++) {
+  (function(idx) {
+    var start = idx * D;
+
+    // BG crossfade
+    if (idx > 0) {
+      tl.fromTo(bgs[idx], {opacity:0}, {opacity:1, duration:T, ease:'none'}, start - T/2);
+      tl.to(bgs[idx-1], {opacity:0, duration:T, ease:'none'}, start - T/2);
+    }
+
+    // Content fade in
+    if (idx > 0) {
+      tl.fromTo(contents[idx], {opacity:0}, {opacity:1, duration:T, ease:'none'}, start - T/4);
+    }
+    // Content fade out (except last)
+    if (idx < N-1) {
+      tl.to(contents[idx], {opacity:0, duration:T, ease:'none'}, start + D - T);
+    }
+
+    // Clock update at each scene boundary
+    tl.call(function() { setClock(idx); }, null, start + 0.01);
+
+    // Clock pulse animation at transition
+    if (idx > 0) {
+      tl.fromTo(clockRing, {scale:1.3}, {scale:1, duration:0.15, ease:'elastic.out(1,0.4)'}, start);
+    }
+  })(i);
+}
+
+// ===== S0: ENTRANCE (starts at 0) — immediate content =====
+// Content already visible, animate elements right away
+tl.fromTo('#s0-a', {opacity:0,y:30}, {opacity:1,y:0,duration:0.08}, 0);
+tl.fromTo('#s0-b', {opacity:0,y:60,scale:0.9}, {opacity:1,y:0,scale:1,duration:0.12}, 0.02);
+tl.fromTo('#s0-c', {opacity:0,y:30}, {opacity:1,y:0,duration:0.1}, 0.08);
+tl.fromTo('#s0-f1', {opacity:0,y:20,scale:0.8}, {opacity:1,y:0,scale:1,duration:0.08,ease:'back.out(2)'}, 0.18);
+tl.fromTo('#s0-f2', {opacity:0,y:20,scale:0.8}, {opacity:1,y:0,scale:1,duration:0.08,ease:'back.out(2)'}, 0.23);
+tl.fromTo('#s0-f3', {opacity:0,y:20,scale:0.8}, {opacity:1,y:0,scale:1,duration:0.08,ease:'back.out(2)'}, 0.28);
+
+// ===== S1: CINEMA (starts at 1.0) =====
+var p1 = 1*D;
+tl.fromTo('#s1-a', {opacity:0,y:30}, {opacity:1,y:0,duration:0.1}, p1+0.05);
+tl.fromTo('#s1-w1', {opacity:0,y:80,rotationX:-30}, {opacity:1,y:0,rotationX:0,duration:0.15,ease:'power4.out'}, p1+0.1);
+tl.fromTo('#s1-w2', {opacity:0,y:80,rotationX:-30}, {opacity:1,y:0,rotationX:0,duration:0.15,ease:'power4.out'}, p1+0.2);
+tl.fromTo('#s1-b', {opacity:0}, {opacity:1,duration:0.1}, p1+0.35);
+tl.fromTo('#s1-f1', {opacity:0,scale:0.5}, {opacity:1,scale:1,duration:0.08,ease:'back.out(3)'}, p1+0.45);
+tl.fromTo('#s1-f2', {opacity:0,scale:0.5}, {opacity:1,scale:1,duration:0.08,ease:'back.out(3)'}, p1+0.52);
+tl.fromTo('#s1-f3', {opacity:0,scale:0.5}, {opacity:1,scale:1,duration:0.08,ease:'back.out(3)'}, p1+0.59);
+
+// ===== S2: MORNING (starts at 2.0) =====
+var p2 = 2*D;
+tl.fromTo('#s2-a', {opacity:0,y:40}, {opacity:1,y:0,duration:0.1}, p2+0.05);
+tl.fromTo('#s2-b', {opacity:0,y:60}, {opacity:1,y:0,duration:0.12}, p2+0.1);
+tl.fromTo('#s2-c', {opacity:0,y:30}, {opacity:1,y:0,duration:0.1}, p2+0.2);
+tl.fromTo('#s2-t1', {opacity:0,x:-60}, {opacity:1,x:0,duration:0.1,ease:'power3.out'}, p2+0.3);
+tl.fromTo('#s2-t2', {opacity:0,x:-60}, {opacity:1,x:0,duration:0.1,ease:'power3.out'}, p2+0.42);
+tl.fromTo('#s2-t3', {opacity:0,x:-60}, {opacity:1,x:0,duration:0.1,ease:'power3.out'}, p2+0.54);
+tl.fromTo('#s2-t4', {opacity:0,x:-60}, {opacity:1,x:0,duration:0.1,ease:'power3.out'}, p2+0.66);
+
+// ===== S3: NIGHT (starts at 3.0) =====
+var p3 = 3*D;
+tl.fromTo('#s3-moon', {opacity:0,scale:0.2,rotation:-40}, {opacity:1,scale:1,rotation:0,duration:0.2,ease:'elastic.out(1,0.4)'}, p3+0.05);
+tl.fromTo('#s3-a', {opacity:0,y:50,scale:0.85}, {opacity:1,y:0,scale:1,duration:0.15}, p3+0.15);
+tl.fromTo('#s3-b', {opacity:0,y:30}, {opacity:1,y:0,duration:0.12}, p3+0.3);
+tl.fromTo('#s3-c1', {opacity:0,scale:0.7}, {opacity:1,scale:1,duration:0.08,ease:'back.out(2)'}, p3+0.45);
+tl.fromTo('#s3-c2', {opacity:0,scale:0.7}, {opacity:1,scale:1,duration:0.08,ease:'back.out(2)'}, p3+0.52);
+tl.fromTo('#s3-c3', {opacity:0,scale:0.7}, {opacity:1,scale:1,duration:0.08,ease:'back.out(2)'}, p3+0.59);
+tl.fromTo('#s3-c4', {opacity:0,scale:0.7}, {opacity:1,scale:1,duration:0.08,ease:'back.out(2)'}, p3+0.66);
+
+// ===== S4: SECURITY (starts at 4.0) =====
+var p4 = 4*D;
+tl.fromTo('#s4-a', {opacity:0,y:40}, {opacity:1,y:0,duration:0.1}, p4+0.05);
+tl.fromTo('#s4-b', {opacity:0,y:60}, {opacity:1,y:0,duration:0.12}, p4+0.1);
+tl.fromTo('#s4-c', {opacity:0,y:40}, {opacity:1,y:0,duration:0.12}, p4+0.2);
+tl.fromTo('#s4-phone', {opacity:0,y:100}, {opacity:1,y:0,duration:0.18,ease:'power3.out'}, p4+0.18);
+tl.fromTo('#s4-n1', {opacity:0,x:40}, {opacity:1,x:0,duration:0.08}, p4+0.42);
+tl.fromTo('#s4-n2', {opacity:0,x:40}, {opacity:1,x:0,duration:0.08}, p4+0.52);
+tl.fromTo('#s4-n3', {opacity:0,x:40}, {opacity:1,x:0,duration:0.08}, p4+0.62);
+tl.fromTo('#s4-n4', {opacity:0,x:40}, {opacity:1,x:0,duration:0.08}, p4+0.72);
+
+// ===== S5: CTA (starts at 5.0) =====
+var p5 = 5*D;
+tl.fromTo('#s5-badge', {opacity:0,y:30}, {opacity:1,y:0,duration:0.1}, p5+0.05);
+tl.fromTo('#s5-h', {opacity:0,scale:0.7}, {opacity:1,scale:1,duration:0.2,ease:'power3.out'}, p5+0.1);
+tl.fromTo('#s5-p', {opacity:0,y:20}, {opacity:1,y:0,duration:0.12}, p5+0.3);
+tl.fromTo('#s5-btns', {opacity:0,y:30}, {opacity:1,y:0,duration:0.12}, p5+0.42);
+// Hide clock on CTA
+tl.to(tourClock, {opacity:0, duration:0.1}, p5-0.05);
+
+// Init: set clock and show first scene immediately
+setClock(0);
+gsap.set(contents[0], {opacity:1, pointerEvents:'auto'});
+</script>

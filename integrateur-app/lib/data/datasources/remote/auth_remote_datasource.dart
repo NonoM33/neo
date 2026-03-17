@@ -9,14 +9,14 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
 
-  Future<void> logout();
+  Future<void> logout(String? refreshToken);
 
   Future<UserModel> getCurrentUser();
 
   Future<AuthTokensModel> refreshToken(String refreshToken);
 }
 
-/// Implementation of AuthRemoteDataSource using API client
+/// Implementation using API client
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final ApiClient _apiClient;
 
@@ -39,8 +39,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> logout() async {
-    await _apiClient.post(ApiEndpoints.logout);
+  Future<void> logout(String? refreshToken) async {
+    await _apiClient.post(
+      ApiEndpoints.logout,
+      data: refreshToken != null ? {'refreshToken': refreshToken} : {},
+    );
   }
 
   @override
@@ -53,9 +56,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<AuthTokensModel> refreshToken(String refreshToken) async {
     final response = await _apiClient.post(
       ApiEndpoints.refreshToken,
-      data: {'refresh_token': refreshToken},
+      data: {'refreshToken': refreshToken},
     );
 
-    return AuthTokensModel.fromJson(response.data as Map<String, dynamic>);
+    return AuthTokensModel.fromRefreshJson(
+        response.data as Map<String, dynamic>);
   }
 }

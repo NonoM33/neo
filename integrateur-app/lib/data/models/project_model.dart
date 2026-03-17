@@ -1,45 +1,52 @@
 import '../../domain/entities/project.dart';
 import '../../domain/entities/client.dart';
-import 'room_model.dart';
-import 'quote_model.dart';
 
-/// Client model for JSON serialization
+/// Client model for JSON serialization - backend uses camelCase
 class ClientModel extends Client {
   const ClientModel({
-    super.id,
+    required super.id,
     required super.firstName,
     required super.lastName,
-    required super.email,
-    required super.phone,
-    required super.address,
+    super.email,
+    super.phone,
+    super.address,
+    super.city,
+    super.postalCode,
     super.notes,
+    super.createdAt,
+    super.updatedAt,
   });
 
   factory ClientModel.fromJson(Map<String, dynamic> json) {
-    final addressJson = json['adresse'] as Map<String, dynamic>? ??
-        json['address'] as Map<String, dynamic>? ??
-        {};
-
     return ClientModel(
-      id: json['id'] as String?,
-      firstName: json['prenom'] as String? ?? json['firstName'] as String? ?? '',
-      lastName: json['nom'] as String? ?? json['lastName'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      phone: json['telephone'] as String? ?? json['phone'] as String? ?? '',
-      address: AddressModel.fromJson(addressJson),
+      id: json['id'] as String,
+      firstName: json['firstName'] as String? ?? '',
+      lastName: json['lastName'] as String? ?? '',
+      email: json['email'] as String?,
+      phone: json['phone'] as String?,
+      address: json['address'] as String?,
+      city: json['city'] as String?,
+      postalCode: json['postalCode'] as String?,
       notes: json['notes'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) 'id': id,
-      'prenom': firstName,
-      'nom': lastName,
-      'email': email,
-      'telephone': phone,
-      'adresse': AddressModel.fromEntity(address).toJson(),
-      'notes': notes,
+      'firstName': firstName,
+      'lastName': lastName,
+      if (email != null) 'email': email,
+      if (phone != null) 'phone': phone,
+      if (address != null) 'address': address,
+      if (city != null) 'city': city,
+      if (postalCode != null) 'postalCode': postalCode,
+      if (notes != null) 'notes': notes,
     };
   }
 
@@ -51,146 +58,141 @@ class ClientModel extends Client {
       email: client.email,
       phone: client.phone,
       address: client.address,
+      city: client.city,
+      postalCode: client.postalCode,
       notes: client.notes,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
     );
   }
 }
 
-/// Address model for JSON serialization
-class AddressModel extends Address {
-  const AddressModel({
-    required super.street,
-    required super.postalCode,
-    required super.city,
-    super.complement,
-  });
-
-  factory AddressModel.fromJson(Map<String, dynamic> json) {
-    return AddressModel(
-      street: json['rue'] as String? ?? json['street'] as String? ?? '',
-      postalCode: json['code_postal'] as String? ?? json['postalCode'] as String? ?? '',
-      city: json['ville'] as String? ?? json['city'] as String? ?? '',
-      complement: json['complement'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'rue': street,
-      'code_postal': postalCode,
-      'ville': city,
-      'complement': complement,
-    };
-  }
-
-  factory AddressModel.fromEntity(Address address) {
-    return AddressModel(
-      street: address.street,
-      postalCode: address.postalCode,
-      city: address.city,
-      complement: address.complement,
-    );
-  }
-}
-
-/// Project model for JSON serialization
+/// Project model for JSON serialization - backend uses camelCase
 class ProjectModel extends Project {
   const ProjectModel({
     required super.id,
-    required super.client,
-    required super.housingType,
-    super.surfaceM2,
+    required super.name,
+    super.description,
+    required super.clientId,
+    super.client,
+    super.userId,
     required super.status,
+    super.address,
+    super.city,
+    super.postalCode,
+    super.surface,
+    super.roomCount,
     required super.createdAt,
-    super.appointmentDate,
-    required super.integrateurId,
-    super.rooms,
-    super.selectedProductIds,
-    super.quote,
-    super.notes,
     super.updatedAt,
     super.isSynced,
   });
 
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
+    // Parse client - can be nested object or just id
+    Client? client;
+    final clientJson = json['client'];
+    if (clientJson is Map<String, dynamic>) {
+      client = ClientModel.fromJson(clientJson);
+    }
+
+    // Parse surface - backend may return as String (decimal)
+    double? surface;
+    final rawSurface = json['surface'];
+    if (rawSurface is num) {
+      surface = rawSurface.toDouble();
+    } else if (rawSurface is String) {
+      surface = double.tryParse(rawSurface);
+    }
+
+    // Parse user id from nested user object
+    String? userId = json['userId'] as String?;
+    if (userId == null && json['user'] is Map<String, dynamic>) {
+      userId = (json['user'] as Map<String, dynamic>)['id'] as String?;
+    }
+
+    // Parse clientId - can be direct field or from nested client
+    String clientId = json['clientId'] as String? ?? '';
+    if (clientId.isEmpty && client != null) {
+      clientId = client.id;
+    }
+
     return ProjectModel(
       id: json['id'] as String,
-      client: ClientModel.fromJson(json['client'] as Map<String, dynamic>),
-      housingType: HousingType.fromString(
-          json['type_logement'] as String? ?? json['housingType'] as String? ?? 'autre'),
-      surfaceM2: (json['surface_m2'] as num?)?.toDouble() ??
-          (json['surfaceM2'] as num?)?.toDouble(),
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String?,
+      clientId: clientId,
+      client: client,
+      userId: userId,
       status: ProjectStatus.fromString(
-          json['statut'] as String? ?? json['status'] as String? ?? 'audit'),
-      createdAt: DateTime.parse(json['date_creation'] as String? ??
-          json['createdAt'] as String? ??
-          DateTime.now().toIso8601String()),
-      appointmentDate: json['date_rdv'] != null
-          ? DateTime.parse(json['date_rdv'] as String)
-          : json['appointmentDate'] != null
-              ? DateTime.parse(json['appointmentDate'] as String)
-              : null,
-      integrateurId: json['integrateur_id'] as String? ??
-          json['integrateurId'] as String? ??
-          '',
-      rooms: (json['pieces'] as List<dynamic>?)
-              ?.map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      selectedProductIds:
-          (json['produits_selectionnes'] as List<dynamic>?)
-                  ?.map((e) => e as String)
-                  .toList() ??
-              (json['selectedProductIds'] as List<dynamic>?)
-                  ?.map((e) => e as String)
-                  .toList() ??
-              [],
-      quote: json['devis'] != null && (json['devis'] as Map).isNotEmpty
-          ? QuoteModel.fromJson(json['devis'] as Map<String, dynamic>)
+          json['status'] as String? ?? 'brouillon'),
+      address: json['address'] as String?,
+      city: json['city'] as String?,
+      postalCode: json['postalCode'] as String?,
+      surface: surface,
+      roomCount: json['roomCount'] as int?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
           : null,
-      notes: json['notes'] as String?,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : json['updatedAt'] != null
-              ? DateTime.parse(json['updatedAt'] as String)
-              : null,
-      isSynced: json['is_synced'] as bool? ?? json['isSynced'] as bool? ?? true,
+      isSynced: json['isSynced'] as bool? ?? true,
     );
+  }
+
+  /// Convert to JSON for create request
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'clientId': clientId,
+      'name': name,
+      if (description != null) 'description': description,
+      'status': status.apiValue,
+      if (address != null) 'address': address,
+      if (city != null) 'city': city,
+      if (postalCode != null) 'postalCode': postalCode,
+      if (surface != null) 'surface': surface,
+      if (roomCount != null) 'roomCount': roomCount,
+    };
+  }
+
+  /// Convert to JSON for update request
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      if (name.isNotEmpty) 'name': name,
+      'description': description,
+      'status': status.apiValue,
+      'address': address,
+      'city': city,
+      'postalCode': postalCode,
+      'surface': surface,
+      'roomCount': roomCount,
+    };
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'client': ClientModel.fromEntity(client).toJson(),
-      'type_logement': housingType.name,
-      'surface_m2': surfaceM2,
-      'statut': status.apiValue,
-      'date_creation': createdAt.toIso8601String(),
-      'date_rdv': appointmentDate?.toIso8601String(),
-      'integrateur_id': integrateurId,
-      'pieces': rooms.map((r) => RoomModel.fromEntity(r).toJson()).toList(),
-      'produits_selectionnes': selectedProductIds,
-      'devis': quote != null ? QuoteModel.fromEntity(quote!).toJson() : null,
-      'notes': notes,
-      'updated_at': updatedAt?.toIso8601String(),
-      'is_synced': isSynced,
+      ...toCreateJson(),
+      'createdAt': createdAt.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
   }
 
   factory ProjectModel.fromEntity(Project project) {
     return ProjectModel(
       id: project.id,
+      name: project.name,
+      description: project.description,
+      clientId: project.clientId,
       client: project.client,
-      housingType: project.housingType,
-      surfaceM2: project.surfaceM2,
+      userId: project.userId,
       status: project.status,
+      address: project.address,
+      city: project.city,
+      postalCode: project.postalCode,
+      surface: project.surface,
+      roomCount: project.roomCount,
       createdAt: project.createdAt,
-      appointmentDate: project.appointmentDate,
-      integrateurId: project.integrateurId,
-      rooms: project.rooms,
-      selectedProductIds: project.selectedProductIds,
-      quote: project.quote,
-      notes: project.notes,
       updatedAt: project.updatedAt,
       isSynced: project.isSynced,
     );

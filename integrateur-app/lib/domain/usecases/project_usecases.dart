@@ -1,6 +1,5 @@
 import '../../core/errors/failures.dart';
 import '../entities/project.dart';
-import '../entities/room.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/project_repository.dart';
 
@@ -12,14 +11,10 @@ class GetProjectsUseCase {
 
   Future<Result<List<Project>>> call({
     ProjectFilter? filter,
-    ProjectSortBy sortBy = ProjectSortBy.dateCreated,
-    bool ascending = false,
+    int page = 1,
+    int limit = 20,
   }) async {
-    return _repository.getProjects(
-      filter: filter,
-      sortBy: sortBy,
-      ascending: ascending,
-    );
+    return _repository.getProjects(filter: filter, page: page, limit: limit);
   }
 }
 
@@ -40,20 +35,30 @@ class CreateProjectUseCase {
 
   CreateProjectUseCase(this._repository);
 
-  Future<Result<Project>> call(Project project) async {
-    // Validate project data
-    if (project.client.firstName.isEmpty || project.client.lastName.isEmpty) {
-      return Error(
-        ValidationFailure(message: 'Les informations client sont requises'),
-      );
-    }
-    if (project.client.email.isEmpty) {
-      return Error(
-        ValidationFailure(message: 'L\'email du client est requis'),
-      );
+  Future<Result<Project>> call({
+    required String clientId,
+    required String name,
+    String? description,
+    String? address,
+    String? city,
+    String? postalCode,
+    double? surface,
+    int? roomCount,
+  }) async {
+    if (name.isEmpty) {
+      return const Error(ValidationFailure(message: 'Le nom du projet est requis'));
     }
 
-    return _repository.createProject(project);
+    return _repository.createProject(
+      clientId: clientId,
+      name: name,
+      description: description,
+      address: address,
+      city: city,
+      postalCode: postalCode,
+      surface: surface,
+      roomCount: roomCount,
+    );
   }
 }
 
@@ -63,8 +68,8 @@ class UpdateProjectUseCase {
 
   UpdateProjectUseCase(this._repository);
 
-  Future<Result<Project>> call(Project project) async {
-    return _repository.updateProject(project);
+  Future<Result<Project>> call(String id, Map<String, dynamic> data) async {
+    return _repository.updateProject(id, data);
   }
 }
 
@@ -76,60 +81,5 @@ class DeleteProjectUseCase {
 
   Future<Result<void>> call(String id) async {
     return _repository.deleteProject(id);
-  }
-}
-
-/// Update project status use case
-class UpdateProjectStatusUseCase {
-  final ProjectRepository _repository;
-
-  UpdateProjectStatusUseCase(this._repository);
-
-  Future<Result<Project>> call(String id, ProjectStatus status) async {
-    return _repository.updateStatus(id, status);
-  }
-}
-
-/// Get project statistics use case
-class GetProjectStatsUseCase {
-  final ProjectRepository _repository;
-
-  GetProjectStatsUseCase(this._repository);
-
-  Future<Result<ProjectStats>> call() async {
-    return _repository.getStats();
-  }
-}
-
-/// Add room to project use case
-class AddRoomUseCase {
-  final ProjectRepository _repository;
-
-  AddRoomUseCase(this._repository);
-
-  Future<Result<Room>> call(String projectId, Room room) async {
-    return _repository.addRoom(projectId, room);
-  }
-}
-
-/// Update room use case
-class UpdateRoomUseCase {
-  final ProjectRepository _repository;
-
-  UpdateRoomUseCase(this._repository);
-
-  Future<Result<Room>> call(Room room) async {
-    return _repository.updateRoom(room);
-  }
-}
-
-/// Add photo to room use case
-class AddPhotoUseCase {
-  final ProjectRepository _repository;
-
-  AddPhotoUseCase(this._repository);
-
-  Future<Result<RoomPhoto>> call(String roomId, String localPath) async {
-    return _repository.addPhoto(roomId, localPath);
   }
 }

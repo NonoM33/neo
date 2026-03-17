@@ -97,6 +97,9 @@ abstract class CatalogueRepository {
   /// Search products by query
   Future<Result<List<Product>>> searchProducts(String query);
 
+  /// Get product dependencies
+  Future<Result<List<ProductDependency>>> getProductDependencies(String productId);
+
   /// Sync catalogue from remote
   Future<Result<void>> syncCatalogue();
 

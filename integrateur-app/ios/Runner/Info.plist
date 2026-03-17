@@ -45,5 +45,24 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Allow HTTP connections in development (required for local backend) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<!-- Bluetooth (BLE laser meters) -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Neo utilise le Bluetooth pour se connecter aux telemètres laser (Leica DISTO, Bosch GLM)</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Neo utilise le Bluetooth pour se connecter aux telemètres laser</string>
+	<!-- Camera (LiDAR scan, photos) -->
+	<key>NSCameraUsageDescription</key>
+	<string>Neo utilise la camera pour le scan LiDAR et les photos d'audit</string>
+	<!-- Photo library -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Neo accede a la galerie pour importer des photos d'audit</string>
 </dict>
 </plist>

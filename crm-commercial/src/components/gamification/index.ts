@@ -1,0 +1,10 @@
+export { XPProgressBar } from './XPProgressBar';
+export { StreakDisplay } from './StreakDisplay';
+export { DailyChallenges } from './DailyChallenges';
+export { MiniLeaderboard } from './MiniLeaderboard';
+export { RecentAchievements } from './RecentAchievements';
+export { QuickStats } from './QuickStats';
+export { RewardOverlay } from './RewardOverlay';
+export { BadgeCard } from './BadgeCard';
+export { BadgeGrid } from './BadgeGrid';
+export { XPIndicator } from './XPIndicator';

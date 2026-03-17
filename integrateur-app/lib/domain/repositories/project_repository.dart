@@ -1,3 +1,4 @@
+import '../entities/checklist_item.dart';
 import '../entities/project.dart';
 import '../entities/room.dart';
 import 'auth_repository.dart';
@@ -6,103 +7,99 @@ import 'auth_repository.dart';
 class ProjectFilter {
   final String? searchQuery;
   final ProjectStatus? status;
-  final DateTime? dateFrom;
-  final DateTime? dateTo;
-  final String? integrateurId;
+  final String? clientId;
 
   const ProjectFilter({
     this.searchQuery,
     this.status,
-    this.dateFrom,
-    this.dateTo,
-    this.integrateurId,
+    this.clientId,
   });
 
   bool get hasFilters =>
-      searchQuery != null ||
-      status != null ||
-      dateFrom != null ||
-      dateTo != null;
+      searchQuery != null || status != null || clientId != null;
 }
 
 /// Sort options for projects
 enum ProjectSortBy {
   dateCreated,
-  dateAppointment,
-  clientName,
+  name,
   status,
 }
 
 /// Project repository interface
 abstract class ProjectRepository {
-  /// Get all projects with optional filtering
   Future<Result<List<Project>>> getProjects({
     ProjectFilter? filter,
-    ProjectSortBy sortBy = ProjectSortBy.dateCreated,
-    bool ascending = false,
-    int? limit,
-    int? offset,
+    int page = 1,
+    int limit = 20,
   });
 
-  /// Get a single project by ID
   Future<Result<Project>> getProject(String id);
 
-  /// Create a new project
-  Future<Result<Project>> createProject(Project project);
+  Future<Result<Project>> createProject({
+    required String clientId,
+    required String name,
+    String? description,
+    String? address,
+    String? city,
+    String? postalCode,
+    double? surface,
+    int? roomCount,
+  });
 
-  /// Update an existing project
-  Future<Result<Project>> updateProject(Project project);
+  Future<Result<Project>> updateProject(String id, Map<String, dynamic> data);
 
-  /// Delete a project
   Future<Result<void>> deleteProject(String id);
 
-  /// Update project status
-  Future<Result<Project>> updateStatus(String id, ProjectStatus status);
+  // Rooms
+  Future<Result<List<Room>>> getRoomsByProject(String projectId);
 
-  /// Get project statistics
-  Future<Result<ProjectStats>> getStats();
+  Future<Result<Room>> getRoom(String id);
 
-  /// Add a room to a project
-  Future<Result<Room>> addRoom(String projectId, Room room);
+  Future<Result<Room>> createRoom(String projectId, {
+    required String name,
+    String type = 'autre',
+    int floor = 0,
+    String? notes,
+  });
 
-  /// Update a room
-  Future<Result<Room>> updateRoom(Room room);
+  Future<Result<Room>> updateRoom(String id, Map<String, dynamic> data);
 
-  /// Delete a room
-  Future<Result<void>> deleteRoom(String roomId);
+  Future<Result<void>> deleteRoom(String id);
 
-  /// Add a photo to a room
-  Future<Result<RoomPhoto>> addPhoto(String roomId, String localPath);
+  // Photos
+  Future<Result<List<RoomPhoto>>> getPhotosByRoom(String roomId);
 
-  /// Delete a photo
-  Future<Result<void>> deletePhoto(String photoId);
+  Future<Result<RoomPhoto>> uploadPhoto(String roomId, String filePath, {String? caption});
 
-  /// Get unsynced projects
-  Future<Result<List<Project>>> getUnsyncedProjects();
+  Future<Result<void>> deletePhoto(String id);
 
-  /// Mark project as synced
-  Future<Result<void>> markAsSynced(String id);
+  // Checklist
+  Future<Result<ChecklistItem>> createChecklistItem(String roomId, {
+    required String category,
+    required String label,
+    bool checked = false,
+    String? notes,
+  });
+
+  Future<Result<ChecklistItem>> updateChecklistItem(String id, Map<String, dynamic> data);
+
+  Future<Result<void>> deleteChecklistItem(String id);
 }
 
 /// Project statistics
 class ProjectStats {
   final int total;
-  final int audit;
+  final int brouillon;
   final int enCours;
-  final int devisEnvoye;
-  final int signe;
   final int termine;
-  final int thisMonth;
-  final double totalRevenue;
+  final int archive;
 
   const ProjectStats({
     this.total = 0,
-    this.audit = 0,
+    this.brouillon = 0,
     this.enCours = 0,
-    this.devisEnvoye = 0,
-    this.signe = 0,
     this.termine = 0,
-    this.thisMonth = 0,
-    this.totalRevenue = 0,
+    this.archive = 0,
   });
 }

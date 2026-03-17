@@ -1,171 +1,141 @@
 import 'package:equatable/equatable.dart';
-import 'client.dart';
-import 'room.dart';
-import 'quote.dart';
 
-/// Project status enum
+import 'client.dart';
+
+/// Project status enum matching backend: brouillon, en_cours, termine, archive
 enum ProjectStatus {
-  audit,
+  brouillon,
   enCours,
-  devisEnvoye,
-  signe,
-  termine;
+  termine,
+  archive;
 
   String get displayName {
     switch (this) {
-      case ProjectStatus.audit:
-        return 'Audit';
+      case ProjectStatus.brouillon:
+        return 'Brouillon';
       case ProjectStatus.enCours:
         return 'En cours';
-      case ProjectStatus.devisEnvoye:
-        return 'Devis envoyé';
-      case ProjectStatus.signe:
-        return 'Signé';
       case ProjectStatus.termine:
         return 'Terminé';
+      case ProjectStatus.archive:
+        return 'Archivé';
     }
   }
 
   String get apiValue {
     switch (this) {
-      case ProjectStatus.audit:
-        return 'audit';
+      case ProjectStatus.brouillon:
+        return 'brouillon';
       case ProjectStatus.enCours:
         return 'en_cours';
-      case ProjectStatus.devisEnvoye:
-        return 'devis_envoye';
-      case ProjectStatus.signe:
-        return 'signe';
       case ProjectStatus.termine:
         return 'termine';
+      case ProjectStatus.archive:
+        return 'archive';
     }
   }
 
   static ProjectStatus fromString(String value) {
     return ProjectStatus.values.firstWhere(
       (status) => status.apiValue == value,
-      orElse: () => ProjectStatus.audit,
+      orElse: () => ProjectStatus.brouillon,
     );
   }
 }
 
-/// Housing type enum
-enum HousingType {
-  appartement,
-  maison,
-  autre;
-
-  String get displayName {
-    switch (this) {
-      case HousingType.appartement:
-        return 'Appartement';
-      case HousingType.maison:
-        return 'Maison';
-      case HousingType.autre:
-        return 'Autre';
-    }
-  }
-
-  static HousingType fromString(String value) {
-    return HousingType.values.firstWhere(
-      (type) => type.name == value.toLowerCase(),
-      orElse: () => HousingType.autre,
-    );
-  }
-}
-
-/// Project entity
+/// Project entity matching backend schema
 class Project extends Equatable {
   final String id;
-  final Client client;
-  final HousingType housingType;
-  final double? surfaceM2;
+  final String name;
+  final String? description;
+  final String clientId;
+  final Client? client;
+  final String? userId;
   final ProjectStatus status;
+  final String? address;
+  final String? city;
+  final String? postalCode;
+  final double? surface;
+  final int? roomCount;
   final DateTime createdAt;
-  final DateTime? appointmentDate;
-  final String integrateurId;
-  final List<Room> rooms;
-  final List<String> selectedProductIds;
-  final Quote? quote;
-  final String? notes;
   final DateTime? updatedAt;
   final bool isSynced;
 
   const Project({
     required this.id,
-    required this.client,
-    required this.housingType,
-    this.surfaceM2,
+    required this.name,
+    this.description,
+    required this.clientId,
+    this.client,
+    this.userId,
     required this.status,
+    this.address,
+    this.city,
+    this.postalCode,
+    this.surface,
+    this.roomCount,
     required this.createdAt,
-    this.appointmentDate,
-    required this.integrateurId,
-    this.rooms = const [],
-    this.selectedProductIds = const [],
-    this.quote,
-    this.notes,
     this.updatedAt,
     this.isSynced = true,
   });
 
-  /// Get total number of rooms
-  int get roomCount => rooms.length;
-
-  /// Get total number of selected products
-  int get productCount => selectedProductIds.length;
-
-  /// Check if project has a quote
-  bool get hasQuote => quote != null;
-
   /// Check if project is editable
   bool get isEditable =>
-      status != ProjectStatus.termine && status != ProjectStatus.signe;
+      status != ProjectStatus.termine && status != ProjectStatus.archive;
 
   /// Get progress percentage based on status
   double get progressPercentage {
     switch (status) {
-      case ProjectStatus.audit:
-        return 0.2;
+      case ProjectStatus.brouillon:
+        return 0.25;
       case ProjectStatus.enCours:
-        return 0.4;
-      case ProjectStatus.devisEnvoye:
-        return 0.6;
-      case ProjectStatus.signe:
-        return 0.8;
+        return 0.5;
       case ProjectStatus.termine:
+        return 1.0;
+      case ProjectStatus.archive:
         return 1.0;
     }
   }
 
+  String get fullAddress {
+    final parts = <String>[];
+    if (address != null && address!.isNotEmpty) parts.add(address!);
+    if (postalCode != null && postalCode!.isNotEmpty) parts.add(postalCode!);
+    if (city != null && city!.isNotEmpty) parts.add(city!);
+    return parts.join(', ');
+  }
+
   Project copyWith({
     String? id,
+    String? name,
+    String? description,
+    String? clientId,
     Client? client,
-    HousingType? housingType,
-    double? surfaceM2,
+    String? userId,
     ProjectStatus? status,
+    String? address,
+    String? city,
+    String? postalCode,
+    double? surface,
+    int? roomCount,
     DateTime? createdAt,
-    DateTime? appointmentDate,
-    String? integrateurId,
-    List<Room>? rooms,
-    List<String>? selectedProductIds,
-    Quote? quote,
-    String? notes,
     DateTime? updatedAt,
     bool? isSynced,
   }) {
     return Project(
       id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      clientId: clientId ?? this.clientId,
       client: client ?? this.client,
-      housingType: housingType ?? this.housingType,
-      surfaceM2: surfaceM2 ?? this.surfaceM2,
+      userId: userId ?? this.userId,
       status: status ?? this.status,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      postalCode: postalCode ?? this.postalCode,
+      surface: surface ?? this.surface,
+      roomCount: roomCount ?? this.roomCount,
       createdAt: createdAt ?? this.createdAt,
-      appointmentDate: appointmentDate ?? this.appointmentDate,
-      integrateurId: integrateurId ?? this.integrateurId,
-      rooms: rooms ?? this.rooms,
-      selectedProductIds: selectedProductIds ?? this.selectedProductIds,
-      quote: quote ?? this.quote,
-      notes: notes ?? this.notes,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
     );
@@ -174,17 +144,18 @@ class Project extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        name,
+        description,
+        clientId,
         client,
-        housingType,
-        surfaceM2,
+        userId,
         status,
+        address,
+        city,
+        postalCode,
+        surface,
+        roomCount,
         createdAt,
-        appointmentDate,
-        integrateurId,
-        rooms,
-        selectedProductIds,
-        quote,
-        notes,
         updatedAt,
         isSynced,
       ];

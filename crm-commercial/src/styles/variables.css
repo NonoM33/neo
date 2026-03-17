@@ -1,0 +1,87 @@
+:root {
+  /* Brand */
+  --neo-primary: #0d6efd;
+  --neo-primary-hover: #0b5ed7;
+  --neo-primary-light: rgba(13, 110, 253, 0.1);
+
+  /* Sidebar */
+  --neo-sidebar-width: 260px;
+  --neo-sidebar-bg: #1a1d21;
+  --neo-sidebar-hover: #2d3339;
+  --neo-sidebar-text: #adb5bd;
+  --neo-sidebar-text-active: #ffffff;
+
+  /* Backgrounds */
+  --neo-bg-body: #f5f7fa;
+  --neo-bg-card: #ffffff;
+  --neo-bg-light: #f8f9fa;
+
+  /* Text */
+  --neo-text-primary: #212529;
+  --neo-text-secondary: #6c757d;
+  --neo-text-muted: #adb5bd;
+
+  /* Borders */
+  --neo-border-color: #e9ecef;
+  --neo-border-light: rgba(255, 255, 255, 0.1);
+
+  /* Status - Pipeline */
+  --neo-status-prospect: #6c757d;
+  --neo-status-qualifie: #0dcaf0;
+  --neo-status-proposition: #0d6efd;
+  --neo-status-negociation: #ffc107;
+  --neo-status-gagne: #198754;
+  --neo-status-perdu: #dc3545;
+
+  /* Semantic */
+  --neo-success: #198754;
+  --neo-warning: #ffc107;
+  --neo-danger: #dc3545;
+  --neo-info: #0dcaf0;
+
+  /* Spacing */
+  --neo-space-1: 4px;
+  --neo-space-2: 8px;
+  --neo-space-3: 12px;
+  --neo-space-4: 16px;
+  --neo-space-5: 20px;
+  --neo-space-6: 24px;
+  --neo-space-8: 32px;
+
+  /* Radius */
+  --neo-radius-sm: 6px;
+  --neo-radius-md: 10px;
+  --neo-radius-lg: 12px;
+  --neo-radius-full: 50%;
+
+  /* Shadows */
+  --neo-shadow-sm: 0 0 10px rgba(0, 0, 0, 0.05);
+  --neo-shadow-md: 0 4px 15px rgba(0, 0, 0, 0.1);
+
+  /* Gamification Accents */
+  --neo-accent: #7c3aed;
+  --neo-accent-hover: #6d28d9;
+  --neo-accent-light: rgba(124, 58, 237, 0.1);
+  --neo-xp-color: #f59e0b;
+  --neo-xp-light: rgba(245, 158, 11, 0.1);
+  --neo-streak-color: #ef4444;
+  --neo-streak-light: rgba(239, 68, 68, 0.1);
+
+  /* Rarity */
+  --neo-rarity-common: #6c757d;
+  --neo-rarity-rare: #0d6efd;
+  --neo-rarity-epic: #7c3aed;
+  --neo-rarity-legendary: #f59e0b;
+
+  /* Prospection Score Colors */
+  --neo-score-froid: #6c757d;
+  --neo-score-tiede: #0dcaf0;
+  --neo-score-chaud: #f59e0b;
+  --neo-score-brulant: #ef4444;
+
+  /* Animation timings */
+  --neo-transition-fast: 150ms;
+  --neo-transition-normal: 300ms;
+  --neo-transition-slow: 500ms;
+  --neo-spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}

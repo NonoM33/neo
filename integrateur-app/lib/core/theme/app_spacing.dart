@@ -14,28 +14,45 @@ class AppSpacing {
   static const double xxl = 48.0;
   static const double xxxl = 64.0;
 
-  // Page padding - larger for tablets
-  static const EdgeInsets pagePadding = EdgeInsets.all(24.0);
-  static const EdgeInsets pagePaddingHorizontal = EdgeInsets.symmetric(horizontal: 24.0);
-  static const EdgeInsets pagePaddingVertical = EdgeInsets.symmetric(vertical: 24.0);
+  // Card gap (between cards in grids/lists)
+  static const double cardGap = 16.0;
 
-  // Card padding
-  static const EdgeInsets cardPadding = EdgeInsets.all(16.0);
+  // Section gap (between major content sections)
+  static const double sectionGap = 32.0;
+
+  // Page padding - tablet optimized (32dp)
+  static const EdgeInsets pagePadding = EdgeInsets.all(32.0);
+  static const EdgeInsets pagePaddingHorizontal = EdgeInsets.symmetric(horizontal: 32.0);
+  static const EdgeInsets pagePaddingVertical = EdgeInsets.symmetric(vertical: 32.0);
+
+  // Card padding - tablet optimized (20dp)
+  static const EdgeInsets cardPadding = EdgeInsets.all(20.0);
   static const EdgeInsets cardPaddingLarge = EdgeInsets.all(24.0);
 
-  // List item padding
+  // List item padding - tablet optimized
   static const EdgeInsets listItemPadding = EdgeInsets.symmetric(
-    horizontal: 16.0,
+    horizontal: 20.0,
     vertical: 12.0,
   );
 
   // Form padding
-  static const EdgeInsets formPadding = EdgeInsets.all(24.0);
+  static const EdgeInsets formPadding = EdgeInsets.all(32.0);
   static const double formFieldSpacing = 16.0;
   static const double formSectionSpacing = 32.0;
 
   // Dialog padding
   static const EdgeInsets dialogPadding = EdgeInsets.all(24.0);
+
+  // Dialog constraints for tablet
+  static const BoxConstraints dialogConstraints = BoxConstraints(
+    minWidth: 400,
+    maxWidth: 560,
+  );
+
+  // Bottom sheet constraints for tablet
+  static const BoxConstraints bottomSheetConstraints = BoxConstraints(
+    maxWidth: 640,
+  );
 
   // Gap widgets for convenience
   static const SizedBox gapXs = SizedBox(width: xs, height: xs);
@@ -61,6 +78,27 @@ class AppSpacing {
   AppSpacing._();
 }
 
+/// Consistent border radius tokens
+class AppRadius {
+  static const double xs = 4.0;   // Checkboxes, small indicators
+  static const double sm = 8.0;   // Chips, tags, small buttons
+  static const double md = 12.0;  // Buttons, inputs, snackbars
+  static const double lg = 16.0;  // Standard cards, containers
+  static const double xl = 20.0;  // Feature cards, hero sections
+  static const double xxl = 24.0; // Dialogs, modals, bottom sheets
+  static const double full = 9999.0; // Pill shapes, avatars
+
+  static BorderRadius get borderRadiusXs => BorderRadius.circular(xs);
+  static BorderRadius get borderRadiusSm => BorderRadius.circular(sm);
+  static BorderRadius get borderRadiusMd => BorderRadius.circular(md);
+  static BorderRadius get borderRadiusLg => BorderRadius.circular(lg);
+  static BorderRadius get borderRadiusXl => BorderRadius.circular(xl);
+  static BorderRadius get borderRadiusXxl => BorderRadius.circular(xxl);
+  static BorderRadius get borderRadiusFull => BorderRadius.circular(full);
+
+  AppRadius._();
+}
+
 /// Breakpoints for responsive design
 class AppBreakpoints {
   static const double mobile = 600;
@@ -70,6 +108,10 @@ class AppBreakpoints {
 
   static bool isMobile(BuildContext context) =>
       MediaQuery.sizeOf(context).width < mobile;
+
+  /// Returns true for tablet AND desktop (>= 600)
+  static bool isTabletOrLarger(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= mobile;
 
   static bool isTablet(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -81,6 +123,10 @@ class AppBreakpoints {
 
   static bool isLargeDesktop(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= largeDesktop;
+
+  /// Returns true when enough width for multi-column layouts
+  static bool isWideEnoughForColumns(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= tablet;
 
   AppBreakpoints._();
 }

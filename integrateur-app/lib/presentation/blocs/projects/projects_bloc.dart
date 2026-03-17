@@ -12,10 +12,7 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
   final CreateProjectUseCase _createProjectUseCase;
   final UpdateProjectUseCase _updateProjectUseCase;
   final DeleteProjectUseCase _deleteProjectUseCase;
-  final UpdateProjectStatusUseCase _updateStatusUseCase;
-  final GetProjectStatsUseCase _getStatsUseCase;
-  final AddRoomUseCase _addRoomUseCase;
-  final UpdateRoomUseCase _updateRoomUseCase;
+  final ProjectRepository _projectRepository;
 
   ProjectsBloc({
     required GetProjectsUseCase getProjectsUseCase,
@@ -23,19 +20,13 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
     required CreateProjectUseCase createProjectUseCase,
     required UpdateProjectUseCase updateProjectUseCase,
     required DeleteProjectUseCase deleteProjectUseCase,
-    required UpdateProjectStatusUseCase updateStatusUseCase,
-    required GetProjectStatsUseCase getStatsUseCase,
-    required AddRoomUseCase addRoomUseCase,
-    required UpdateRoomUseCase updateRoomUseCase,
+    required ProjectRepository projectRepository,
   })  : _getProjectsUseCase = getProjectsUseCase,
         _getProjectUseCase = getProjectUseCase,
         _createProjectUseCase = createProjectUseCase,
         _updateProjectUseCase = updateProjectUseCase,
         _deleteProjectUseCase = deleteProjectUseCase,
-        _updateStatusUseCase = updateStatusUseCase,
-        _getStatsUseCase = getStatsUseCase,
-        _addRoomUseCase = addRoomUseCase,
-        _updateRoomUseCase = updateRoomUseCase,
+        _projectRepository = projectRepository,
         super(const ProjectsInitial()) {
     on<ProjectsLoadRequested>(_onLoadRequested);
     on<ProjectsRefreshRequested>(_onRefreshRequested);
@@ -44,8 +35,6 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
     on<ProjectUpdateRequested>(_onUpdateRequested);
     on<ProjectDeleteRequested>(_onDeleteRequested);
     on<ProjectStatusUpdateRequested>(_onStatusUpdateRequested);
-    on<ProjectAddRoomRequested>(_onAddRoomRequested);
-    on<ProjectUpdateRoomRequested>(_onUpdateRoomRequested);
     on<ProjectsFilterChanged>(_onFilterChanged);
     on<ProjectsFilterCleared>(_onFilterCleared);
   }
@@ -54,30 +43,25 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
     ProjectsLoadRequested event,
     Emitter<ProjectsState> emit,
   ) async {
-    emit(const ProjectsLoading());
+    // Only show spinner if no data loaded yet
+    if (state is! ProjectsLoaded) {
+      emit(const ProjectsLoading());
+    }
 
-    final result = await _getProjectsUseCase(
-      filter: event.filter,
-      sortBy: event.sortBy,
-      ascending: event.ascending,
-    );
+    final result = await _getProjectsUseCase(filter: event.filter);
 
     switch (result) {
       case Success(data: final projects):
-        final statsResult = await _getStatsUseCase();
-        final stats = statsResult is Success<ProjectStats>
-            ? statsResult.data
-            : null;
-
         emit(ProjectsLoaded(
           projects: projects,
           filter: event.filter,
           sortBy: event.sortBy,
           ascending: event.ascending,
-          stats: stats,
         ));
       case Error(failure: final failure):
-        emit(ProjectsError(failure.message));
+        if (state is! ProjectsLoaded) {
+          emit(ProjectsError(failure.message));
+        }
     }
   }
 
@@ -107,7 +91,10 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
     ProjectLoadRequested event,
     Emitter<ProjectsState> emit,
   ) async {
-    emit(const ProjectsLoading());
+    // Only show spinner if no detail is already loaded
+    if (state is! ProjectDetailLoaded) {
+      emit(const ProjectsLoading());
+    }
 
     final result = await _getProjectUseCase(event.id);
 
@@ -125,7 +112,16 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
   ) async {
     emit(const ProjectOperationInProgress('Création du projet...'));
 
-    final result = await _createProjectUseCase(event.project);
+    final result = await _createProjectUseCase(
+      clientId: event.project.clientId,
+      name: event.project.name,
+      description: event.project.description,
+      address: event.project.address,
+      city: event.project.city,
+      postalCode: event.project.postalCode,
+      surface: event.project.surface,
+      roomCount: event.project.roomCount,
+    );
 
     switch (result) {
       case Success(data: final project):
@@ -145,7 +141,16 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
   ) async {
     emit(const ProjectOperationInProgress('Mise à jour du projet...'));
 
-    final result = await _updateProjectUseCase(event.project);
+    final result = await _updateProjectUseCase(event.project.id, {
+      'name': event.project.name,
+      'description': event.project.description,
+      'status': event.project.status.apiValue,
+      'address': event.project.address,
+      'city': event.project.city,
+      'postalCode': event.project.postalCode,
+      'surface': event.project.surface,
+      'roomCount': event.project.roomCount,
+    });
 
     switch (result) {
       case Success(data: final project):
@@ -180,7 +185,10 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
     ProjectStatusUpdateRequested event,
     Emitter<ProjectsState> emit,
   ) async {
-    final result = await _updateStatusUseCase(event.id, event.status);
+    final result = await _projectRepository.updateProject(
+      event.id,
+      {'status': event.status.apiValue},
+    );
 
     switch (result) {
       case Success(data: final project):
@@ -189,36 +197,6 @@ class ProjectsBloc extends Bloc<ProjectsEvent, ProjectsState> {
           project: project,
         ));
         add(const ProjectsRefreshRequested());
-      case Error(failure: final failure):
-        emit(ProjectsError(failure.message));
-    }
-  }
-
-  Future<void> _onAddRoomRequested(
-    ProjectAddRoomRequested event,
-    Emitter<ProjectsState> emit,
-  ) async {
-    final result = await _addRoomUseCase(event.projectId, event.room);
-
-    switch (result) {
-      case Success():
-        emit(const ProjectOperationSuccess(message: 'Pièce ajoutée'));
-        add(ProjectLoadRequested(event.projectId));
-      case Error(failure: final failure):
-        emit(ProjectsError(failure.message));
-    }
-  }
-
-  Future<void> _onUpdateRoomRequested(
-    ProjectUpdateRoomRequested event,
-    Emitter<ProjectsState> emit,
-  ) async {
-    final result = await _updateRoomUseCase(event.room);
-
-    switch (result) {
-      case Success():
-        emit(const ProjectOperationSuccess(message: 'Pièce mise à jour'));
-        add(ProjectLoadRequested(event.room.projectId));
       case Error(failure: final failure):
         emit(ProjectsError(failure.message));
     }

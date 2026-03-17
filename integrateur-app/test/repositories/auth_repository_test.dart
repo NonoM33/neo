@@ -135,7 +135,9 @@ void main() {
     group('logout', () {
       test('clears local data and returns success', () async {
         // Arrange
-        when(() => mockRemoteDataSource.logout())
+        when(() => mockLocalDataSource.getTokens())
+            .thenAnswer((_) async => testTokensModel);
+        when(() => mockRemoteDataSource.logout(any()))
             .thenAnswer((_) async {});
         when(() => mockLocalDataSource.clearAuth())
             .thenAnswer((_) async {});
@@ -152,7 +154,9 @@ void main() {
 
       test('still clears local data even if remote logout fails', () async {
         // Arrange
-        when(() => mockRemoteDataSource.logout())
+        when(() => mockLocalDataSource.getTokens())
+            .thenAnswer((_) async => testTokensModel);
+        when(() => mockRemoteDataSource.logout(any()))
             .thenThrow(const NetworkException(message: 'Network error'));
         when(() => mockLocalDataSource.clearAuth())
             .thenAnswer((_) async {});

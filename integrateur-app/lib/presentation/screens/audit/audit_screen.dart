@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../domain/entities/room.dart';
+import '../../../routes/app_router.dart';
 import '../../blocs/audit/audit_bloc.dart';
 import '../../blocs/audit/audit_event.dart';
 import '../../blocs/audit/audit_state.dart';
 
-/// Audit screen for managing room audits
+/// Audit screen for managing room audits - tablet optimized
 class AuditScreen extends ConsumerStatefulWidget {
   final String projectId;
 
@@ -33,7 +35,7 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
   Widget build(BuildContext context) {
     final auditBloc = ref.watch(auditBlocProvider);
     final colorScheme = Theme.of(context).colorScheme;
-    final isTablet = MediaQuery.sizeOf(context).width >= 900;
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
 
     return Scaffold(
       appBar: AppBar(
@@ -42,7 +44,7 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
           IconButton(
             icon: const Icon(Icons.add_home_work),
             onPressed: () => _showAddRoomDialog(context),
-            tooltip: 'Ajouter une pièce',
+            tooltip: 'Ajouter une piece',
           ),
         ],
       ),
@@ -58,15 +60,16 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                  Icon(Icons.error_outline, size: 64, color: colorScheme.error),
                   AppSpacing.vGapMd,
-                  Text(state.message),
+                  Text(state.message, style: Theme.of(context).textTheme.bodyLarge),
                   AppSpacing.vGapMd,
-                  ElevatedButton(
+                  FilledButton.icon(
                     onPressed: () {
                       auditBloc.add(AuditLoadRoomsRequested(widget.projectId));
                     },
-                    child: const Text('Réessayer'),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Reessayer'),
                   ),
                 ],
               ),
@@ -75,36 +78,15 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
 
           if (state is AuditLoaded) {
             if (state.rooms.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.meeting_room,
-                      size: 64,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    AppSpacing.vGapMd,
-                    const Text('Aucune pièce'),
-                    AppSpacing.vGapXs,
-                    const Text('Ajoutez des pièces pour commencer l\'audit'),
-                    AppSpacing.vGapLg,
-                    FilledButton.icon(
-                      onPressed: () => _showAddRoomDialog(context),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Ajouter une pièce'),
-                    ),
-                  ],
-                ),
-              );
+              return _buildEmptyState(context);
             }
 
-            if (isTablet) {
+            if (isWide) {
               return Row(
                 children: [
-                  // Rooms list
+                  // Rooms list sidebar - proportional width
                   SizedBox(
-                    width: 280,
+                    width: MediaQuery.sizeOf(context).width * 0.3,
                     child: _buildRoomsList(context, auditBloc, state),
                   ),
                   const VerticalDivider(width: 1),
@@ -112,7 +94,21 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                   Expanded(
                     child: state.selectedRoom != null
                         ? _buildRoomDetail(context, auditBloc, state.selectedRoom!)
-                        : const Center(child: Text('Sélectionnez une pièce')),
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.touch_app_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                AppSpacing.vGapMd,
+                                Text(
+                                  'Selectionnez une piece',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                   ),
                 ],
               );
@@ -132,6 +128,41 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
     );
   }
 
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.meeting_room,
+            size: 64,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          AppSpacing.vGapMd,
+          Text(
+            'Aucune piece',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          AppSpacing.vGapXs,
+          Text(
+            'Ajoutez des pieces pour commencer l\'audit',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          AppSpacing.vGapLg,
+          FilledButton.icon(
+            onPressed: () => _showAddRoomDialog(context),
+            icon: const Icon(Icons.add),
+            label: const Text('Ajouter une piece'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRoomsList(
     BuildContext context,
     AuditBloc bloc,
@@ -145,9 +176,9 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(12),
           child: Text(
-            '${(state.completionPercentage * 100).toInt()}% complété',
+            '${(state.completionPercentage * 100).toInt()}% complete',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -175,10 +206,14 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                 subtitle: Text(
                   '${room.checkedItemsCount}/${room.checklist.length} - ${room.photoCount} photos',
                 ),
-                trailing: CircularProgressIndicator(
-                  value: room.checklistProgress,
-                  strokeWidth: 3,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                trailing: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    value: room.checklistProgress,
+                    strokeWidth: 3,
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  ),
                 ),
                 onTap: () => bloc.add(AuditRoomSelected(room)),
               );
@@ -199,7 +234,9 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
           // Room header
           Container(
             padding: AppSpacing.cardPadding,
-            color: colorScheme.surfaceContainerHighest,
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: colorScheme.outlineVariant.withAlpha(40))),
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -210,6 +247,7 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                         room.displayName,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         room.type.displayName,
                         style: Theme.of(context).textTheme.bodySmall,
@@ -217,25 +255,42 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                     ],
                   ),
                 ),
+                // Floor plan button
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    context.goToFloorPlan(
+                      widget.projectId,
+                      room.id,
+                      roomName: room.displayName,
+                    );
+                  },
+                  icon: const Icon(Icons.architecture, size: 20),
+                  label: const Text('Plan'),
+                ),
+                AppSpacing.hGapSm,
                 IconButton(
                   icon: const Icon(Icons.camera_alt),
-                  onPressed: () => bloc.add(const AuditTakePhotoRequested()),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    bloc.add(const AuditTakePhotoRequested());
+                  },
                   tooltip: 'Prendre une photo',
                 ),
                 IconButton(
                   icon: const Icon(Icons.photo_library),
                   onPressed: () => bloc.add(const AuditPickPhotoRequested()),
-                  tooltip: 'Galerie',
+                  tooltip: 'Choisir depuis la galerie',
                 ),
               ],
             ),
           ),
 
-          // Tabs
+          // Tabs - taller for tablet
           const TabBar(
             tabs: [
-              Tab(text: 'Checklist'),
-              Tab(text: 'Photos'),
+              Tab(text: 'Checklist', height: 56),
+              Tab(text: 'Photos', height: 56),
             ],
           ),
 
@@ -279,9 +334,11 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                   value: item.isChecked,
                   title: Text(item.label),
                   subtitle: item.quantity != null
-                      ? Text('Quantité: ${item.quantity}')
+                      ? Text('Quantite: ${item.quantity}')
                       : null,
+                  controlAffinity: ListTileControlAffinity.leading,
                   onChanged: (value) {
+                    HapticFeedback.selectionClick();
                     bloc.add(AuditToggleChecklistItemRequested(
                       itemId: item.id,
                       isChecked: value ?? false,
@@ -307,10 +364,18 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             AppSpacing.vGapMd,
-            const Text('Aucune photo'),
+            Text(
+              'Aucune photo',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             AppSpacing.vGapMd,
             FilledButton.icon(
-              onPressed: () => bloc.add(const AuditTakePhotoRequested()),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                bloc.add(const AuditTakePhotoRequested());
+              },
               icon: const Icon(Icons.camera_alt),
               label: const Text('Prendre une photo'),
             ),
@@ -319,38 +384,51 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
       );
     }
 
-    return GridView.builder(
-      padding: AppSpacing.pagePadding,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemCount: room.photos.length,
-      itemBuilder: (context, index) {
-        final photo = room.photos[index];
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.image),
-            ),
-            Positioned(
-              top: 4,
-              right: 4,
-              child: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                iconSize: 20,
-                onPressed: () {
-                  bloc.add(AuditDeletePhotoRequested(photo.id));
-                },
-              ),
-            ),
-          ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Dynamic columns based on available width
+        final columns = (constraints.maxWidth / 180).floor().clamp(2, 5);
+
+        return GridView.builder(
+          padding: AppSpacing.pagePadding,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+          ),
+          itemCount: room.photos.length,
+          itemBuilder: (context, index) {
+            final photo = room.photos[index];
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: AppRadius.borderRadiusMd,
+                  ),
+                  child: const Icon(Icons.image, size: 32),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton.filled(
+                    icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError, size: 18),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      minimumSize: const Size(36, 36),
+                      shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusSm),
+                    ),
+                    tooltip: 'Supprimer la photo',
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      bloc.add(AuditDeletePhotoRequested(photo.id));
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -363,55 +441,64 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Ajouter une pièce'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom de la pièce (optionnel)',
-                ),
-              ),
-              AppSpacing.vGapMd,
-              DropdownButtonFormField<RoomType>(
-                value: selectedType,
-                decoration: const InputDecoration(
-                  labelText: 'Type de pièce',
-                ),
-                items: RoomType.values.map((type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(type.displayName),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    selectedType = value;
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () {
-                ref.read(auditBlocProvider).add(
-                      AuditAddRoomRequested(
-                        name: nameController.text.trim(),
-                        type: selectedType,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Ajouter une piece'),
+              content: ConstrainedBox(
+                constraints: AppSpacing.dialogConstraints,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nom personnalise',
+                        hintText: 'Laissez vide pour utiliser le type',
                       ),
-                    );
-                Navigator.pop(context);
-              },
-              child: const Text('Ajouter'),
-            ),
-          ],
+                    ),
+                    AppSpacing.vGapMd,
+                    DropdownButtonFormField<RoomType>(
+                      initialValue: selectedType,
+                      decoration: const InputDecoration(
+                        labelText: 'Type de piece',
+                      ),
+                      items: RoomType.values.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type.displayName),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedType = value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    ref.read(auditBlocProvider).add(
+                          AuditAddRoomRequested(
+                            name: nameController.text.trim(),
+                            type: selectedType,
+                          ),
+                        );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Ajouter'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

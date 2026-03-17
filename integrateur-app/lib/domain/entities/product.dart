@@ -15,44 +15,67 @@ enum ProductCategory {
       case ProductCategory.eclairage:
         return 'Éclairage';
       case ProductCategory.ouvrants:
-        return 'Ouvrants';
+        return 'Volets';
       case ProductCategory.climat:
-        return 'Climat';
+        return 'Chauffage';
       case ProductCategory.securite:
         return 'Sécurité';
       case ProductCategory.energie:
-        return 'Énergie';
+        return 'Réseau';
       case ProductCategory.multimedia:
-        return 'Multimédia';
+        return 'Audio';
       case ProductCategory.custom:
-        return 'Personnalisé';
+        return 'Services';
     }
   }
 
-  String get icon {
+  /// Backend API value for this category
+  String get apiValue {
     switch (this) {
       case ProductCategory.eclairage:
-        return 'lightbulb';
+        return 'Éclairage';
       case ProductCategory.ouvrants:
-        return 'window';
+        return 'Volets';
       case ProductCategory.climat:
-        return 'thermostat';
+        return 'Chauffage';
       case ProductCategory.securite:
-        return 'security';
+        return 'Sécurité';
       case ProductCategory.energie:
-        return 'bolt';
+        return 'Réseau';
       case ProductCategory.multimedia:
-        return 'tv';
+        return 'Audio';
       case ProductCategory.custom:
-        return 'build';
+        return 'Services';
     }
   }
 
   static ProductCategory fromString(String value) {
-    return ProductCategory.values.firstWhere(
-      (cat) => cat.name == value.toLowerCase(),
-      orElse: () => ProductCategory.custom,
-    );
+    // Map backend category names to enum values
+    switch (value) {
+      case 'Éclairage':
+      case 'eclairage':
+        return ProductCategory.eclairage;
+      case 'Volets':
+      case 'ouvrants':
+        return ProductCategory.ouvrants;
+      case 'Chauffage':
+      case 'climat':
+        return ProductCategory.climat;
+      case 'Sécurité':
+      case 'securite':
+        return ProductCategory.securite;
+      case 'Réseau':
+      case 'energie':
+        return ProductCategory.energie;
+      case 'Audio':
+      case 'multimedia':
+        return ProductCategory.multimedia;
+      case 'Services':
+      case 'custom':
+        return ProductCategory.custom;
+      default:
+        return ProductCategory.custom;
+    }
   }
 }
 
@@ -155,6 +178,50 @@ class ProductSpecs extends Equatable {
         locationType,
         additionalSpecs,
       ];
+}
+
+/// Dependency type between products
+enum DependencyType {
+  required,
+  recommended;
+
+  String get displayName {
+    switch (this) {
+      case DependencyType.required:
+        return 'Obligatoire';
+      case DependencyType.recommended:
+        return 'Recommandé';
+    }
+  }
+
+  static DependencyType fromString(String value) {
+    switch (value) {
+      case 'required':
+        return DependencyType.required;
+      case 'recommended':
+        return DependencyType.recommended;
+      default:
+        return DependencyType.required;
+    }
+  }
+}
+
+/// A dependency link between two products
+class ProductDependency extends Equatable {
+  final String id;
+  final DependencyType type;
+  final String? description;
+  final Product requiredProduct;
+
+  const ProductDependency({
+    required this.id,
+    required this.type,
+    this.description,
+    required this.requiredProduct,
+  });
+
+  @override
+  List<Object?> get props => [id, type, description, requiredProduct];
 }
 
 /// Product entity

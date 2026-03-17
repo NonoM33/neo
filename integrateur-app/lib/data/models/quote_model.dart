@@ -1,6 +1,6 @@
 import '../../domain/entities/quote.dart';
 
-/// Quote line model
+/// Quote line model - matches backend quote_lines table
 class QuoteLineModel extends QuoteLine {
   const QuoteLineModel({
     required super.id,
@@ -11,36 +11,43 @@ class QuoteLineModel extends QuoteLine {
     required super.unitPriceHT,
     super.tvaPercent,
     super.roomName,
+    super.clientOwned,
+    super.clientOwnedPhotoUrl,
   });
 
+  /// From backend JSON. Backend fields: id, description, quantity,
+  /// unitPriceHT (decimal string), tvaRate (decimal string), totalHT,
+  /// sortOrder, product? {id, reference, name}
   factory QuoteLineModel.fromJson(Map<String, dynamic> json) {
+    // Determine product ID from either direct field or nested product
+    String? productId = json['productId'] as String?;
+    if (productId == null && json['product'] is Map<String, dynamic>) {
+      productId = (json['product'] as Map<String, dynamic>)['id'] as String?;
+    }
+
     return QuoteLineModel(
       id: json['id'] as String,
-      type: QuoteLineType.fromString(json['type'] as String? ?? 'produit'),
-      productId: json['produit_id'] as String? ?? json['productId'] as String?,
-      description: json['description'] as String,
-      quantity: json['quantite'] as int? ?? json['quantity'] as int? ?? 1,
-      unitPriceHT: (json['prix_unitaire_ht'] as num?)?.toDouble() ??
-          (json['unitPriceHT'] as num?)?.toDouble() ??
-          0.0,
-      tvaPercent: (json['tva_pourcent'] as num?)?.toDouble() ??
-          (json['tvaPercent'] as num?)?.toDouble() ??
-          20.0,
-      roomName: json['piece'] as String? ?? json['roomName'] as String?,
+      type: productId != null ? QuoteLineType.produit : QuoteLineType.forfait,
+      productId: productId,
+      description: json['description'] as String? ?? '',
+      quantity: json['quantity'] as int? ?? 1,
+      unitPriceHT: _parseDouble(json['unitPriceHT']),
+      tvaPercent: _parseDouble(json['tvaRate'] ?? '20'),
+      clientOwned: json['clientOwned'] as bool? ?? false,
+      clientOwnedPhotoUrl: json['clientOwnedPhotoUrl'] as String?,
     );
   }
 
-  Map<String, dynamic> toJson() {
+  /// For API create/update request
+  Map<String, dynamic> toApiJson() {
     return {
-      'id': id,
-      'type': type.name,
-      'produit_id': productId,
+      if (productId != null) 'productId': productId,
       'description': description,
-      'quantite': quantity,
-      'prix_unitaire_ht': unitPriceHT,
-      'tva_pourcent': tvaPercent,
-      'total_ht': totalHT,
-      'piece': roomName,
+      'quantity': quantity,
+      'unitPriceHT': unitPriceHT,
+      'tvaRate': tvaPercent,
+      if (clientOwned) 'clientOwned': true,
+      if (clientOwnedPhotoUrl != null) 'clientOwnedPhotoUrl': clientOwnedPhotoUrl,
     };
   }
 
@@ -54,11 +61,20 @@ class QuoteLineModel extends QuoteLine {
       unitPriceHT: line.unitPriceHT,
       tvaPercent: line.tvaPercent,
       roomName: line.roomName,
+      clientOwned: line.clientOwned,
+      clientOwnedPhotoUrl: line.clientOwnedPhotoUrl,
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 }
 
-/// Quote model for JSON serialization
+/// Quote model - matches backend quotes table
 class QuoteModel extends Quote {
   const QuoteModel({
     required super.id,
@@ -75,59 +91,50 @@ class QuoteModel extends Quote {
     super.updatedAt,
   });
 
+  /// From backend JSON. Backend fields: id, projectId, number, status,
+  /// validUntil, totalHT, totalTVA, totalTTC, discount, notes,
+  /// pdfUrl, sentAt, createdAt, updatedAt, lines[]
   factory QuoteModel.fromJson(Map<String, dynamic> json) {
+    final linesJson = json['lines'] as List<dynamic>? ?? [];
+    final lines = linesJson
+        .map((l) => QuoteLineModel.fromJson(l as Map<String, dynamic>))
+        .toList();
+
     return QuoteModel(
       id: json['id'] as String,
-      projectId: json['projet_id'] as String? ?? json['projectId'] as String? ?? '',
-      number: json['numero'] as String? ?? json['number'] as String? ?? '',
-      date: DateTime.parse(json['date'] as String? ?? DateTime.now().toIso8601String()),
-      validityDays: json['validite_jours'] as int? ?? json['validityDays'] as int? ?? 30,
-      lines: (json['lignes'] as List<dynamic>?)
-              ?.map((e) => QuoteLineModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          (json['lines'] as List<dynamic>?)
-              ?.map((e) => QuoteLineModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      discountHT: (json['remise_ht'] as num?)?.toDouble() ??
-          (json['discountHT'] as num?)?.toDouble() ??
-          0.0,
-      conditions: json['conditions'] as String?,
-      status: QuoteStatus.fromString(
-          json['statut'] as String? ?? json['status'] as String? ?? 'brouillon'),
-      clientSignature: json['signature_client'] as String? ??
-          json['clientSignature'] as String?,
-      signatureDate: json['date_signature'] != null
-          ? DateTime.parse(json['date_signature'] as String)
-          : json['signatureDate'] != null
-              ? DateTime.parse(json['signatureDate'] as String)
-              : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : json['updatedAt'] != null
-              ? DateTime.parse(json['updatedAt'] as String)
-              : null,
+      projectId: json['projectId'] as String? ?? '',
+      number: json['number'] as String? ?? '',
+      date: _parseDate(json['createdAt']),
+      validityDays: _calculateValidityDays(json['createdAt'], json['validUntil']),
+      lines: lines,
+      discountHT: _parseDouble(json['discount']),
+      conditions: json['notes'] as String?,
+      status: QuoteStatus.fromString(json['status'] as String? ?? 'brouillon'),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String)
+          : null,
     );
   }
 
-  Map<String, dynamic> toJson() {
+  /// For create request
+  Map<String, dynamic> toCreateJson() {
     return {
-      'id': id,
-      'projet_id': projectId,
-      'numero': number,
-      'date': date.toIso8601String(),
-      'validite_jours': validityDays,
-      'lignes': lines.map((l) => QuoteLineModel.fromEntity(l).toJson()).toList(),
-      'sous_total_ht': subtotalHT,
-      'remise_ht': discountHT,
-      'total_ht': totalHT,
-      'total_tva': totalTVA,
-      'total_ttc': totalTTC,
-      'conditions': conditions,
-      'statut': status.apiValue,
-      'signature_client': clientSignature,
-      'date_signature': signatureDate?.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      if (validityDays > 0)
+        'validUntil': date.add(Duration(days: validityDays)).toIso8601String(),
+      'discount': discountHT,
+      if (conditions != null) 'notes': conditions,
+      'lines': lines.map((l) => QuoteLineModel.fromEntity(l).toApiJson()).toList(),
+    };
+  }
+
+  /// For update request
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'status': status.apiValue,
+      'validUntil': validityEndDate.toIso8601String(),
+      'discount': discountHT,
+      'notes': conditions,
+      'lines': lines.map((l) => QuoteLineModel.fromEntity(l).toApiJson()).toList(),
     };
   }
 
@@ -146,5 +153,26 @@ class QuoteModel extends Quote {
       signatureDate: quote.signatureDate,
       updatedAt: quote.updatedAt,
     );
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    return DateTime.now();
+  }
+
+  static int _calculateValidityDays(dynamic createdAt, dynamic validUntil) {
+    if (validUntil == null) return 30;
+    final created = _parseDate(createdAt);
+    final valid = _parseDate(validUntil);
+    final diff = valid.difference(created).inDays;
+    return diff > 0 ? diff : 30;
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 }

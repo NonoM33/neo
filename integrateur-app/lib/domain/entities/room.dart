@@ -1,85 +1,50 @@
 import 'package:equatable/equatable.dart';
+
 import 'checklist_item.dart';
 
-/// Room type enum
+/// Room type enum matching backend: salon, cuisine, chambre, salle_de_bain, bureau, garage, exterieur, autre
 enum RoomType {
   salon,
-  chambre,
   cuisine,
+  chambre,
   salleDeBain,
   bureau,
-  entree,
-  couloir,
   garage,
-  jardin,
-  terrasse,
-  cave,
-  buanderie,
+  exterieur,
   autre;
 
   String get displayName {
     switch (this) {
       case RoomType.salon:
         return 'Salon';
-      case RoomType.chambre:
-        return 'Chambre';
       case RoomType.cuisine:
         return 'Cuisine';
+      case RoomType.chambre:
+        return 'Chambre';
       case RoomType.salleDeBain:
         return 'Salle de bain';
       case RoomType.bureau:
         return 'Bureau';
-      case RoomType.entree:
-        return 'Entrée';
-      case RoomType.couloir:
-        return 'Couloir';
       case RoomType.garage:
         return 'Garage';
-      case RoomType.jardin:
-        return 'Jardin';
-      case RoomType.terrasse:
-        return 'Terrasse';
-      case RoomType.cave:
-        return 'Cave';
-      case RoomType.buanderie:
-        return 'Buanderie';
+      case RoomType.exterieur:
+        return 'Extérieur';
       case RoomType.autre:
         return 'Autre';
     }
   }
 
-  String get icon {
+  String get apiValue {
     switch (this) {
-      case RoomType.salon:
-        return 'living';
-      case RoomType.chambre:
-        return 'bed';
-      case RoomType.cuisine:
-        return 'kitchen';
       case RoomType.salleDeBain:
-        return 'bathroom';
-      case RoomType.bureau:
-        return 'desk';
-      case RoomType.entree:
-        return 'door_front';
-      case RoomType.couloir:
-        return 'meeting_room';
-      case RoomType.garage:
-        return 'garage';
-      case RoomType.jardin:
-        return 'yard';
-      case RoomType.terrasse:
-        return 'deck';
-      case RoomType.cave:
-        return 'foundation';
-      case RoomType.buanderie:
-        return 'local_laundry_service';
-      case RoomType.autre:
-        return 'room';
+        return 'salle_de_bain';
+      default:
+        return name;
     }
   }
 
   static RoomType fromString(String value) {
+    if (value == 'salle_de_bain') return RoomType.salleDeBain;
     return RoomType.values.firstWhere(
       (type) => type.name == value.toLowerCase(),
       orElse: () => RoomType.autre,
@@ -87,65 +52,56 @@ enum RoomType {
   }
 }
 
-/// Photo entity
+/// Photo entity matching backend photos table
 class RoomPhoto extends Equatable {
   final String id;
-  final String localPath;
-  final String? remoteUrl;
+  final String roomId;
+  final String filename;
+  final String url;
   final String? caption;
   final DateTime createdAt;
-  final bool isSynced;
 
   const RoomPhoto({
     required this.id,
-    required this.localPath,
-    this.remoteUrl,
+    required this.roomId,
+    required this.filename,
+    required this.url,
     this.caption,
     required this.createdAt,
-    this.isSynced = false,
   });
-
-  String get displayUrl => remoteUrl ?? localPath;
 
   RoomPhoto copyWith({
     String? id,
-    String? localPath,
-    String? remoteUrl,
+    String? roomId,
+    String? filename,
+    String? url,
     String? caption,
     DateTime? createdAt,
-    bool? isSynced,
   }) {
     return RoomPhoto(
       id: id ?? this.id,
-      localPath: localPath ?? this.localPath,
-      remoteUrl: remoteUrl ?? this.remoteUrl,
+      roomId: roomId ?? this.roomId,
+      filename: filename ?? this.filename,
+      url: url ?? this.url,
       caption: caption ?? this.caption,
       createdAt: createdAt ?? this.createdAt,
-      isSynced: isSynced ?? this.isSynced,
     );
   }
 
   @override
-  List<Object?> get props => [
-        id,
-        localPath,
-        remoteUrl,
-        caption,
-        createdAt,
-        isSynced,
-      ];
+  List<Object?> get props => [id, roomId, filename, url, caption, createdAt];
 }
 
-/// Room entity
+/// Room entity matching backend rooms table
 class Room extends Equatable {
   final String id;
   final String projectId;
   final String name;
   final RoomType type;
-  final double? surfaceM2;
+  final int floor;
+  final String? notes;
   final List<RoomPhoto> photos;
   final List<ChecklistItem> checklist;
-  final String? notes;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -154,31 +110,26 @@ class Room extends Equatable {
     required this.projectId,
     required this.name,
     required this.type,
-    this.surfaceM2,
+    this.floor = 0,
+    this.notes,
     this.photos = const [],
     this.checklist = const [],
-    this.notes,
     required this.createdAt,
     this.updatedAt,
   });
 
-  /// Get display name (custom name or type name)
   String get displayName => name.isNotEmpty ? name : type.displayName;
 
-  /// Get number of photos
   int get photoCount => photos.length;
 
-  /// Get number of checked items
   int get checkedItemsCount =>
       checklist.where((item) => item.isChecked).length;
 
-  /// Get checklist completion percentage
   double get checklistProgress {
     if (checklist.isEmpty) return 0;
     return checkedItemsCount / checklist.length;
   }
 
-  /// Get items by category
   Map<ChecklistCategory, List<ChecklistItem>> get itemsByCategory {
     final map = <ChecklistCategory, List<ChecklistItem>>{};
     for (final item in checklist) {
@@ -192,10 +143,10 @@ class Room extends Equatable {
     String? projectId,
     String? name,
     RoomType? type,
-    double? surfaceM2,
+    int? floor,
+    String? notes,
     List<RoomPhoto>? photos,
     List<ChecklistItem>? checklist,
-    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -204,10 +155,10 @@ class Room extends Equatable {
       projectId: projectId ?? this.projectId,
       name: name ?? this.name,
       type: type ?? this.type,
-      surfaceM2: surfaceM2 ?? this.surfaceM2,
+      floor: floor ?? this.floor,
+      notes: notes ?? this.notes,
       photos: photos ?? this.photos,
       checklist: checklist ?? this.checklist,
-      notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -219,10 +170,10 @@ class Room extends Equatable {
         projectId,
         name,
         type,
-        surfaceM2,
+        floor,
+        notes,
         photos,
         checklist,
-        notes,
         createdAt,
         updatedAt,
       ];

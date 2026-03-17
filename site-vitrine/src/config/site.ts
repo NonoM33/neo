@@ -56,4 +56,7 @@ export const SITE_CONFIG = {
 
   // Analytics (Plausible)
   plausibleDomain: 'neo-domotique.fr', // TODO: remplacer si différent
+
+  // API
+  apiBaseUrl: 'http://localhost:3000', // TODO: remplacer en production par l'URL de l'API
 } as const;

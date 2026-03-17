@@ -54,13 +54,16 @@ class AuthInterceptor extends Interceptor {
       final dio = Dio(BaseOptions(baseUrl: EnvironmentConfig.baseUrl));
       final response = await dio.post(
         '/auth/refresh',
-        data: {'refresh_token': _refreshToken},
+        data: {'refreshToken': _refreshToken},
       );
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
-        _refreshToken = data['refresh_token'] as String?;
-        return data['access_token'] as String?;
+        _refreshToken = data['refreshToken'] as String? ??
+            data['refresh_token'] as String? ??
+            _refreshToken;
+        return data['accessToken'] as String? ??
+            data['access_token'] as String?;
       }
     } catch (_) {
       // Refresh failed

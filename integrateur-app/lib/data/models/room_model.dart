@@ -1,54 +1,54 @@
 import '../../domain/entities/room.dart';
 import '../../domain/entities/checklist_item.dart';
 
-/// Room photo model
+/// Room photo model - matches backend photos table
 class RoomPhotoModel extends RoomPhoto {
   const RoomPhotoModel({
     required super.id,
-    required super.localPath,
-    super.remoteUrl,
+    required super.roomId,
+    required super.filename,
+    required super.url,
     super.caption,
     required super.createdAt,
-    super.isSynced,
   });
 
   factory RoomPhotoModel.fromJson(Map<String, dynamic> json) {
     return RoomPhotoModel(
       id: json['id'] as String,
-      localPath: json['local_path'] as String? ?? json['localPath'] as String? ?? '',
-      remoteUrl: json['remote_url'] as String? ?? json['remoteUrl'] as String?,
+      roomId: json['roomId'] as String? ?? '',
+      filename: json['filename'] as String? ?? '',
+      url: json['url'] as String? ?? '',
       caption: json['caption'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String? ??
-          json['createdAt'] as String? ??
-          DateTime.now().toIso8601String()),
-      isSynced: json['is_synced'] as bool? ?? json['isSynced'] as bool? ?? false,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'local_path': localPath,
-      'remote_url': remoteUrl,
+      'roomId': roomId,
+      'filename': filename,
+      'url': url,
       'caption': caption,
-      'created_at': createdAt.toIso8601String(),
-      'is_synced': isSynced,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 
   factory RoomPhotoModel.fromEntity(RoomPhoto photo) {
     return RoomPhotoModel(
       id: photo.id,
-      localPath: photo.localPath,
-      remoteUrl: photo.remoteUrl,
+      roomId: photo.roomId,
+      filename: photo.filename,
+      url: photo.url,
       caption: photo.caption,
       createdAt: photo.createdAt,
-      isSynced: photo.isSynced,
     );
   }
 }
 
-/// Checklist item model
+/// Checklist item model - matches backend checklist_items table
 class ChecklistItemModel extends ChecklistItem {
   const ChecklistItemModel({
     required super.id,
@@ -66,10 +66,10 @@ class ChecklistItemModel extends ChecklistItem {
       label: json['label'] as String,
       category: ChecklistCategory.fromString(
           json['category'] as String? ?? 'autre'),
-      isChecked: json['is_checked'] as bool? ?? json['isChecked'] as bool? ?? false,
+      isChecked: json['checked'] as bool? ?? false,
       quantity: json['quantity'] as int?,
       notes: json['notes'] as String?,
-      productId: json['product_id'] as String? ?? json['productId'] as String?,
+      productId: json['productId'] as String?,
     );
   }
 
@@ -78,10 +78,18 @@ class ChecklistItemModel extends ChecklistItem {
       'id': id,
       'label': label,
       'category': category.name,
-      'is_checked': isChecked,
-      'quantity': quantity,
-      'notes': notes,
-      'product_id': productId,
+      'checked': isChecked,
+      if (notes != null) 'notes': notes,
+    };
+  }
+
+  /// For create request
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'category': category.name,
+      'label': label,
+      'checked': isChecked,
+      if (notes != null) 'notes': notes,
     };
   }
 
@@ -98,17 +106,17 @@ class ChecklistItemModel extends ChecklistItem {
   }
 }
 
-/// Room model for JSON serialization
+/// Room model - matches backend rooms table
 class RoomModel extends Room {
   const RoomModel({
     required super.id,
     required super.projectId,
     required super.name,
     required super.type,
-    super.surfaceM2,
+    super.floor,
+    super.notes,
     super.photos,
     super.checklist,
-    super.notes,
     required super.createdAt,
     super.updatedAt,
   });
@@ -116,43 +124,58 @@ class RoomModel extends Room {
   factory RoomModel.fromJson(Map<String, dynamic> json) {
     return RoomModel(
       id: json['id'] as String,
-      projectId: json['project_id'] as String? ?? json['projectId'] as String? ?? '',
-      name: json['name'] as String? ?? json['nom'] as String? ?? '',
+      projectId: json['projectId'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       type: RoomType.fromString(json['type'] as String? ?? 'autre'),
-      surfaceM2: (json['surface_m2'] as num?)?.toDouble() ??
-          (json['surfaceM2'] as num?)?.toDouble(),
+      floor: json['floor'] as int? ?? 0,
+      notes: json['notes'] as String?,
       photos: (json['photos'] as List<dynamic>?)
               ?.map((e) => RoomPhotoModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      checklist: (json['checklist'] as List<dynamic>?)
+      checklist: (json['checklistItems'] as List<dynamic>?)
               ?.map((e) => ChecklistItemModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      notes: json['notes'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String? ??
-          json['createdAt'] as String? ??
-          DateTime.now().toIso8601String()),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : json['updatedAt'] != null
-              ? DateTime.parse(json['updatedAt'] as String)
-              : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'project_id': projectId,
+      'projectId': projectId,
       'name': name,
-      'type': type.name,
-      'surface_m2': surfaceM2,
-      'photos': photos.map((p) => RoomPhotoModel.fromEntity(p).toJson()).toList(),
-      'checklist': checklist.map((c) => ChecklistItemModel.fromEntity(c).toJson()).toList(),
+      'type': type.apiValue,
+      'floor': floor,
       'notes': notes,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+
+  /// For create request
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'name': name,
+      'type': type.apiValue,
+      'floor': floor,
+      if (notes != null) 'notes': notes,
+    };
+  }
+
+  /// For update request
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'name': name,
+      'type': type.apiValue,
+      'floor': floor,
+      'notes': notes,
     };
   }
 
@@ -162,10 +185,10 @@ class RoomModel extends Room {
       projectId: room.projectId,
       name: room.name,
       type: room.type,
-      surfaceM2: room.surfaceM2,
+      floor: room.floor,
+      notes: room.notes,
       photos: room.photos,
       checklist: room.checklist,
-      notes: room.notes,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     );

@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:uuid/uuid.dart';
-import '../../../domain/entities/room.dart';
 import '../../../domain/entities/checklist_item.dart';
+import '../../../domain/entities/room.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/project_repository.dart';
 import 'audit_event.dart';
@@ -10,13 +9,10 @@ import 'audit_state.dart';
 /// Audit BLoC for managing room audits
 class AuditBloc extends Bloc<AuditEvent, AuditState> {
   final ProjectRepository _projectRepository;
-  final Uuid _uuid;
 
   AuditBloc({
     required ProjectRepository projectRepository,
-    Uuid? uuid,
   })  : _projectRepository = projectRepository,
-        _uuid = uuid ?? const Uuid(),
         super(const AuditInitial()) {
     on<AuditLoadRoomsRequested>(_onLoadRoomsRequested);
     on<AuditRoomSelected>(_onRoomSelected);
@@ -37,27 +33,50 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
   ) async {
     emit(const AuditLoading());
 
-    final result = await _projectRepository.getProject(event.projectId);
+    final result = await _projectRepository.getRoomsByProject(event.projectId);
 
     switch (result) {
-      case Success(data: final project):
+      case Success(data: final rooms):
+        // List endpoint returns rooms without checklist/photos.
+        // Fetch full detail for each room in parallel.
+        final detailedRooms = await Future.wait(
+          rooms.map((room) async {
+            final detailResult = await _projectRepository.getRoom(room.id);
+            return detailResult is Success<Room> ? detailResult.data : room;
+          }),
+        );
+
         emit(AuditLoaded(
           projectId: event.projectId,
-          rooms: project.rooms,
-          selectedRoom: project.rooms.isNotEmpty ? project.rooms.first : null,
+          rooms: detailedRooms,
+          selectedRoom: detailedRooms.isNotEmpty ? detailedRooms.first : null,
         ));
       case Error(failure: final failure):
         emit(AuditError(failure.message));
     }
   }
 
-  void _onRoomSelected(
+  Future<void> _onRoomSelected(
     AuditRoomSelected event,
     Emitter<AuditState> emit,
-  ) {
+  ) async {
     final currentState = state;
-    if (currentState is AuditLoaded) {
-      emit(currentState.copyWith(selectedRoom: event.room));
+    if (currentState is! AuditLoaded) return;
+
+    // Show selection immediately
+    emit(currentState.copyWith(selectedRoom: event.room));
+
+    // Refresh room detail to ensure fresh checklist/photos
+    final detailResult = await _projectRepository.getRoom(event.room.id);
+    if (detailResult is Success<Room>) {
+      final freshRoom = detailResult.data;
+      final updatedRooms = currentState.rooms.map((r) {
+        return r.id == freshRoom.id ? freshRoom : r;
+      }).toList();
+      emit(currentState.copyWith(
+        rooms: updatedRooms,
+        selectedRoom: freshRoom,
+      ));
     }
   }
 
@@ -68,19 +87,14 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
     final currentState = state;
     if (currentState is! AuditLoaded) return;
 
-    final room = Room(
-      id: _uuid.v4(),
-      projectId: currentState.projectId,
-      name: event.name,
-      type: event.type,
-      surfaceM2: event.surfaceM2,
-      checklist: ChecklistTemplates.defaultItems,
-      createdAt: DateTime.now(),
-    );
+    final roomName = event.name.trim().isNotEmpty
+        ? event.name.trim()
+        : event.type.displayName;
 
-    final result = await _projectRepository.addRoom(
+    final result = await _projectRepository.createRoom(
       currentState.projectId,
-      room,
+      name: roomName,
+      type: event.type.apiValue,
     );
 
     switch (result) {
@@ -102,7 +116,15 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
     final currentState = state;
     if (currentState is! AuditLoaded) return;
 
-    final result = await _projectRepository.updateRoom(event.room);
+    final result = await _projectRepository.updateRoom(
+      event.room.id,
+      {
+        'name': event.room.name,
+        'type': event.room.type.apiValue,
+        'floor': event.room.floor,
+        'notes': event.room.notes,
+      },
+    );
 
     switch (result) {
       case Success(data: final updatedRoom):
@@ -151,6 +173,13 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
       return;
     }
 
+    // Update checklist item via API
+    _projectRepository.updateChecklistItem(
+      event.itemId,
+      {'checked': event.isChecked},
+    );
+
+    // Optimistically update local state
     final room = currentState.selectedRoom!;
     final updatedChecklist = room.checklist.map((item) {
       if (item.id == event.itemId) {
@@ -159,12 +188,15 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
       return item;
     }).toList();
 
-    final updatedRoom = room.copyWith(
-      checklist: updatedChecklist,
-      updatedAt: DateTime.now(),
-    );
+    final updatedRoom = room.copyWith(checklist: updatedChecklist);
+    final updatedRooms = currentState.rooms.map((r) {
+      return r.id == updatedRoom.id ? updatedRoom : r;
+    }).toList();
 
-    add(AuditUpdateRoomRequested(updatedRoom));
+    emit(currentState.copyWith(
+      rooms: updatedRooms,
+      selectedRoom: updatedRoom,
+    ));
   }
 
   void _onUpdateChecklistQuantity(
@@ -184,36 +216,46 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
       return item;
     }).toList();
 
-    final updatedRoom = room.copyWith(
-      checklist: updatedChecklist,
-      updatedAt: DateTime.now(),
-    );
+    final updatedRoom = room.copyWith(checklist: updatedChecklist);
+    final updatedRooms = currentState.rooms.map((r) {
+      return r.id == updatedRoom.id ? updatedRoom : r;
+    }).toList();
 
-    add(AuditUpdateRoomRequested(updatedRoom));
+    emit(currentState.copyWith(
+      rooms: updatedRooms,
+      selectedRoom: updatedRoom,
+    ));
   }
 
-  void _onAddChecklistItem(
+  Future<void> _onAddChecklistItem(
     AuditAddChecklistItemRequested event,
     Emitter<AuditState> emit,
-  ) {
+  ) async {
     final currentState = state;
     if (currentState is! AuditLoaded || currentState.selectedRoom == null) {
       return;
     }
 
-    final room = currentState.selectedRoom!;
-    final newItem = ChecklistItem(
-      id: _uuid.v4(),
+    final result = await _projectRepository.createChecklistItem(
+      currentState.selectedRoom!.id,
+      category: event.category.name,
       label: event.label,
-      category: event.category,
     );
 
-    final updatedRoom = room.copyWith(
-      checklist: [...room.checklist, newItem],
-      updatedAt: DateTime.now(),
-    );
+    if (result is Success<ChecklistItem>) {
+      final room = currentState.selectedRoom!;
+      final updatedRoom = room.copyWith(
+        checklist: [...room.checklist, result.data],
+      );
+      final updatedRooms = currentState.rooms.map((r) {
+        return r.id == updatedRoom.id ? updatedRoom : r;
+      }).toList();
 
-    add(AuditUpdateRoomRequested(updatedRoom));
+      emit(currentState.copyWith(
+        rooms: updatedRooms,
+        selectedRoom: updatedRoom,
+      ));
+    }
   }
 
   Future<void> _onPhotoCaptured(
@@ -225,7 +267,7 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
       return;
     }
 
-    final result = await _projectRepository.addPhoto(
+    final result = await _projectRepository.uploadPhoto(
       currentState.selectedRoom!.id,
       event.localPath,
     );
@@ -235,7 +277,6 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
         final room = currentState.selectedRoom!;
         final updatedRoom = room.copyWith(
           photos: [...room.photos, photo],
-          updatedAt: DateTime.now(),
         );
 
         final updatedRooms = currentState.rooms.map((r) {
@@ -265,7 +306,6 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
     final room = currentState.selectedRoom!;
     final updatedRoom = room.copyWith(
       photos: room.photos.where((p) => p.id != event.photoId).toList(),
-      updatedAt: DateTime.now(),
     );
 
     final updatedRooms = currentState.rooms.map((r) {
@@ -289,9 +329,19 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
 
     final updatedRoom = currentState.selectedRoom!.copyWith(
       notes: event.notes,
-      updatedAt: DateTime.now(),
     );
 
-    add(AuditUpdateRoomRequested(updatedRoom));
+    // Update via API
+    _projectRepository.updateRoom(updatedRoom.id, {'notes': event.notes});
+
+    // Optimistic update
+    final updatedRooms = currentState.rooms.map((r) {
+      return r.id == updatedRoom.id ? updatedRoom : r;
+    }).toList();
+
+    emit(currentState.copyWith(
+      rooms: updatedRooms,
+      selectedRoom: updatedRoom,
+    ));
   }
 }

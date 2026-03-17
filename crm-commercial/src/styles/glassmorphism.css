@@ -1,0 +1,48 @@
+/* ===== Glassmorphism Utilities ===== */
+
+.glass {
+  background: var(--neo-glass-bg, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(var(--neo-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--neo-glass-blur, 12px));
+  border: 1px solid var(--neo-glass-border, rgba(255, 255, 255, 0.1));
+}
+
+.glass-card {
+  background: var(--neo-glass-bg, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(var(--neo-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--neo-glass-blur, 12px));
+  border: 1px solid var(--neo-glass-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--neo-radius-md);
+  transition: border-color var(--neo-transition-normal) ease,
+              box-shadow var(--neo-transition-normal) ease;
+}
+
+.glass-card:hover {
+  border-color: var(--neo-accent, #7c3aed);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.15);
+}
+
+.glass-sidebar {
+  background: var(--neo-glass-bg, rgba(15, 17, 23, 0.95));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid var(--neo-glass-border, rgba(255, 255, 255, 0.06));
+}
+
+/* Glow borders for rarity */
+.glow-common {
+  box-shadow: 0 0 8px rgba(108, 117, 125, 0.3);
+}
+
+.glow-rare {
+  box-shadow: 0 0 12px rgba(13, 110, 253, 0.4);
+}
+
+.glow-epic {
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.5);
+}
+
+.glow-legendary {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+  animation: glow-pulse 2s ease-in-out infinite;
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -9,7 +10,7 @@ import '../../../domain/entities/client.dart';
 import '../../../domain/entities/project.dart';
 import '../../blocs/projects/projects_event.dart';
 
-/// Project creation/edit form screen
+/// Project creation/edit form screen - tablet optimized 2-column layout
 class ProjectFormScreen extends ConsumerStatefulWidget {
   final String? projectId;
 
@@ -26,6 +27,7 @@ class ProjectFormScreen extends ConsumerStatefulWidget {
 
 class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
   final _uuid = const Uuid();
 
   // Client fields
@@ -38,15 +40,35 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   final _cityController = TextEditingController();
 
   // Project fields
-  HousingType _housingType = HousingType.maison;
+  final _nameController = TextEditingController();
   final _surfaceController = TextEditingController();
   final _notesController = TextEditingController();
-  DateTime? _appointmentDate;
 
   bool _isLoading = false;
+  bool _hasUnsavedChanges = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Track changes for unsaved warning
+    for (final controller in [
+      _firstNameController, _lastNameController, _emailController,
+      _phoneController, _streetController, _postalCodeController,
+      _cityController, _nameController, _surfaceController, _notesController,
+    ]) {
+      controller.addListener(_onFieldChanged);
+    }
+  }
+
+  void _onFieldChanged() {
+    if (!_hasUnsavedChanges) {
+      setState(() => _hasUnsavedChanges = true);
+    }
+  }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -54,72 +76,216 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     _streetController.dispose();
     _postalCodeController.dispose();
     _cityController.dispose();
+    _nameController.dispose();
     _surfaceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? 'Modifier le projet' : 'Nouveau projet'),
+  Future<bool> _onWillPop() async {
+    if (!_hasUnsavedChanges) return true;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifications non sauvegardees'),
+        content: const Text('Voulez-vous quitter sans enregistrer ?'),
         actions: [
-          FilledButton(
-            onPressed: _isLoading ? null : _submit,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Enregistrer'),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Continuer l\'edition'),
           ),
-          AppSpacing.hGapMd,
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Quitter'),
+          ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: AppSpacing.pagePadding,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+    );
+    return result ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.isEditing ? 'Modifier le projet' : 'Nouveau projet'),
+          actions: [
+            FilledButton(
+              onPressed: _isLoading ? null : _submit,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Enregistrer'),
+            ),
+            AppSpacing.hGapMd,
+          ],
+        ),
+        body: Form(
+          key: _formKey,
+          child: isWide
+              ? _buildTabletLayout(context)
+              : _buildMobileLayout(context),
+        ),
+      ),
+    );
+  }
+
+  /// Tablet: 2-column layout - client left, project right
+  Widget _buildTabletLayout(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: AppSpacing.pagePadding,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column: Client info
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Client section
                 _buildSectionTitle(context, 'Client'),
                 AppSpacing.vGapMd,
                 _buildClientFields(context),
                 AppSpacing.vGapXl,
-
-                // Address section
                 _buildSectionTitle(context, 'Adresse'),
                 AppSpacing.vGapMd,
                 _buildAddressFields(context),
-                AppSpacing.vGapXl,
-
-                // Project section
+              ],
+            ),
+          ),
+          AppSpacing.hGapXl,
+          // Right column: Project info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 _buildSectionTitle(context, 'Projet'),
                 AppSpacing.vGapMd,
                 _buildProjectFields(context),
                 AppSpacing.vGapXl,
-
-                // Notes section
                 _buildSectionTitle(context, 'Notes'),
                 AppSpacing.vGapMd,
                 TextFormField(
                   controller: _notesController,
                   maxLines: 4,
                   decoration: const InputDecoration(
-                    hintText: 'Notes supplémentaires...',
+                    hintText: 'Notes supplementaires...',
                   ),
                 ),
                 AppSpacing.vGapXl,
+                // Submit button at bottom of form
+                Container(
+                  padding: const EdgeInsets.only(top: 24),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant.withAlpha(40),
+                      ),
+                    ),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _isLoading ? null : _submit,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_rounded),
+                      label: const Text('Enregistrer le projet'),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  /// Mobile: single column
+  Widget _buildMobileLayout(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: AppSpacing.pagePadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Client section
+          _buildSectionTitle(context, 'Client'),
+          AppSpacing.vGapMd,
+          _buildClientFields(context),
+          AppSpacing.vGapXl,
+
+          // Address section
+          _buildSectionTitle(context, 'Adresse'),
+          AppSpacing.vGapMd,
+          _buildAddressFields(context),
+          AppSpacing.vGapXl,
+
+          // Project section
+          _buildSectionTitle(context, 'Projet'),
+          AppSpacing.vGapMd,
+          _buildProjectFields(context),
+          AppSpacing.vGapXl,
+
+          // Notes section
+          _buildSectionTitle(context, 'Notes'),
+          AppSpacing.vGapMd,
+          TextFormField(
+            controller: _notesController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Notes supplementaires...',
+            ),
+          ),
+          AppSpacing.vGapXl,
+
+          // Submit button at bottom
+          Container(
+            padding: const EdgeInsets.only(top: 24),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant.withAlpha(40),
+                ),
+              ),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isLoading ? null : _submit,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_rounded),
+                label: const Text('Enregistrer le projet'),
+              ),
+            ),
+          ),
+          AppSpacing.vGapXl,
+        ],
       ),
     );
   }
@@ -140,10 +306,10 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
               child: TextFormField(
                 controller: _firstNameController,
                 decoration: const InputDecoration(
-                  labelText: 'Prénom',
+                  labelText: 'Prenom',
                   prefixIcon: Icon(Icons.person),
                 ),
-                validator: (v) => Validators.required(v, fieldName: 'Prénom'),
+                validator: (v) => Validators.required(v, fieldName: 'Prenom'),
                 textInputAction: TextInputAction.next,
               ),
             ),
@@ -180,7 +346,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
               child: TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
-                  labelText: 'Téléphone',
+                  labelText: 'Telephone',
                   prefixIcon: Icon(Icons.phone),
                 ),
                 keyboardType: TextInputType.phone,
@@ -210,7 +376,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
         Row(
           children: [
             SizedBox(
-              width: 150,
+              width: 160,
               child: TextFormField(
                 controller: _postalCodeController,
                 decoration: const InputDecoration(
@@ -241,119 +407,81 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   Widget _buildProjectFields(BuildContext context) {
     return Column(
       children: [
-        // Housing type
-        DropdownButtonFormField<HousingType>(
-          value: _housingType,
+        // Project name
+        TextFormField(
+          controller: _nameController,
           decoration: const InputDecoration(
-            labelText: 'Type de logement',
+            labelText: 'Nom du projet',
             prefixIcon: Icon(Icons.home),
           ),
-          items: HousingType.values.map((type) {
-            return DropdownMenuItem(
-              value: type,
-              child: Text(type.displayName),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _housingType = value);
-            }
-          },
+          validator: (v) => Validators.required(v, fieldName: 'Nom du projet'),
+          textInputAction: TextInputAction.next,
         ),
         AppSpacing.vGapMd,
 
-        Row(
-          children: [
-            // Surface
-            Expanded(
-              child: TextFormField(
-                controller: _surfaceController,
-                decoration: const InputDecoration(
-                  labelText: 'Surface (m²)',
-                  prefixIcon: Icon(Icons.square_foot),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => Validators.positiveNumber(v, fieldName: 'Surface'),
-              ),
-            ),
-            AppSpacing.hGapMd,
-
-            // Appointment date
-            Expanded(
-              child: InkWell(
-                onTap: _selectDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Date de RDV',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  child: Text(
-                    _appointmentDate != null
-                        ? '${_appointmentDate!.day}/${_appointmentDate!.month}/${_appointmentDate!.year}'
-                        : 'Sélectionner',
-                  ),
-                ),
-              ),
-            ),
-          ],
+        // Surface
+        TextFormField(
+          controller: _surfaceController,
+          decoration: const InputDecoration(
+            labelText: 'Surface (m\u00B2)',
+            prefixIcon: Icon(Icons.square_foot),
+          ),
+          keyboardType: TextInputType.number,
+          validator: (v) => Validators.positiveNumber(v, fieldName: 'Surface'),
+          textInputAction: TextInputAction.done,
         ),
       ],
     );
-  }
-
-  Future<void> _selectDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _appointmentDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (date != null) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
-      );
-
-      setState(() {
-        _appointmentDate = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          time?.hour ?? 9,
-          time?.minute ?? 0,
-        );
-      });
-    }
   }
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);
+    HapticFeedback.lightImpact();
 
+    final clientId = _uuid.v4();
     final project = Project(
       id: widget.projectId ?? _uuid.v4(),
+      name: _nameController.text.trim(),
+      clientId: clientId,
       client: Client(
+        id: clientId,
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: Address(
-          street: _streetController.text.trim(),
-          postalCode: _postalCodeController.text.trim(),
-          city: _cityController.text.trim(),
-        ),
+        email: _emailController.text.trim().isNotEmpty
+            ? _emailController.text.trim()
+            : null,
+        phone: _phoneController.text.trim().isNotEmpty
+            ? _phoneController.text.trim()
+            : null,
+        address: _streetController.text.trim().isNotEmpty
+            ? _streetController.text.trim()
+            : null,
+        postalCode: _postalCodeController.text.trim().isNotEmpty
+            ? _postalCodeController.text.trim()
+            : null,
+        city: _cityController.text.trim().isNotEmpty
+            ? _cityController.text.trim()
+            : null,
       ),
-      housingType: _housingType,
-      surfaceM2: _surfaceController.text.isNotEmpty
+      status: ProjectStatus.brouillon,
+      address: _streetController.text.trim().isNotEmpty
+          ? _streetController.text.trim()
+          : null,
+      city: _cityController.text.trim().isNotEmpty
+          ? _cityController.text.trim()
+          : null,
+      postalCode: _postalCodeController.text.trim().isNotEmpty
+          ? _postalCodeController.text.trim()
+          : null,
+      surface: _surfaceController.text.isNotEmpty
           ? double.tryParse(_surfaceController.text)
           : null,
-      status: ProjectStatus.audit,
+      description: _notesController.text.isNotEmpty
+          ? _notesController.text
+          : null,
       createdAt: DateTime.now(),
-      appointmentDate: _appointmentDate,
-      integrateurId: '', // Will be set from current user
-      notes: _notesController.text.isNotEmpty ? _notesController.text : null,
     );
 
     final bloc = ref.read(projectsBlocProvider);
@@ -364,7 +492,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
       bloc.add(ProjectCreateRequested(project));
     }
 
-    // Navigate back
+    _hasUnsavedChanges = false;
     Navigator.of(context).pop();
   }
 }

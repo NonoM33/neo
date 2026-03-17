@@ -1,6 +1,6 @@
 import '../../domain/entities/user.dart';
 
-/// User model for JSON serialization
+/// User model - maps backend camelCase JSON
 class UserModel extends User {
   const UserModel({
     required super.id,
@@ -19,20 +19,18 @@ class UserModel extends User {
     return UserModel(
       id: json['id'] as String,
       email: json['email'] as String,
-      firstName: json['prenom'] as String? ?? json['firstName'] as String? ?? '',
-      lastName: json['nom'] as String? ?? json['lastName'] as String? ?? '',
+      firstName: json['firstName'] as String? ?? '',
+      lastName: json['lastName'] as String? ?? '',
       role: UserRole.fromString(json['role'] as String? ?? 'auditeur'),
-      phone: json['telephone'] as String? ?? json['phone'] as String?,
-      avatarUrl: json['avatar_url'] as String? ?? json['avatarUrl'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String? ??
-          json['createdAt'] as String? ??
-          DateTime.now().toIso8601String()),
-      lastLoginAt: json['last_login_at'] != null
-          ? DateTime.parse(json['last_login_at'] as String)
-          : json['lastLoginAt'] != null
-              ? DateTime.parse(json['lastLoginAt'] as String)
-              : null,
-      isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
+      phone: json['phone'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      lastLoginAt: json['lastLoginAt'] != null
+          ? DateTime.parse(json['lastLoginAt'] as String)
+          : null,
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 
@@ -40,14 +38,11 @@ class UserModel extends User {
     return {
       'id': id,
       'email': email,
-      'prenom': firstName,
-      'nom': lastName,
+      'firstName': firstName,
+      'lastName': lastName,
       'role': role.name,
-      'telephone': phone,
-      'avatar_url': avatarUrl,
-      'created_at': createdAt.toIso8601String(),
-      'last_login_at': lastLoginAt?.toIso8601String(),
-      'is_active': isActive,
+      'phone': phone,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 
@@ -67,7 +62,8 @@ class UserModel extends User {
   }
 }
 
-/// Auth tokens model
+/// Auth tokens model - backend login returns {accessToken, refreshToken, user}
+/// Backend does NOT return expiresAt, so we set a default expiry
 class AuthTokensModel extends AuthTokens {
   const AuthTokensModel({
     required super.accessToken,
@@ -75,26 +71,34 @@ class AuthTokensModel extends AuthTokens {
     required super.expiresAt,
   });
 
-  factory AuthTokensModel.fromJson(Map<String, dynamic> json) {
+  /// From login response: {accessToken, refreshToken, user}
+  factory AuthTokensModel.fromLoginJson(Map<String, dynamic> json) {
     return AuthTokensModel(
-      accessToken: json['access_token'] as String,
-      refreshToken: json['refresh_token'] as String,
-      expiresAt: json['expires_at'] != null
-          ? DateTime.parse(json['expires_at'] as String)
-          : DateTime.now().add(const Duration(hours: 24)),
+      accessToken: json['accessToken'] as String,
+      refreshToken: json['refreshToken'] as String,
+      expiresAt: DateTime.now().add(const Duration(hours: 24)),
+    );
+  }
+
+  /// From refresh response: {accessToken, refreshToken}
+  factory AuthTokensModel.fromRefreshJson(Map<String, dynamic> json) {
+    return AuthTokensModel(
+      accessToken: json['accessToken'] as String,
+      refreshToken: json['refreshToken'] as String,
+      expiresAt: DateTime.now().add(const Duration(hours: 24)),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'access_token': accessToken,
-      'refresh_token': refreshToken,
-      'expires_at': expiresAt.toIso8601String(),
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+      'expiresAt': expiresAt.toIso8601String(),
     };
   }
 }
 
-/// Login response model
+/// Login response: {accessToken, refreshToken, user: {...}}
 class LoginResponseModel {
   final UserModel user;
   final AuthTokensModel tokens;
@@ -107,7 +111,7 @@ class LoginResponseModel {
   factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
     return LoginResponseModel(
       user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
-      tokens: AuthTokensModel.fromJson(json),
+      tokens: AuthTokensModel.fromLoginJson(json),
     );
   }
 }

@@ -35,8 +35,11 @@ class AuthRepositoryImpl implements AuthRepository {
       await _localDataSource.saveTokens(response.tokens);
       await _localDataSource.saveUser(response.user);
 
-      // Set token in API client
-      _apiClient.setAuthToken(response.tokens.accessToken);
+      // Set tokens in API client
+      _apiClient.setAuthToken(
+        response.tokens.accessToken,
+        refreshToken: response.tokens.refreshToken,
+      );
 
       return Success(response.user);
     } on InvalidCredentialsException {
@@ -46,14 +49,15 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AppException catch (e) {
       return Error(UnknownFailure(message: e.message, originalError: e));
     } catch (e) {
-      return Error(UnknownFailure(originalError: e));
+      return Error(UnknownFailure(message: 'Login: $e', originalError: e));
     }
   }
 
   @override
   Future<Result<void>> logout() async {
     try {
-      await _remoteDataSource.logout();
+      final tokens = await _localDataSource.getTokens();
+      await _remoteDataSource.logout(tokens?.refreshToken);
     } catch (_) {
       // Ignore errors during logout, still clear local data
     }
@@ -67,10 +71,18 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<User?>> getCurrentUser() async {
     try {
-      // First check if we have a token
       final isAuth = await _localDataSource.isAuthenticated();
       if (!isAuth) {
         return const Success(null);
+      }
+
+      // Restore tokens in API client
+      final tokens = await _localDataSource.getTokens();
+      if (tokens != null) {
+        _apiClient.setAuthToken(
+          tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        );
       }
 
       // Try to get fresh user data from server
@@ -79,12 +91,20 @@ class AuthRepositoryImpl implements AuthRepository {
         await _localDataSource.saveUser(user);
         return Success(user);
       } on NetworkException {
-        // If offline, return cached user
         final cachedUser = await _localDataSource.getUser();
         return Success(cachedUser);
+      } on InvalidCredentialsException {
+        await _localDataSource.clearAuth();
+        _apiClient.clearAuthToken();
+        return const Success(null);
+      } on AuthException {
+        await _localDataSource.clearAuth();
+        _apiClient.clearAuthToken();
+        return const Success(null);
       }
     } on SessionExpiredException {
       await _localDataSource.clearAuth();
+      _apiClient.clearAuthToken();
       return const Error(SessionExpiredFailure());
     } catch (e) {
       return Error(UnknownFailure(originalError: e));
@@ -106,7 +126,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final newTokens = await _remoteDataSource.refreshToken(tokens.refreshToken);
       await _localDataSource.saveTokens(newTokens);
-      _apiClient.setAuthToken(newTokens.accessToken);
+      _apiClient.setAuthToken(
+        newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+      );
 
       return const Success(null);
     } on AuthException {

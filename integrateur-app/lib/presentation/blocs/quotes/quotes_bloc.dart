@@ -252,12 +252,21 @@ class QuotesBloc extends Bloc<QuotesEvent, QuotesState> {
 
     switch (result) {
       case Success(data: final quotes):
-        final currentQuote = quotes.isNotEmpty
-            ? quotes.firstWhere(
-                (q) => q.status == QuoteStatus.brouillon,
-                orElse: () => quotes.first,
-              )
-            : null;
+        final quotesList = List<Quote>.from(quotes);
+        Quote? currentQuote;
+
+        if (quotesList.isNotEmpty) {
+          final selected = quotesList.firstWhere(
+            (q) => q.status == QuoteStatus.brouillon,
+            orElse: () => quotesList.first,
+          );
+          // Fetch full quote with lines (list endpoint may omit them)
+          final fullResult = await _quoteRepository.getQuote(selected.id);
+          currentQuote = fullResult is Success<Quote>
+              ? fullResult.data
+              : selected;
+        }
+
         emit(QuotesLoaded(
           projectId: event.projectId,
           quotes: quotes,

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/extensions.dart';
 import '../../../domain/entities/project.dart';
 import '../../../routes/app_router.dart';
 import '../../blocs/dashboard/dashboard_bloc.dart';
 
-/// Dashboard screen with stats overview
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -22,96 +21,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(dashboardBlocProvider).add(const DashboardLoadRequested());
+    final bloc = ref.read(dashboardBlocProvider);
+    if (bloc.state is DashboardInitial) {
+      bloc.add(const DashboardLoadRequested());
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final dashboardBloc = ref.watch(dashboardBlocProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tableau de bord'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              dashboardBloc.add(const DashboardRefreshRequested());
-            },
-          ),
-        ],
-      ),
+      backgroundColor: cs.surface,
       body: BlocBuilder<DashboardBloc, DashboardState>(
         bloc: dashboardBloc,
         builder: (context, state) {
-          if (state is DashboardLoading) {
+          if (state is DashboardLoading || state is DashboardInitial) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (state is DashboardError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-                  AppSpacing.vGapMd,
-                  Text(state.message),
-                  AppSpacing.vGapMd,
-                  ElevatedButton(
-                    onPressed: () {
-                      dashboardBloc.add(const DashboardLoadRequested());
-                    },
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            );
+            return _buildError(context, state, dashboardBloc);
           }
 
           if (state is DashboardLoaded) {
-            return RefreshIndicator(
-              onRefresh: () async {
-                dashboardBloc.add(const DashboardRefreshRequested());
-              },
-              child: SingleChildScrollView(
-                padding: AppSpacing.pagePadding,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Stats cards
-                    _buildStatsSection(context, state),
-                    AppSpacing.vGapXl,
-
-                    // Quick actions
-                    _buildQuickActions(context),
-                    AppSpacing.vGapXl,
-
-                    // Recent projects
-                    if (state.recentProjects.isNotEmpty) ...[
-                      Text(
-                        'Projets récents',
-                        style: textTheme.titleLarge,
-                      ),
-                      AppSpacing.vGapMd,
-                      _buildRecentProjects(context, state.recentProjects),
-                      AppSpacing.vGapXl,
-                    ],
-
-                    // Upcoming appointments
-                    if (state.upcomingAppointments.isNotEmpty) ...[
-                      Text(
-                        'Prochains rendez-vous',
-                        style: textTheme.titleLarge,
-                      ),
-                      AppSpacing.vGapMd,
-                      _buildAppointments(context, state.upcomingAppointments),
-                    ],
-                  ],
-                ),
-              ),
-            );
+            return _buildDashboard(context, state, dashboardBloc);
           }
 
           return const SizedBox.shrink();
@@ -120,46 +55,195 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildStatsSection(BuildContext context, DashboardLoaded state) {
+  Widget _buildError(BuildContext context, DashboardError state, DashboardBloc bloc) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: cs.errorContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.cloud_off_rounded, size: 40, color: cs.onErrorContainer),
+          ),
+          const SizedBox(height: 20),
+          Text(state.message, style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 16),
+          FilledButton.tonalIcon(
+            onPressed: () => bloc.add(const DashboardLoadRequested()),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Recharger'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboard(BuildContext context, DashboardLoaded state, DashboardBloc bloc) {
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+
+    return RefreshIndicator(
+      onRefresh: () async => bloc.add(const DashboardRefreshRequested()),
+      child: CustomScrollView(
+        slivers: [
+          // Header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _getGreeting(),
+                          style: tt.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${state.totalProjects} projets au total',
+                          style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton.filled(
+                    onPressed: () => bloc.add(const DashboardRefreshRequested()),
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    tooltip: 'Actualiser',
+                    style: IconButton.styleFrom(
+                      backgroundColor: cs.surfaceContainerHighest,
+                      foregroundColor: cs.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Stats grid - always 4 columns on tablet
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(32, 24, 32, 0),
+            sliver: SliverToBoxAdapter(
+              child: _buildStatsGrid(context, state),
+            ),
+          ),
+
+          // Quick actions
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+            sliver: SliverToBoxAdapter(
+              child: _buildQuickActions(context),
+            ),
+          ),
+
+          // Recent projects
+          if (state.recentProjects.isNotEmpty) ...[
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Projets recents', style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    TextButton(
+                      onPressed: () => context.goToProjects(),
+                      child: const Text('Voir tout'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Grid 2 columns on wide, list on narrow
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              sliver: isWide
+                  ? SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        mainAxisExtent: 88,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildProjectCard(context, state.recentProjects[index]),
+                        childCount: state.recentProjects.length,
+                      ),
+                    )
+                  : SliverList.separated(
+                      itemCount: state.recentProjects.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        return _buildProjectCard(context, state.recentProjects[index]);
+                      },
+                    ),
+            ),
+          ],
+
+          // Bottom spacing
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid(BuildContext context, DashboardLoaded state) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 800 ? 4 : 2;
+        // Always 4 columns on tablet (>= 600px in this context since we're past NavigationRail)
+        final crossAxisCount = 4;
+        final spacing = 12.0;
+        final itemWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+        final itemHeight = 120.0;
 
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 1.5,
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
           children: [
-            _buildStatCard(
+            _buildStatTile(
               context,
-              title: 'Total projets',
-              value: state.stats.total.toString(),
-              icon: Icons.folder,
-              color: AppTheme.primaryColor,
+              title: 'Brouillons',
+              value: state.brouillon.toString(),
+              icon: Icons.edit_note_rounded,
+              statusColor: AppTheme.statusBrouillon,
+              width: itemWidth,
+              height: itemHeight,
             ),
-            _buildStatCard(
+            _buildStatTile(
               context,
               title: 'En cours',
-              value: state.stats.enCours.toString(),
-              icon: Icons.pending_actions,
-              color: AppTheme.statusEnCours,
+              value: state.enCours.toString(),
+              icon: Icons.play_circle_outline_rounded,
+              statusColor: AppTheme.statusEnCours,
+              width: itemWidth,
+              height: itemHeight,
             ),
-            _buildStatCard(
+            _buildStatTile(
               context,
-              title: 'Devis envoyés',
-              value: state.stats.devisEnvoye.toString(),
-              icon: Icons.send,
-              color: AppTheme.statusDevisEnvoye,
+              title: 'Termines',
+              value: state.termine.toString(),
+              icon: Icons.check_circle_outline_rounded,
+              statusColor: AppTheme.statusTermine,
+              width: itemWidth,
+              height: itemHeight,
             ),
-            _buildStatCard(
+            _buildStatTile(
               context,
-              title: 'Signés',
-              value: state.stats.signe.toString(),
-              icon: Icons.check_circle,
-              color: AppTheme.successColor,
+              title: 'Archives',
+              value: (state.totalProjects - state.brouillon - state.enCours - state.termine).toString(),
+              icon: Icons.archive_outlined,
+              statusColor: AppTheme.statusArchive,
+              width: itemWidth,
+              height: itemHeight,
             ),
           ],
         );
@@ -167,150 +251,280 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(
+  Widget _buildStatTile(
     BuildContext context, {
     required String title,
     required String value,
     required IconData icon,
-    required Color color,
+    required Color statusColor,
+    required double width,
+    required double height,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
 
-    return Card(
-      child: Padding(
-        padding: AppSpacing.cardPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withAlpha(30),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-              ],
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: isDark ? cs.surfaceContainerLow : cs.surfaceContainerLowest,
+        borderRadius: AppRadius.borderRadiusLg,
+        border: Border(
+          left: BorderSide(
+            color: statusColor,
+            width: 4,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: statusColor.withAlpha(isDark ? 40 : 30),
+              borderRadius: AppRadius.borderRadiusMd,
             ),
-            Column(
+            child: Icon(icon, color: statusColor, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   value,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    height: 1,
+                  ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    color: cs.onSurface.withAlpha(160),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Row(
       children: [
-        FilledButton.icon(
-          onPressed: () => context.goToProjectCreate(),
-          icon: const Icon(Icons.add),
-          label: const Text('Nouveau projet'),
+        Expanded(
+          flex: 3,
+          child: _QuickActionButton(
+            icon: Icons.add_rounded,
+            label: 'Nouveau projet',
+            gradient: [cs.primary, cs.primary.withAlpha(200)],
+            foregroundColor: cs.onPrimary,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.goToProjectCreate();
+            },
+          ),
         ),
-        OutlinedButton.icon(
-          onPressed: () => context.goToCatalogue(),
-          icon: const Icon(Icons.inventory_2),
-          label: const Text('Catalogue'),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: _QuickActionButton(
+            icon: Icons.inventory_2_rounded,
+            label: 'Catalogue',
+            foregroundColor: cs.onSurface,
+            borderColor: isDark ? Colors.white.withAlpha(15) : cs.outlineVariant.withAlpha(60),
+            backgroundColor: isDark ? cs.surfaceContainerLow : cs.surfaceContainerLowest,
+            onTap: () => context.goToCatalogue(),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRecentProjects(BuildContext context, List<Project> projects) {
-    return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: projects.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final project = projects[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: _getStatusColor(project.status).withAlpha(30),
-              child: Text(
-                project.client.initials,
-                style: TextStyle(color: _getStatusColor(project.status)),
+  Widget _buildProjectCard(BuildContext context, Project project) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final statusColor = _getStatusColor(project.status);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final displayName = project.client?.fullName ?? project.name;
+    final initials = project.client?.initials ?? (project.name.isNotEmpty ? project.name[0].toUpperCase() : '?');
+    final subtitle = project.client?.shortAddress ?? project.fullAddress;
+
+    return Material(
+      color: isDark ? cs.surfaceContainerLow : cs.surfaceContainerLowest,
+      borderRadius: AppRadius.borderRadiusLg,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.goToProjectDetail(project.id),
+        borderRadius: AppRadius.borderRadiusLg,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: statusColor.withAlpha(isDark ? 40 : 25),
+                  borderRadius: AppRadius.borderRadiusMd,
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: tt.titleSmall?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            title: Text(project.client.fullName),
-            subtitle: Text(project.client.address.shortAddress),
-            trailing: Chip(
-              label: Text(
-                project.status.displayName,
-                style: const TextStyle(fontSize: 12),
+              const SizedBox(width: 14),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      displayName,
+                      style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              backgroundColor: _getStatusColor(project.status).withAlpha(30),
-            ),
-            onTap: () => context.goToProjectDetail(project.id),
-          );
-        },
+              const SizedBox(width: 8),
+              // Status chip
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: statusColor.withAlpha(isDark ? 35 : 20),
+                  borderRadius: AppRadius.borderRadiusSm,
+                ),
+                child: Text(
+                  project.status.displayName,
+                  style: tt.labelSmall?.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withAlpha(100), size: 24),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildAppointments(BuildContext context, List<Project> appointments) {
-    return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: appointments.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final project = appointments[index];
-          return ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withAlpha(30),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.calendar_today, color: AppTheme.primaryColor),
-            ),
-            title: Text(project.client.fullName),
-            subtitle: Text(project.appointmentDate!.smartFormat),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.goToProjectDetail(project.id),
-          );
-        },
-      ),
-    );
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon apres-midi';
+    return 'Bonsoir';
   }
 
   Color _getStatusColor(ProjectStatus status) {
     switch (status) {
-      case ProjectStatus.audit:
-        return AppTheme.statusAudit;
+      case ProjectStatus.brouillon:
+        return AppTheme.statusBrouillon;
       case ProjectStatus.enCours:
         return AppTheme.statusEnCours;
-      case ProjectStatus.devisEnvoye:
-        return AppTheme.statusDevisEnvoye;
-      case ProjectStatus.signe:
-        return AppTheme.statusSigne;
       case ProjectStatus.termine:
         return AppTheme.statusTermine;
+      case ProjectStatus.archive:
+        return AppTheme.statusArchive;
     }
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final List<Color>? gradient;
+  final Color foregroundColor;
+  final Color? backgroundColor;
+  final Color? borderColor;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    this.gradient,
+    required this.foregroundColor,
+    this.backgroundColor,
+    this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppRadius.borderRadiusLg,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.borderRadiusLg,
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: gradient != null
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: gradient!,
+                  )
+                : null,
+            color: gradient == null ? backgroundColor : null,
+            borderRadius: AppRadius.borderRadiusLg,
+            border: borderColor != null
+                ? Border.all(color: borderColor!)
+                : null,
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: foregroundColor, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: foregroundColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
