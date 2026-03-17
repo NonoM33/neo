@@ -10,6 +10,7 @@ import {
   addParticipantSchema,
   respondToInvitationSchema,
   updateTypeConfigSchema,
+  updateAuditSchema,
 } from './appointments.schema';
 import * as appointmentsService from './appointments.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
@@ -92,6 +93,19 @@ appointmentsRouter.delete('/:id', async (c) => {
   await appointmentsService.deleteAppointment(id, user);
   return c.json({ message: 'Rendez-vous supprimé' });
 });
+
+// PUT /api/appointments/:id/audit - Update audit data (deep-merge into metadata)
+appointmentsRouter.put(
+  '/:id/audit',
+  zValidator('json', updateAuditSchema),
+  async (c) => {
+    const id = c.req.param('id');
+    const input = c.req.valid('json');
+    const user = c.get('user') as JWTPayload;
+    const appointment = await appointmentsService.updateAuditData(id, input, user);
+    return c.json(appointment);
+  }
+);
 
 // POST /api/appointments/:id/confirm - Confirm appointment
 appointmentsRouter.post('/:id/confirm', async (c) => {

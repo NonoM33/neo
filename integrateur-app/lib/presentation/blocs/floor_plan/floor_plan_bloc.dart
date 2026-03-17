@@ -4,14 +4,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../domain/entities/floor_plan.dart';
+import '../../../domain/repositories/floor_plan_repository.dart';
 import 'floor_plan_event.dart';
 import 'floor_plan_state.dart';
 
 const _uuid = Uuid();
 
 class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
-  FloorPlanBloc() : super(const FloorPlanInitial()) {
+  final FloorPlanRepository _repository;
+
+  FloorPlanBloc({required FloorPlanRepository repository})
+      : _repository = repository,
+        super(const FloorPlanInitial()) {
     on<FloorPlanLoadRequested>(_onLoadRequested);
+    on<FloorPlanSaveRequested>(_onSaveRequested);
     on<FloorPlanCreateRequested>(_onCreateRequested);
     on<FloorPlanToolSelected>(_onToolSelected);
     on<FloorPlanViewModeChanged>(_onViewModeChanged);
@@ -56,8 +62,33 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     FloorPlanLoadRequested event,
     Emitter<FloorPlanState> emit,
   ) async {
-    // For Phase 1, no persistence — just show empty state
-    emit(FloorPlanEmpty(roomId: event.roomId, projectId: event.projectId));
+    emit(const FloorPlanLoading());
+    try {
+      final plan = await _repository.getFloorPlanByRoom(event.roomId);
+      if (plan == null) {
+        emit(FloorPlanEmpty(roomId: event.roomId, projectId: event.projectId));
+      } else {
+        emit(FloorPlanLoaded(plan: plan));
+      }
+    } catch (_) {
+      emit(FloorPlanEmpty(roomId: event.roomId, projectId: event.projectId));
+    }
+  }
+
+  Future<void> _onSaveRequested(
+    FloorPlanSaveRequested event,
+    Emitter<FloorPlanState> emit,
+  ) async {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    emit(s.copyWith(isSaving: true));
+    try {
+      final saved = await _repository.saveFloorPlan(s.plan);
+      emit(s.copyWith(plan: saved, isSaving: false, isDirty: false));
+    } catch (_) {
+      emit(s.copyWith(isSaving: false));
+    }
   }
 
   void _onCreateRequested(

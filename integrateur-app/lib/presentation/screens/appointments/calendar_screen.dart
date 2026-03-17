@@ -223,8 +223,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildCalendarPanel(BuildContext context, AppointmentsState state, AppointmentsBloc bloc) {
-    final cs = Theme.of(context).colorScheme;
-
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -582,7 +580,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget _buildMiniAppointmentCard(BuildContext context, Appointment appointment) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final typeColor = _getTypeColor(appointment.type);
 
     return Material(

@@ -10,3 +10,4 @@ export * from './gamification.badges';
 export * from './scoring.engine';
 export * from './suggestions.engine';
 export * from './prospection.service';
+export { cloudService } from './cloud.service';

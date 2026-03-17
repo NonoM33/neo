@@ -18,10 +18,12 @@ import '../presentation/screens/tickets/tickets_list_screen.dart';
 import '../presentation/screens/tickets/ticket_detail_screen.dart';
 import '../presentation/screens/tickets/ticket_form_screen.dart';
 import '../presentation/screens/floor_plan/floor_plan_screen.dart';
+import '../presentation/screens/homes/homes_screen.dart';
 import '../presentation/screens/appointments/calendar_screen.dart';
 import '../presentation/screens/appointments/appointment_detail_screen.dart';
 import '../presentation/screens/appointments/appointment_form_screen.dart';
 import '../presentation/screens/appointments/availability_screen.dart';
+import '../presentation/screens/appointments/tech_audit_screen.dart';
 import '../presentation/widgets/common/shell_scaffold.dart';
 
 /// Route names
@@ -41,10 +43,12 @@ class AppRoutes {
   static const String appointmentDetail = 'appointment-detail';
   static const String appointmentCreate = 'appointment-create';
   static const String availability = 'availability';
+  static const String techAudit = 'tech-audit';
   static const String tickets = 'tickets';
   static const String ticketDetail = 'ticket-detail';
   static const String ticketCreate = 'ticket-create';
   static const String floorPlan = 'floor-plan';
+  static const String homes = 'homes';
 
   AppRoutes._();
 }
@@ -70,6 +74,7 @@ class AppPaths {
   static const String ticketDetail = '/tickets/:id';
   static const String ticketCreate = '/tickets/new';
   static const String floorPlan = '/projects/:id/rooms/:roomId/plan';
+  static const String homes = '/homes';
 
   AppPaths._();
 }
@@ -263,6 +268,20 @@ final routerProvider = Provider<GoRouter>((ref) {
                     child: AppointmentDetailScreen(appointmentId: id),
                   );
                 },
+                routes: [
+                  // Tech audit
+                  GoRoute(
+                    path: 'audit',
+                    name: AppRoutes.techAudit,
+                    pageBuilder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return NoTransitionPage(
+                        key: state.pageKey,
+                        child: TechAuditScreen(appointmentId: id),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -310,6 +329,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 },
               ),
             ],
+          ),
+
+          // Homes (Ma Maison)
+          GoRoute(
+            path: AppPaths.homes,
+            name: AppRoutes.homes,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const HomesScreen(),
+            ),
           ),
 
           // Catalogue
@@ -403,10 +432,12 @@ extension GoRouterExtension on GoRouter {
   void goToCalendar() => go(AppPaths.calendar);
   void goToAppointmentDetail(String id) => go('/calendar/$id');
   void goToAppointmentCreate() => go(AppPaths.appointmentCreate);
+  void goToTechAudit(String appointmentId) => go('/calendar/$appointmentId/audit');
   void goToAvailability() => go(AppPaths.availability);
   void goToTickets() => go(AppPaths.tickets);
   void goToTicketDetail(String id) => go('/tickets/$id');
   void goToTicketCreate() => go(AppPaths.ticketCreate);
+  void goToHomes() => go(AppPaths.homes);
   void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
       go('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }
@@ -427,10 +458,12 @@ extension NavigationExtension on BuildContext {
   void goToCalendar() => go(AppPaths.calendar);
   void goToAppointmentDetail(String id) => go('/calendar/$id');
   void goToAppointmentCreate() => go(AppPaths.appointmentCreate);
+  void goToTechAudit(String appointmentId) => go('/calendar/$appointmentId/audit');
   void goToAvailability() => go(AppPaths.availability);
   void goToTickets() => go(AppPaths.tickets);
   void goToTicketDetail(String id) => go('/tickets/$id');
   void goToTicketCreate() => go(AppPaths.ticketCreate);
+  void goToHomes() => go(AppPaths.homes);
   void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
       go('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }

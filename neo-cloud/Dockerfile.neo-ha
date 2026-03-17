@@ -1,0 +1,25 @@
+# Neo Cloud - Custom Home Assistant Image
+# Pre-configured with Neo custom component, locked down for client use
+
+FROM ghcr.io/home-assistant/home-assistant:stable
+
+# Copy Neo Cloud custom component
+COPY custom_components/neo_cloud /config/custom_components/neo_cloud/
+
+# Copy base configuration template
+COPY templates/configuration.yaml /config/configuration.yaml
+
+# Copy pre-seeded storage (onboarding bypassed, admin pre-created)
+# These are templates - actual .storage files are generated per-tenant at provision time
+COPY templates/automations.yaml /config/automations.yaml
+COPY templates/scripts.yaml /config/scripts.yaml
+COPY templates/scenes.yaml /config/scenes.yaml
+COPY templates/customize.yaml /config/customize.yaml
+
+# Security: drop unnecessary capabilities
+# Note: --privileged is NOT used for cloud instances (no USB/hardware)
+
+EXPOSE 8123
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:8123/api/ || exit 1

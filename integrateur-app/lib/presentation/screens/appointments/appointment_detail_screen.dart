@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../domain/entities/appointment.dart';
+import '../../../domain/entities/tech_audit.dart';
 import '../../../routes/app_router.dart';
 import '../../blocs/appointments/appointments_bloc.dart';
 import '../../blocs/appointments/appointments_event.dart';
@@ -256,6 +257,17 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: _buildInfoCards(context, appointment),
+            ),
+          ),
+
+        // Audit card (for visite_technique or audit types, when en_cours)
+        if ((appointment.type == AppointmentType.visiteTechnique ||
+                appointment.type == AppointmentType.audit) &&
+            appointment.status == AppointmentStatus.enCours)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: _buildAuditCard(context, appointment),
             ),
           ),
 
@@ -927,6 +939,85 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
             ),
             child: const Text('Annuler le RDV'),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuditCard(BuildContext context, Appointment appointment) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final auditJson = appointment.metadata?['audit'] as Map<String, dynamic>?;
+    final auditData = TechAuditData.fromJson(auditJson);
+    final isStarted = auditData.isStarted;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.primary.withAlpha(isDark ? 15 : 8),
+        borderRadius: AppRadius.borderRadiusMd,
+        border: Border.all(color: cs.primary.withAlpha(isDark ? 40 : 25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.checklist_rounded, color: cs.primary, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Audit technique',
+                style: tt.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: cs.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isStarted) ...[
+            ClipRRect(
+              borderRadius: AppRadius.borderRadiusSm,
+              child: LinearProgressIndicator(
+                value: auditData.progress,
+                minHeight: 8,
+                backgroundColor: cs.surfaceContainerHighest,
+                color: auditData.progress >= 1.0
+                    ? AppTheme.successColor
+                    : cs.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${auditData.progressPercent}% complete',
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => context.goToTechAudit(appointment.id),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('Reprendre l\'audit'),
+              ),
+            ),
+          ] else ...[
+            Text(
+              'Guidez votre visite etape par etape pour ne rien oublier',
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => context.goToTechAudit(appointment.id),
+                icon: const Icon(Icons.checklist_rounded),
+                label: const Text('Demarrer l\'audit'),
+              ),
+            ),
+          ],
         ],
       ),
     );

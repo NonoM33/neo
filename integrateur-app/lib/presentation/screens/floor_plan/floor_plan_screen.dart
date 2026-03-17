@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_roomplan/flutter_roomplan.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -42,7 +43,7 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
   @override
   void initState() {
     super.initState();
-    _bloc = FloorPlanBloc();
+    _bloc = FloorPlanBloc(repository: ref.read(floorPlanRepositoryProvider));
     _bloc.add(FloorPlanLoadRequested(
       roomId: widget.roomId,
       projectId: widget.projectId,
@@ -104,6 +105,13 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
     if (state is! FloorPlanLoaded) return [];
 
     return [
+      // 3D view (if USDZ available)
+      if (state.plan.usdzFilePath != null)
+        IconButton(
+          icon: const Icon(Icons.threed_rotation),
+          onPressed: () => _openUsdzPreview(state.plan.usdzFilePath!),
+          tooltip: 'Voir en 3D',
+        ),
       // LiDAR rescan
       IconButton(
         icon: const Icon(Icons.view_in_ar),
@@ -140,12 +148,27 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
           tooltip: 'Supprimer la sélection',
         ),
       const SizedBox(width: 8),
-      // Dirty indicator
-      if (state.isDirty)
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: Icon(Icons.circle, size: 10, color: colorScheme.tertiary),
+      // Save button
+      if (state.isSaving)
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            width: 20, height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        )
+      else
+        FilledButton.icon(
+          onPressed: state.isDirty
+              ? () {
+                  HapticFeedback.lightImpact();
+                  _bloc.add(const FloorPlanSaveRequested());
+                }
+              : null,
+          icon: const Icon(Icons.save_outlined, size: 18),
+          label: const Text('Enregistrer'),
         ),
+      const SizedBox(width: 8),
     ];
   }
 
@@ -307,6 +330,20 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
     _handleScanResult(result);
   }
 
+  Future<void> _openUsdzPreview(String filePath) async {
+    try {
+      await FlutterRoomplan().previewUsdz(filePath);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir la vue 3D'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Future<void> _launchDirectLidar(String roomId, String projectId) async {
     final result = await Navigator.of(context).push<FloorPlan>(
       MaterialPageRoute(
@@ -324,6 +361,7 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
   void _handleScanResult(FloorPlan? result) {
     if (result != null && mounted) {
       _bloc.add(FloorPlanImportFromScan(result));
+      _bloc.add(const FloorPlanSaveRequested());
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

@@ -17,6 +17,7 @@ abstract class AppointmentRemoteDataSource {
   Future<List<AvailabilitySlotModel>> getAvailability(String userId);
   Future<List<AvailabilitySlotModel>> setAvailability(String userId, List<Map<String, dynamic>> slots);
   Future<List<Map<String, dynamic>>> getAvailableSlots(Map<String, dynamic> queryParams);
+  Future<AppointmentModel> updateAuditData(String id, Map<String, dynamic> data);
 }
 
 /// Implementation of AppointmentRemoteDataSource
@@ -138,5 +139,14 @@ class AppointmentRemoteDataSourceImpl implements AppointmentRemoteDataSource {
     );
     final list = response.data as List<dynamic>;
     return list.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  @override
+  Future<AppointmentModel> updateAuditData(String id, Map<String, dynamic> data) async {
+    final response = await _apiClient.put(
+      ApiEndpoints.appointmentAudit(id),
+      data: data,
+    );
+    return AppointmentModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

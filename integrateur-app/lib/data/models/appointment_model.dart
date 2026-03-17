@@ -155,6 +155,7 @@ class AppointmentModel extends Appointment {
     super.cancelledAt,
     required super.createdAt,
     super.updatedAt,
+    super.metadata,
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
@@ -247,6 +248,7 @@ class AppointmentModel extends Appointment {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      metadata: json['metadata'] as Map<String, dynamic>?,
     );
   }
 

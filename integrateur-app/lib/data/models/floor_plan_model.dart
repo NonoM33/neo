@@ -232,7 +232,44 @@ class FloorPlanModel extends FloorPlan {
     super.version,
     required super.createdAt,
     super.updatedAt,
+    super.usdzFilePath,
   });
+
+  /// Parse the API response where walls/openings/etc. are nested under `data`.
+  factory FloorPlanModel.fromApiJson(Map<String, dynamic> json) {
+    final data = (json['data'] as Map<String, dynamic>?) ?? {};
+    return FloorPlanModel.fromJson({
+      'id': json['id'],
+      'roomId': json['roomId'],
+      'projectId': json['projectId'],
+      'widthMeters': json['widthMeters'],
+      'heightMeters': json['heightMeters'],
+      'pixelsPerMeter': json['pixelsPerMeter'],
+      'walls': data['walls'],
+      'openings': data['openings'],
+      'equipment': data['equipment'],
+      'annotations': data['annotations'],
+      'version': data['version'],
+      'createdAt': json['createdAt'],
+      'updatedAt': json['updatedAt'],
+      if (json['usdzFilePath'] != null) 'usdzFilePath': json['usdzFilePath'],
+    });
+  }
+
+  /// Serialize to the API POST/PUT body format expected by the backend.
+  Map<String, dynamic> toApiJson() {
+    return {
+      'widthMeters': widthMeters,
+      'heightMeters': heightMeters,
+      'pixelsPerMeter': pixelsPerMeter,
+      'walls': walls.map((w) => PlanWallModel.fromEntity(w).toJson()).toList(),
+      'openings': openings.map((o) => PlanOpeningModel.fromEntity(o).toJson()).toList(),
+      'equipment': equipment.map((e) => PlanEquipmentModel.fromEntity(e).toJson()).toList(),
+      'annotations': annotations.map((a) => PlanAnnotationModel.fromEntity(a).toJson()).toList(),
+      'version': version,
+      if (usdzFilePath != null) 'usdzFilePath': usdzFilePath,
+    };
+  }
 
   factory FloorPlanModel.fromJson(Map<String, dynamic> json) {
     return FloorPlanModel(
@@ -268,6 +305,7 @@ class FloorPlanModel extends FloorPlan {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      usdzFilePath: json['usdzFilePath'] as String?,
     );
   }
 
@@ -309,6 +347,7 @@ class FloorPlanModel extends FloorPlan {
       version: plan.version,
       createdAt: plan.createdAt,
       updatedAt: plan.updatedAt,
+      usdzFilePath: plan.usdzFilePath,
     );
   }
 }

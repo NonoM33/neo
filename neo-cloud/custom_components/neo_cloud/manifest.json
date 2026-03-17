@@ -1,0 +1,10 @@
+{
+  "domain": "neo_cloud",
+  "name": "Neo Cloud",
+  "version": "1.0.0",
+  "documentation": "https://neo-domotique.fr/docs/cloud",
+  "dependencies": [],
+  "requirements": ["aiohttp>=3.8.0"],
+  "codeowners": ["@neo-domotique"],
+  "iot_class": "cloud_push"
+}

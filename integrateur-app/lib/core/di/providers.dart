@@ -9,7 +9,11 @@ import '../../data/datasources/remote/quote_remote_datasource.dart';
 import '../../data/datasources/remote/sync_remote_datasource.dart';
 import '../../data/datasources/remote/ticket_remote_datasource.dart';
 import '../../data/datasources/remote/appointment_remote_datasource.dart';
+import '../../data/datasources/remote/floor_plan_remote_datasource.dart';
+import '../../data/datasources/remote/ha_remote_datasource.dart';
 import '../../data/datasources/remote/user_remote_datasource.dart';
+import '../../data/repositories/floor_plan_repository_impl.dart';
+import '../../domain/repositories/floor_plan_repository.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/catalogue_repository_impl.dart';
 import '../../data/repositories/device_repository_impl.dart';
@@ -19,7 +23,6 @@ import '../../data/repositories/sync_repository_impl.dart';
 import '../../data/repositories/ticket_repository_impl.dart';
 import '../../data/repositories/appointment_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
-import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalogue_repository.dart';
 import '../../domain/repositories/device_repository.dart';
@@ -47,6 +50,9 @@ import '../../presentation/blocs/tickets/tickets_bloc.dart';
 import '../../presentation/blocs/tickets/tickets_event.dart';
 import '../../presentation/blocs/appointments/appointments_bloc.dart';
 import '../../presentation/blocs/appointments/appointments_event.dart';
+import '../../presentation/blocs/tech_audit/tech_audit_bloc.dart';
+import '../../presentation/blocs/floor_plan/floor_plan_bloc.dart';
+import '../../presentation/blocs/homes/homes_bloc.dart';
 import '../network/api_client.dart';
 import '../storage/secure_storage.dart';
 
@@ -104,6 +110,12 @@ final ticketRemoteDataSourceProvider = Provider<TicketRemoteDataSource>((ref) {
 
 final appointmentRemoteDataSourceProvider = Provider<AppointmentRemoteDataSource>((ref) {
   return AppointmentRemoteDataSourceImpl(ref.watch(apiClientProvider));
+});
+
+final haRemoteDatasourceProvider = Provider<HaRemoteDatasource>((ref) {
+  final datasource = HaRemoteDatasource();
+  ref.onDispose(() => datasource.dispose());
+  return datasource;
 });
 
 // ============================================================================
@@ -348,6 +360,10 @@ final getAvailableSlotsUseCaseProvider = Provider<GetAvailableSlotsUseCase>((ref
   return GetAvailableSlotsUseCase(ref.watch(appointmentRepositoryProvider));
 });
 
+final updateAuditDataUseCaseProvider = Provider<UpdateAuditDataUseCase>((ref) {
+  return UpdateAuditDataUseCase(ref.watch(appointmentRepositoryProvider));
+});
+
 // ============================================================================
 // BLoC Providers
 // ============================================================================
@@ -453,7 +469,14 @@ final appointmentsBlocProvider = Provider<AppointmentsBloc>((ref) {
     completeAppointmentUseCase: ref.watch(completeAppointmentUseCaseProvider),
     cancelAppointmentUseCase: ref.watch(cancelAppointmentUseCaseProvider),
     markNoShowUseCase: ref.watch(markNoShowUseCaseProvider),
-    appointmentRepository: ref.watch(appointmentRepositoryProvider),
+  );
+});
+
+/// Tech audit BLoC provider
+final techAuditBlocProvider = Provider.family<TechAuditBloc, String>((ref, appointmentId) {
+  return TechAuditBloc(
+    updateAuditDataUseCase: ref.watch(updateAuditDataUseCaseProvider),
+    getAppointmentUseCase: ref.watch(getAppointmentUseCaseProvider),
   );
 });
 
@@ -468,7 +491,6 @@ final appointmentDetailBlocProvider = Provider.family<AppointmentsBloc, String>(
     completeAppointmentUseCase: ref.watch(completeAppointmentUseCaseProvider),
     cancelAppointmentUseCase: ref.watch(cancelAppointmentUseCaseProvider),
     markNoShowUseCase: ref.watch(markNoShowUseCaseProvider),
-    appointmentRepository: ref.watch(appointmentRepositoryProvider),
   );
   bloc.add(AppointmentLoadRequested(appointmentId));
   return bloc;
@@ -491,6 +513,30 @@ final ticketDetailBlocProvider = Provider.family<TicketsBloc, String>((ref, tick
   return bloc;
 });
 
+final floorPlanRemoteDataSourceProvider = Provider<FloorPlanRemoteDataSource>((ref) {
+  return FloorPlanRemoteDataSourceImpl(ref.watch(apiClientProvider));
+});
+
+final floorPlanRepositoryProvider = Provider<FloorPlanRepository>((ref) {
+  return FloorPlanRepositoryImpl(
+    remoteDataSource: ref.watch(floorPlanRemoteDataSourceProvider),
+  );
+});
+
+/// FloorPlan BLoC provider (one per room, created fresh each time)
+final floorPlanBlocProvider = Provider<FloorPlanBloc>((ref) {
+  final bloc = FloorPlanBloc(repository: ref.watch(floorPlanRepositoryProvider));
+  ref.onDispose(bloc.close);
+  return bloc;
+});
+
+/// Homes BLoC provider
+final homesBlocProvider = Provider<HomesBloc>((ref) {
+  return HomesBloc(
+    haRemote: ref.watch(haRemoteDatasourceProvider),
+  );
+});
+
 /// Dashboard BLoC provider
 final dashboardBlocProvider = Provider<DashboardBloc>((ref) {
   return DashboardBloc(
@@ -499,12 +545,3 @@ final dashboardBlocProvider = Provider<DashboardBloc>((ref) {
   );
 });
 
-// ============================================================================
-// State Providers
-// ============================================================================
-
-final currentUserProvider = StateProvider<User?>((ref) => null);
-
-final isOnlineProvider = StateProvider<bool>((ref) => true);
-
-final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);

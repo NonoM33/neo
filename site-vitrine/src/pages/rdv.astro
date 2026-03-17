@@ -1,0 +1,266 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_CONFIG } from '../config/site';
+---
+
+<BaseLayout
+  title="Mon rendez-vous"
+  description="Consultez, modifiez ou annulez votre rendez-vous Neo Domotique."
+  canonical="/rdv"
+>
+  <section class="min-h-screen bg-dark-950 pt-20 pb-16">
+    <div class="max-w-lg mx-auto px-4" id="rdv-page" data-api={SITE_CONFIG.apiBaseUrl}>
+
+      <!-- Loading -->
+      <div id="rdv-loading" class="text-center py-20">
+        <div class="w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-dark-400">Chargement de votre rendez-vous...</p>
+      </div>
+
+      <!-- Error -->
+      <div id="rdv-error" class="hidden text-center py-20">
+        <div class="text-5xl mb-4">😕</div>
+        <h2 class="text-2xl font-bold text-white mb-2">Rendez-vous introuvable</h2>
+        <p class="text-dark-400 mb-6">Ce lien est invalide ou a expire.</p>
+        <a href="/" class="text-primary-400 hover:text-primary-300">Retour a l'accueil</a>
+      </div>
+
+      <!-- RDV Detail -->
+      <div id="rdv-detail" class="hidden">
+        <div class="text-center mb-8">
+          <div class="text-4xl mb-3" id="rdv-icon">📅</div>
+          <h1 class="text-2xl font-bold text-white mb-1">Votre rendez-vous</h1>
+          <div id="rdv-status-badge" class="inline-block px-3 py-1 rounded-full text-sm font-medium mt-2"></div>
+        </div>
+
+        <div class="bg-dark-900/50 border border-dark-700/50 rounded-2xl p-6 mb-6 space-y-4">
+          <div class="flex items-start gap-3">
+            <span class="text-lg">📋</span>
+            <div><p class="text-dark-400 text-xs uppercase tracking-wider">Type</p><p id="rdv-type" class="text-white font-medium"></p></div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-lg">📅</span>
+            <div><p class="text-dark-400 text-xs uppercase tracking-wider">Date et heure</p><p id="rdv-date" class="text-white font-medium"></p></div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-lg">📍</span>
+            <div><p class="text-dark-400 text-xs uppercase tracking-wider">Adresse</p><p id="rdv-address" class="text-white font-medium"></p></div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-lg">👤</span>
+            <div><p class="text-dark-400 text-xs uppercase tracking-wider">Intervenant</p><p id="rdv-organizer" class="text-white font-medium"></p></div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-lg">⏱️</span>
+            <div><p class="text-dark-400 text-xs uppercase tracking-wider">Duree</p><p id="rdv-duration" class="text-white font-medium"></p></div>
+          </div>
+        </div>
+
+        <div id="rdv-actions" class="space-y-3">
+          <button id="btn-reschedule" class="w-full py-3 px-6 bg-primary-500/10 border border-primary-500/30 text-primary-400 hover:bg-primary-500/20 rounded-xl text-sm font-medium transition-colors">
+            📅 Modifier la date
+          </button>
+          <button id="btn-cancel" class="w-full py-3 px-6 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 rounded-xl text-sm font-medium transition-colors">
+            ✕ Annuler le rendez-vous
+          </button>
+        </div>
+
+        <div id="reschedule-panel" class="hidden mt-6 bg-dark-900/50 border border-dark-700/50 rounded-2xl p-6">
+          <h3 class="text-white font-semibold mb-4">Choisir un nouveau creneau</h3>
+          <div id="reschedule-loading" class="text-center py-4">
+            <div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+          <div id="reschedule-slots" class="space-y-3"></div>
+          <button id="btn-cancel-reschedule" class="mt-4 text-sm text-dark-400 hover:text-white transition-colors">← Retour</button>
+        </div>
+
+        <div id="cancel-panel" class="hidden mt-6 bg-dark-900/50 border border-red-500/20 rounded-2xl p-6">
+          <h3 class="text-white font-semibold mb-2">Confirmer l'annulation</h3>
+          <p class="text-dark-400 text-sm mb-4">Cette action est irreversible.</p>
+          <textarea id="cancel-reason" placeholder="Raison (optionnel)" rows="2" class="w-full p-3 bg-dark-800 border border-dark-600 rounded-xl text-white text-sm mb-4 focus:outline-none focus:border-red-500"></textarea>
+          <div class="flex gap-3">
+            <button id="btn-cancel-back" class="flex-1 py-2.5 text-sm text-dark-400 border border-dark-600 rounded-xl hover:text-white transition-colors">Retour</button>
+            <button id="btn-cancel-confirm" class="flex-1 py-2.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors">Confirmer l'annulation</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="rdv-success" class="hidden text-center py-20">
+        <div class="text-5xl mb-4" id="success-icon">✅</div>
+        <h2 class="text-2xl font-bold text-white mb-2" id="success-title"></h2>
+        <p class="text-dark-300" id="success-msg"></p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+(function() {
+  var page = document.getElementById('rdv-page');
+  var API = page.dataset.api;
+
+  // Get token from URL path: /rdv/TOKEN or /rdv?t=TOKEN
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+  var TOKEN = pathParts.length >= 2 ? pathParts[pathParts.length - 1] : null;
+  if (!TOKEN || TOKEN === 'rdv') {
+    TOKEN = new URLSearchParams(window.location.search).get('t');
+  }
+
+  if (!TOKEN) {
+    document.getElementById('rdv-loading').classList.add('hidden');
+    document.getElementById('rdv-error').classList.remove('hidden');
+    return;
+  }
+
+  var apptData = null;
+  var typeLabels = { visite_technique:'Visite technique', audit:'Audit complet', rdv_commercial:'RDV Commercial' };
+  var statusConfig = {
+    propose: { label:'Confirme', color:'bg-green-500/20 text-green-400 border border-green-500/30' },
+    confirme: { label:'Confirme', color:'bg-green-500/20 text-green-400 border border-green-500/30' },
+    en_cours: { label:'En cours', color:'bg-blue-500/20 text-blue-400 border border-blue-500/30' },
+    termine: { label:'Termine', color:'bg-dark-700 text-dark-300 border border-dark-600' },
+    annule: { label:'Annule', color:'bg-red-500/20 text-red-400 border border-red-500/30' },
+    no_show: { label:'Absent', color:'bg-amber-500/20 text-amber-400 border border-amber-500/30' },
+  };
+
+  async function loadRDV() {
+    try {
+      var res = await fetch(API + '/api/public/booking/rdv/' + TOKEN);
+      if (!res.ok) throw new Error();
+      apptData = await res.json();
+      renderRDV();
+    } catch(e) {
+      document.getElementById('rdv-loading').classList.add('hidden');
+      document.getElementById('rdv-error').classList.remove('hidden');
+    }
+  }
+
+  function renderRDV() {
+    document.getElementById('rdv-loading').classList.add('hidden');
+    document.getElementById('rdv-detail').classList.remove('hidden');
+
+    var d = new Date(apptData.scheduledAt);
+    var endD = new Date(apptData.endAt);
+    var dateStr = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    var timeStr = d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) + ' - ' + endD.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+
+    document.getElementById('rdv-type').textContent = typeLabels[apptData.type] || apptData.type;
+    document.getElementById('rdv-date').textContent = dateStr + ' de ' + timeStr;
+    document.getElementById('rdv-duration').textContent = apptData.duration + ' minutes';
+    document.getElementById('rdv-organizer').textContent = apptData.organizer.firstName + ' ' + apptData.organizer.lastName + (apptData.organizer.phone ? ' · ' + apptData.organizer.phone : '');
+
+    var addr = apptData.location || (apptData.client && apptData.client.address ? apptData.client.address + ', ' + apptData.client.postalCode + ' ' + apptData.client.city : 'Non renseignee');
+    document.getElementById('rdv-address').textContent = addr;
+
+    var sc = statusConfig[apptData.status] || statusConfig.propose;
+    var badge = document.getElementById('rdv-status-badge');
+    badge.textContent = sc.label;
+    badge.className = 'inline-block px-3 py-1 rounded-full text-sm font-medium mt-2 ' + sc.color;
+
+    if (apptData.status === 'annule' || apptData.status === 'termine' || apptData.status === 'no_show') {
+      document.getElementById('rdv-actions').classList.add('hidden');
+      if (apptData.status === 'annule') document.getElementById('rdv-icon').textContent = '❌';
+      if (apptData.status === 'termine') document.getElementById('rdv-icon').textContent = '✅';
+    }
+  }
+
+  document.getElementById('btn-reschedule').addEventListener('click', async function() {
+    document.getElementById('reschedule-panel').classList.remove('hidden');
+    document.getElementById('rdv-actions').classList.add('hidden');
+    var slotsDiv = document.getElementById('reschedule-slots');
+    slotsDiv.innerHTML = '';
+    document.getElementById('reschedule-loading').classList.remove('hidden');
+
+    var res = await fetch(API + '/api/public/booking/rdv/' + TOKEN + '/slots');
+    var data = await res.json();
+    document.getElementById('reschedule-loading').classList.add('hidden');
+
+    var slots = data.slots || [];
+    var byDate = {};
+    slots.forEach(function(s) { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+    var dates = Object.keys(byDate).sort().slice(0, 7);
+
+    if (dates.length === 0) {
+      slotsDiv.innerHTML = '<p class="text-dark-400 text-sm text-center py-4">Aucun creneau disponible</p>';
+      return;
+    }
+
+    dates.forEach(function(date) {
+      var dd = new Date(date + 'T00:00:00');
+      var label = dd.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+      var dayDiv = document.createElement('div');
+      dayDiv.innerHTML = '<p style="color:white;font-size:14px;font-weight:600;margin-bottom:8px;">' + label + '</p>';
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;';
+
+      byDate[date].slice(0, 8).forEach(function(s) {
+        var btn = document.createElement('button');
+        btn.textContent = s.startTime;
+        btn.style.cssText = 'padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:white;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);cursor:pointer;';
+        btn.onmouseover = function() { btn.style.background = 'rgba(59,130,246,0.3)'; };
+        btn.onmouseout = function() { btn.style.background = 'rgba(59,130,246,0.1)'; };
+        btn.addEventListener('click', async function() {
+          btn.textContent = '...';
+          btn.disabled = true;
+          try {
+            var r = await fetch(API + '/api/public/booking/rdv/' + TOKEN + '/reschedule', {
+              method: 'POST', headers: { 'Content-Type':'application/json' },
+              body: JSON.stringify({ date: date, startTime: s.startTime }),
+            });
+            var result = await r.json();
+            if (r.ok && result.success) {
+              showSuccess('📅', 'Rendez-vous deplace !', 'Nouveau creneau : ' + label + ' a ' + s.startTime + '. SMS de confirmation envoye.');
+            } else {
+              alert(result.error?.message || 'Erreur');
+              btn.textContent = s.startTime; btn.disabled = false;
+            }
+          } catch(e) { alert('Erreur reseau'); btn.textContent = s.startTime; btn.disabled = false; }
+        });
+        grid.appendChild(btn);
+      });
+      dayDiv.appendChild(grid);
+      slotsDiv.appendChild(dayDiv);
+    });
+  });
+
+  document.getElementById('btn-cancel-reschedule').addEventListener('click', function() {
+    document.getElementById('reschedule-panel').classList.add('hidden');
+    document.getElementById('rdv-actions').classList.remove('hidden');
+  });
+
+  document.getElementById('btn-cancel').addEventListener('click', function() {
+    document.getElementById('cancel-panel').classList.remove('hidden');
+    document.getElementById('rdv-actions').classList.add('hidden');
+  });
+
+  document.getElementById('btn-cancel-back').addEventListener('click', function() {
+    document.getElementById('cancel-panel').classList.add('hidden');
+    document.getElementById('rdv-actions').classList.remove('hidden');
+  });
+
+  document.getElementById('btn-cancel-confirm').addEventListener('click', async function() {
+    var btn = this; btn.disabled = true; btn.textContent = 'Annulation...';
+    try {
+      var reason = document.getElementById('cancel-reason').value;
+      var res = await fetch(API + '/api/public/booking/rdv/' + TOKEN + '/cancel', {
+        method: 'POST', headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ reason: reason || undefined }),
+      });
+      var data = await res.json();
+      if (res.ok && data.success) {
+        showSuccess('❌', 'Rendez-vous annule', "Votre rendez-vous a ete annule. N'hesitez pas a reprendre rendez-vous.");
+      } else { alert(data.error?.message || 'Erreur'); btn.disabled = false; btn.textContent = "Confirmer l'annulation"; }
+    } catch(e) { alert('Erreur reseau'); btn.disabled = false; btn.textContent = "Confirmer l'annulation"; }
+  });
+
+  function showSuccess(icon, title, msg) {
+    document.getElementById('rdv-detail').classList.add('hidden');
+    document.getElementById('rdv-success').classList.remove('hidden');
+    document.getElementById('success-icon').textContent = icon;
+    document.getElementById('success-title').textContent = title;
+    document.getElementById('success-msg').textContent = msg;
+  }
+
+  loadRDV();
+})();
+</script>

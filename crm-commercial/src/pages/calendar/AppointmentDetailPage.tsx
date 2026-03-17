@@ -271,6 +271,18 @@ export function AppointmentDetailPage() {
                   {appointment.location && (
                     <div className="text-muted small mt-1">{appointment.location}</div>
                   )}
+                  {appointment.location && (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(appointment.location)}&travelmode=driving`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline-primary mt-2"
+                      style={{ fontSize: '0.8rem' }}
+                    >
+                      <i className="bi bi-map me-1"></i>
+                      Itinéraire
+                    </a>
+                  )}
                 </div>
               </div>
             </CardBody>

@@ -39,3 +39,9 @@ export class ConflictError extends AppError {
     super(409, message, 'CONFLICT');
   }
 }
+
+export class BadRequestError extends AppError {
+  constructor(message: string = 'Requête invalide') {
+    super(400, message, 'BAD_REQUEST');
+  }
+}

@@ -5,7 +5,7 @@
       "name": "iPad (A16) - Debug",
       "request": "launch",
       "type": "dart",
-      "deviceId": "666001FF-2989-451C-AD6B-0CA1A9B96443",
+      "deviceId": "3BA150BC-6573-4013-8C3D-C7213E9FE767",
       "flutterMode": "debug"
     },
     {
@@ -51,6 +51,13 @@
       "flutterMode": "debug"
     },
     {
+      "name": "Android physique - Debug",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "c65ttczdfmi7soxw",
+      "flutterMode": "debug"
+    },
+    {
       "name": "Chrome - Debug",
       "request": "launch",
       "type": "dart",
@@ -61,7 +68,14 @@
       "name": "Profile (iPad A16)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "666001FF-2989-451C-AD6B-0CA1A9B96443",
+      "deviceId": "3BA150BC-6573-4013-8C3D-C7213E9FE767",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Profile (iPhone physique)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "00008150-000C0C441482401C",
       "flutterMode": "profile"
     }
   ]

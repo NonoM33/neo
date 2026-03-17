@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../domain/entities/appointment.dart';
 import '../../../domain/repositories/appointment_repository.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/usecases/appointment_usecases.dart';
@@ -17,7 +16,6 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
   final CompleteAppointmentUseCase _completeAppointmentUseCase;
   final CancelAppointmentUseCase _cancelAppointmentUseCase;
   final MarkNoShowUseCase _markNoShowUseCase;
-  final AppointmentRepository _appointmentRepository;
 
   /// Default date range: current month
   DateTime _fromDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -33,7 +31,6 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
     required CompleteAppointmentUseCase completeAppointmentUseCase,
     required CancelAppointmentUseCase cancelAppointmentUseCase,
     required MarkNoShowUseCase markNoShowUseCase,
-    required AppointmentRepository appointmentRepository,
   })  : _getAppointmentsUseCase = getAppointmentsUseCase,
         _getAppointmentUseCase = getAppointmentUseCase,
         _createAppointmentUseCase = createAppointmentUseCase,
@@ -42,7 +39,6 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
         _completeAppointmentUseCase = completeAppointmentUseCase,
         _cancelAppointmentUseCase = cancelAppointmentUseCase,
         _markNoShowUseCase = markNoShowUseCase,
-        _appointmentRepository = appointmentRepository,
         super(const AppointmentsInitial()) {
     on<AppointmentsLoadRequested>(_onLoadRequested);
     on<AppointmentsRefreshRequested>(_onRefreshRequested);

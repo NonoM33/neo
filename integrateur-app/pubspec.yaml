@@ -53,8 +53,9 @@ dependencies:
   google_fonts: ^8.0.2
   shimmer: ^3.0.0
 
-  # LiDAR room scanning (iOS RoomPlan API)
-  flutter_roomplan: ^1.0.7
+  # LiDAR room scanning (iOS RoomPlan API) - local fork for UIScene fix
+  flutter_roomplan:
+    path: packages/flutter_roomplan
 
   # Bluetooth BLE (laser meters)
   flutter_blue_plus: ^2.2.1
@@ -62,6 +63,9 @@ dependencies:
   # QR code generation & scanning
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
+
+  # WebSocket
+  web_socket_channel: ^3.0.1
 
   # Secure storage
   flutter_secure_storage: ^10.0.0

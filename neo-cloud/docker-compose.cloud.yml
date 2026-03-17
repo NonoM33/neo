@@ -1,0 +1,71 @@
+version: '3.8'
+
+# Neo Cloud - Infrastructure for multi-tenant Home Assistant deployment
+# This compose file provides the base infrastructure (Traefik + monitoring)
+# Individual HA containers are provisioned dynamically via the backend API
+
+services:
+  # Reverse proxy - auto-discovers HA containers via Docker labels
+  traefik:
+    image: traefik:v3.0
+    container_name: neo-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=neo-cloud"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@neo-domotique.fr"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - neo-cloud
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.neo-domotique.fr`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+
+  # Backup service - automated daily backups for all tenant configs
+  backup:
+    image: offen/docker-volume-backup:v2
+    container_name: neo-cloud-backup
+    environment:
+      BACKUP_CRON_EXPRESSION: "0 2 * * *"
+      BACKUP_RETENTION_DAYS: "30"
+      BACKUP_COMPRESSION: "gz"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - neo_cloud_data:/backup/tenants:ro
+      - neo_cloud_backups:/archive
+    networks:
+      - neo-cloud
+    restart: unless-stopped
+
+volumes:
+  traefik_letsencrypt:
+  neo_cloud_data:
+  neo_cloud_backups:
+
+networks:
+  neo-cloud:
+    name: neo-cloud
+    driver: bridge

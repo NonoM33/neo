@@ -7,3 +7,4 @@ export * from './leaderboard';
 export * from './profile';
 export * from './prospection';
 export * from './calendar';
+export * from './cloud';

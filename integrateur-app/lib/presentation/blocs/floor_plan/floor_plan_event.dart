@@ -257,3 +257,8 @@ final class FloorPlanImportFromScan extends FloorPlanEvent {
   @override
   List<Object?> get props => [scannedPlan];
 }
+
+/// Save the current floor plan to the backend
+final class FloorPlanSaveRequested extends FloorPlanEvent {
+  const FloorPlanSaveRequested();
+}

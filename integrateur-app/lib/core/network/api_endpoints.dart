@@ -22,6 +22,10 @@ class ApiEndpoints {
   static String roomChecklist(String roomId) => '/pieces/$roomId/checklist';
   static String checklistItem(String id) => '/checklist/$id';
 
+  // Floor Plans
+  static String roomFloorPlan(String roomId) => '/pieces/$roomId/plan';
+  static String floorPlan(String id) => '/plans/$id';
+
   // Photos
   static String roomPhotos(String roomId) => '/pieces/$roomId/photos';
   static String photo(String id) => '/photos/$id';
@@ -63,6 +67,7 @@ class ApiEndpoints {
   static String appointmentComplete(String id) => '/appointments/$id/complete';
   static String appointmentCancel(String id) => '/appointments/$id/cancel';
   static String appointmentNoShow(String id) => '/appointments/$id/no-show';
+  static String appointmentAudit(String id) => '/appointments/$id/audit';
   static String appointmentParticipants(String id) => '/appointments/$id/participants';
   static const String appointmentTypes = '/appointments/types';
   static String userAvailability(String userId) => '/availability/$userId';

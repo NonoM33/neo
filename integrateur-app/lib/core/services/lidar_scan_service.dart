@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:ui' show Offset;
 
@@ -33,13 +34,22 @@ class LidarScanService {
     }
   }
 
+  /// Result from a LiDAR scan containing file paths
+  String? _lastUsdzPath;
+
   /// Start a LiDAR room scan. Returns JSON file path when scan completes.
   /// The RoomPlan native UI is presented automatically by the plugin.
   Future<String?> startScanAndWait() async {
     _scanCompleter = Completer<String?>();
+    _lastUsdzPath = null;
 
     _roomplan.onRoomCaptureFinished(() async {
       final jsonPath = await _roomplan.getJsonFilePath();
+      try {
+        _lastUsdzPath = await _roomplan.getUsdzFilePath();
+      } catch (_) {
+        // USDZ is optional
+      }
       if (_scanCompleter != null && !_scanCompleter!.isCompleted) {
         _scanCompleter!.complete(jsonPath);
       }
@@ -49,6 +59,9 @@ class LidarScanService {
     return _scanCompleter!.future;
   }
 
+  /// Get the USDZ file path from the last scan (if available)
+  String? get lastUsdzPath => _lastUsdzPath;
+
   /// Parse the RoomPlan JSON output into a FloorPlan entity
   Future<FloorPlan?> parseJsonToFloorPlan({
     required String jsonFilePath,
@@ -57,20 +70,42 @@ class LidarScanService {
   }) async {
     try {
       final file = File(jsonFilePath);
-      if (!await file.exists()) return null;
+      if (!await file.exists()) {
+        dev.log('[LiDAR] JSON file not found: $jsonFilePath');
+        return null;
+      }
 
       final jsonString = await file.readAsString();
-      final data = json.decode(jsonString) as Map<String, dynamic>;
+      final data = json.decode(jsonString);
 
-      return _convertRoomPlanData(data, roomId, projectId);
-    } catch (_) {
+      // CapturedRoom encodes as a Map, CapturedRoom array as a List
+      final Map<String, dynamic> roomData;
+      if (data is List && data.isNotEmpty) {
+        // Multi-room: use first room
+        roomData = data.first as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic>) {
+        roomData = data;
+      } else {
+        dev.log('[LiDAR] Unexpected JSON root type: ${data.runtimeType}');
+        return null;
+      }
+
+      dev.log('[LiDAR] JSON keys: ${roomData.keys.toList()}');
+      return _convertRoomPlanData(roomData, roomId, projectId);
+    } catch (e, st) {
+      dev.log('[LiDAR] Parse error: $e\n$st');
       return null;
     }
   }
 
   /// Convert RoomPlan JSON structure to our FloorPlan entities.
-  /// RoomPlan provides walls, doors, windows with 3D transforms.
-  /// We project to 2D top-down view (X, Z axes).
+  ///
+  /// Apple's CapturedRoom JSON (via JSONEncoder) format:
+  /// - `walls`, `doors`, `windows`, `openings`, `objects`: arrays of Surface
+  /// - Each Surface has:
+  ///   - `dimensions`: [width, height, depth] (simd_float3 → array)
+  ///   - `transform`: [[c0r0..c0r3],[c1r0..c1r3],[c2r0..c2r3],[c3r0..c3r3]]
+  ///     (simd_float4x4 → nested column-major array)
   FloorPlan? _convertRoomPlanData(
     Map<String, dynamic> data,
     String roomId,
@@ -81,10 +116,20 @@ class LidarScanService {
 
     // Parse walls
     final wallsList = data['walls'] as List<dynamic>? ?? [];
+    dev.log('[LiDAR] Found ${wallsList.length} walls');
+    if (wallsList.isNotEmpty) {
+      dev.log('[LiDAR] First wall keys: ${(wallsList.first as Map).keys.toList()}');
+      final firstTransform = (wallsList.first as Map)['transform'];
+      dev.log('[LiDAR] Transform type: ${firstTransform.runtimeType}');
+      final firstDims = (wallsList.first as Map)['dimensions'];
+      dev.log('[LiDAR] Dimensions type: ${firstDims.runtimeType}, value: $firstDims');
+    }
+
     for (final wallData in wallsList) {
       final wall = _parseWall(wallData as Map<String, dynamic>);
       if (wall != null) walls.add(wall);
     }
+    dev.log('[LiDAR] Parsed ${walls.length} valid walls');
 
     // Parse doors
     final doorsList = data['doors'] as List<dynamic>? ?? [];
@@ -101,6 +146,16 @@ class LidarScanService {
           windowData as Map<String, dynamic>, walls, OpeningType.window);
       if (opening != null) openings.add(opening);
     }
+
+    // Also parse "openings" (RoomPlan has a separate openings array)
+    final openingsList = data['openings'] as List<dynamic>? ?? [];
+    for (final openingData in openingsList) {
+      final opening = _parseOpening(
+          openingData as Map<String, dynamic>, walls, OpeningType.door);
+      if (opening != null) openings.add(opening);
+    }
+
+    dev.log('[LiDAR] Result: ${walls.length} walls, ${openings.length} openings');
 
     if (walls.isEmpty) return null;
 
@@ -141,22 +196,63 @@ class LidarScanService {
       walls: normalizedWalls,
       openings: openings,
       createdAt: DateTime.now(),
+      usdzFilePath: _lastUsdzPath,
     );
   }
 
+  /// Flatten a 4x4 transform matrix from Apple's format.
+  ///
+  /// Apple encodes simd_float4x4 as either:
+  /// - Nested: [[c0r0,c0r1,c0r2,c0r3], [c1...], [c2...], [c3...]] (column-major)
+  /// - Flat: [m0, m1, ..., m15] (already column-major)
+  List<double>? _flattenTransform(dynamic transform) {
+    if (transform is! List || transform.isEmpty) return null;
+
+    // Check if nested (first element is a list)
+    if (transform.first is List) {
+      // Nested column-major: [[col0], [col1], [col2], [col3]]
+      final flat = <double>[];
+      for (final col in transform) {
+        if (col is List) {
+          for (final val in col) {
+            flat.add((val as num).toDouble());
+          }
+        }
+      }
+      return flat.length >= 16 ? flat : null;
+    }
+
+    // Already flat
+    if (transform.length >= 16) {
+      return transform.map((e) => (e as num).toDouble()).toList();
+    }
+
+    return null;
+  }
+
+  /// Extract width (first dimension) from Apple's dimensions format.
+  ///
+  /// Apple encodes simd_float3 as either:
+  /// - Array: [width, height, depth]
+  /// - Map: {"width": ..., "height": ..., "depth": ...}  (unlikely but handle it)
+  double? _parseDimensionWidth(dynamic dimensions) {
+    if (dimensions is List && dimensions.isNotEmpty) {
+      return (dimensions[0] as num).toDouble();
+    }
+    if (dimensions is Map) {
+      return (dimensions['width'] as num?)?.toDouble();
+    }
+    return null;
+  }
+
   /// Parse a wall from RoomPlan JSON.
-  /// Walls have dimensions {width, height} and a 4x4 column-major transform.
   PlanWall? _parseWall(Map<String, dynamic> data) {
     try {
-      final dimensions = data['dimensions'] as Map<String, dynamic>?;
-      final transform = data['transform'] as List<dynamic>?;
-      if (dimensions == null || transform == null) return null;
+      final length = _parseDimensionWidth(data['dimensions']);
+      if (length == null || length < 0.1) return null;
 
-      final length = (dimensions['width'] as num?)?.toDouble() ?? 0;
-      if (length < 0.1) return null;
-
-      final matrix = transform.map((e) => (e as num).toDouble()).toList();
-      if (matrix.length < 16) return null;
+      final matrix = _flattenTransform(data['transform']);
+      if (matrix == null) return null;
 
       // Position from column 3 of 4x4 matrix (column-major)
       final centerX = matrix[12];
@@ -173,7 +269,8 @@ class LidarScanService {
         endPoint: Offset(centerX + halfLen * dirX, centerZ + halfLen * dirZ),
         type: WallType.exterior,
       );
-    } catch (_) {
+    } catch (e) {
+      dev.log('[LiDAR] Wall parse error: $e');
       return null;
     }
   }
@@ -185,13 +282,10 @@ class LidarScanService {
     OpeningType type,
   ) {
     try {
-      final dimensions = data['dimensions'] as Map<String, dynamic>?;
-      final transform = data['transform'] as List<dynamic>?;
-      if (dimensions == null || transform == null) return null;
+      final width = _parseDimensionWidth(data['dimensions']) ?? 0.9;
 
-      final width = (dimensions['width'] as num?)?.toDouble() ?? 0.9;
-      final matrix = transform.map((e) => (e as num).toDouble()).toList();
-      if (matrix.length < 16) return null;
+      final matrix = _flattenTransform(data['transform']);
+      if (matrix == null) return null;
 
       final pos = Offset(matrix[12], matrix[14]);
 
@@ -220,7 +314,8 @@ class LidarScanService {
         offsetOnWall: nearestOffset,
         widthMeters: width,
       );
-    } catch (_) {
+    } catch (e) {
+      dev.log('[LiDAR] Opening parse error: $e');
       return null;
     }
   }

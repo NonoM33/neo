@@ -5,3 +5,4 @@ export * from './gamification.types';
 export * from './prospection.types';
 export * from './appointment.types';
 export * from './call.types';
+export * from './cloud.types';

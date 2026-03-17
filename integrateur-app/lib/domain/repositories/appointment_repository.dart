@@ -122,4 +122,7 @@ abstract class AppointmentRepository {
     required DateTime toDate,
     required int durationMinutes,
   });
+
+  /// Update audit data (deep-merge into metadata.audit)
+  Future<Result<Appointment>> updateAuditData(String id, Map<String, dynamic> data);
 }

@@ -25,6 +25,9 @@ import { appointmentsRoutes, availabilityRoutes } from './modules/appointments';
 import { bookingRoutes } from './modules/booking';
 import { calendarSyncRoutes } from './modules/calendar-sync';
 import { callsRoutes } from './modules/calls';
+import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
+import { cloudInstancesRoutes } from './modules/cloud-instances';
+import { floorPlansRoutes } from './modules/floor-plans';
 import { clientAuthRoutes, ticketsRoutes, kbRoutes, chatRoutes } from './support';
 
 import { scanSessionsRoutes } from './modules/scan-sessions';
@@ -99,6 +102,12 @@ app.route('/api/kpis', kpisRoutes);
 app.route('/api/appointments', appointmentsRoutes);
 app.route('/api/availability', availabilityRoutes);
 app.route('/api/calls', callsRoutes);
+app.route('/api/tracking', trackingRoutes);
+app.route('/api/cloud-instances', cloudInstancesRoutes);
+app.route('/api', floorPlansRoutes);
+
+// Public tracking page (no auth, token-based)
+app.route('/tracking', publicTrackingRoutes);
 
 // Swagger
 app.route('/swagger', swaggerRoutes);

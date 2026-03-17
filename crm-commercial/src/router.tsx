@@ -18,6 +18,8 @@ import {
   AppointmentDetailPage,
   AvailabilityPage,
   CalendarSyncPage,
+  CloudInstancesPage,
+  CloudInstanceDetailPage,
 } from './pages';
 import { useAuthStore } from './stores';
 
@@ -139,6 +141,14 @@ export const router = createBrowserRouter([
       {
         path: 'prospection/qualify/:id',
         element: <QualificationWizardPage />,
+      },
+      {
+        path: 'cloud',
+        element: <CloudInstancesPage />,
+      },
+      {
+        path: 'cloud/:id',
+        element: <CloudInstanceDetailPage />,
       },
     ],
   },

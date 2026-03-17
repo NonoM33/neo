@@ -29,6 +29,7 @@ const envSchema = z.object({
 
   // Whisper (Speech-to-Text)
   WHISPER_URL: z.string().default('http://localhost:8000'),
+  WHISPER_API_KEY: z.string().optional(),
 
   // Client Auth
   CLIENT_JWT_SECRET: z.string().min(32).optional(),
@@ -38,9 +39,19 @@ const envSchema = z.object({
   // Support S3
   S3_BUCKET_SUPPORT: z.string().default('neo-support'),
 
+  // SMS Gateway
+  SMS_API_URL: z.string().default('https://api.sms-gate.app/3rdparty/v1/messages'),
+  SMS_API_USER: z.string().default('EZMOAP'),
+  SMS_API_PASSWORD: z.string().default('mx3yvylh7y-8-o'),
+  SMS_ENABLED: z.string().default('true'),
+
   // Admin
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD: z.string().min(6).optional(),
+
+  // Tracking
+  TRACKING_EXPIRY_HOURS: z.coerce.number().default(4),
+  PUBLIC_URL: z.string().default('http://localhost:3000'),
 });
 
 export type Env = z.infer<typeof envSchema>;

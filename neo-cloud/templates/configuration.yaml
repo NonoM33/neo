@@ -1,0 +1,51 @@
+# Neo Cloud - Home Assistant Configuration
+# This file is auto-generated. DO NOT MODIFY MANUALLY.
+
+homeassistant:
+  name: "Neo Domotique"
+  unit_system: metric
+  currency: EUR
+  country: FR
+  time_zone: "Europe/Paris"
+  language: "fr"
+  customize: !include customize.yaml
+
+# Enable the REST API for Neo app connectivity
+api:
+
+# WebSocket API (enabled by default)
+websocket_api:
+
+# Frontend - disabled for cloud instances (clients use Neo app)
+frontend:
+  themes: !include_dir_merge_named themes/
+
+# HTTP configuration
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.16.0.0/12
+    - 10.0.0.0/8
+    - 192.168.0.0/16
+
+# Recorder - optimize for cloud
+recorder:
+  purge_keep_days: 30
+  commit_interval: 30
+  exclude:
+    entity_globs:
+      - sensor.neo_cloud_*
+
+# Logger
+logger:
+  default: warning
+  logs:
+    custom_components.neo_cloud: info
+
+# Automations, scripts, scenes
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Neo Cloud custom component
+neo_cloud:

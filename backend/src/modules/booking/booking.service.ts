@@ -263,18 +263,67 @@ export async function createPublicBooking(input: PublicBookingInput) {
       organizerId: assigned.userId,
       leadId: lead.id,
       notes,
+      location: `${input.address}, ${input.postalCode} ${input.city}`,
       metadata: {
         source: 'public_booking',
         housingType: input.housingType,
         needs: input.needs,
+        address: input.address,
         postalCode: input.postalCode,
+        city: input.city,
+        phone: input.phone,
+        email: input.email,
+        clientName: `${input.firstName} ${input.lastName}`,
       },
     })
     .returning();
 
+  // ── Generate public token for manage link ──────────────────────────────
+  const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  await db
+    .update(appointments)
+    .set({ publicToken: token })
+    .where(eq(appointments.id, appointment!.id));
+
+  // ── Send confirmation SMS ──────────────────────────────────────────────
+  if (input.phone) {
+    const { sendSms } = await import('../../lib/sms');
+    const typeLabels: Record<string, string> = {
+      visite_technique: 'Visite technique',
+      audit: 'Audit complet',
+      rdv_commercial: 'RDV Commercial',
+    };
+    const dateObj = new Date(`${input.date}T00:00:00`);
+    const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const manageUrl = `https://neo-domotique.fr/rdv?t=${token}`;
+
+    const smsMessage = [
+      `Bonjour ${input.firstName} ! 🏠`,
+      ``,
+      `Votre ${typeLabels[input.type] || 'rendez-vous'} Neo Domotique est confirme :`,
+      `📅 ${dateStr} a ${input.startTime}`,
+      `📍 ${input.address}, ${input.postalCode} ${input.city}`,
+      `👤 ${assigned.firstName} se deplacera chez vous`,
+      ``,
+      `Modifier ou annuler : ${manageUrl}`,
+      ``,
+      `A tres bientot !`,
+      `L'equipe Neo Domotique`,
+    ].join('\n');
+
+    sendSms({
+      phoneNumber: input.phone,
+      message: smsMessage,
+      clientId: lead?.clientId || undefined,
+      context: 'booking_confirmation',
+      contextId: appointment?.id,
+    }).catch((err: any) => console.error('[SMS] Booking confirmation failed:', err.message));
+  }
+
   return {
     success: true,
     appointmentId: appointment?.id,
+    publicToken: token,
     message:
       'Votre rendez-vous a bien \u00e9t\u00e9 enregistr\u00e9. Vous serez recontact\u00e9 sous 24h pour confirmation.',
     date: input.date,
@@ -282,4 +331,243 @@ export async function createPublicBooking(input: PublicBookingInput) {
     type: input.type,
     assignedTo: `${assigned.firstName} ${assigned.lastName}`,
   };
+}
+
+// ─── Public appointment management (via token) ────────────────────────────
+
+export async function getAppointmentByToken(token: string) {
+  const [appt] = await db
+    .select({
+      id: appointments.id,
+      type: appointments.type,
+      status: appointments.status,
+      scheduledAt: appointments.scheduledAt,
+      endAt: appointments.endAt,
+      duration: appointments.duration,
+      location: appointments.location,
+      organizerFirstName: users.firstName,
+      organizerLastName: users.lastName,
+      organizerPhone: users.phone,
+      notes: appointments.notes,
+      metadata: appointments.metadata,
+    })
+    .from(appointments)
+    .innerJoin(users, eq(appointments.organizerId, users.id))
+    .where(eq(appointments.publicToken, token))
+    .limit(1);
+
+  if (!appt) return null;
+
+  const meta = appt.metadata as any;
+  return {
+    id: appt.id,
+    type: appt.type,
+    status: appt.status,
+    scheduledAt: appt.scheduledAt,
+    endAt: appt.endAt,
+    duration: appt.duration,
+    location: appt.location,
+    organizer: {
+      firstName: appt.organizerFirstName,
+      lastName: appt.organizerLastName,
+      phone: appt.organizerPhone,
+    },
+    client: {
+      name: meta?.clientName || null,
+      address: meta?.address || null,
+      postalCode: meta?.postalCode || null,
+      city: meta?.city || null,
+    },
+  };
+}
+
+export async function cancelAppointmentByToken(token: string, reason?: string) {
+  const [appt] = await db
+    .select({ id: appointments.id, status: appointments.status })
+    .from(appointments)
+    .where(eq(appointments.publicToken, token))
+    .limit(1);
+
+  if (!appt) throw new ValidationError('Rendez-vous introuvable');
+  if (appt.status === 'annule') throw new ValidationError('Ce rendez-vous est deja annule');
+  if (appt.status === 'termine') throw new ValidationError('Ce rendez-vous est deja termine');
+
+  await db.update(appointments).set({
+    status: 'annule',
+    cancellationReason: reason || 'Annule par le client via lien SMS',
+    updatedAt: new Date(),
+  }).where(eq(appointments.id, appt.id));
+
+  return { success: true };
+}
+
+export async function rescheduleAppointmentByToken(
+  token: string,
+  newDate: string,
+  newStartTime: string
+) {
+  const [appt] = await db
+    .select({
+      id: appointments.id,
+      status: appointments.status,
+      type: appointments.type,
+      duration: appointments.duration,
+      organizerId: appointments.organizerId,
+      metadata: appointments.metadata,
+    })
+    .from(appointments)
+    .where(eq(appointments.publicToken, token))
+    .limit(1);
+
+  if (!appt) throw new ValidationError('Rendez-vous introuvable');
+  if (appt.status === 'annule') throw new ValidationError('Ce rendez-vous est annule');
+  if (appt.status === 'termine') throw new ValidationError('Ce rendez-vous est termine');
+
+  const newScheduledAt = new Date(`${newDate}T${newStartTime}:00`);
+  const newEndAt = new Date(newScheduledAt.getTime() + appt.duration * 60_000);
+
+  if (newScheduledAt <= new Date(Date.now() + 24 * 60 * 60 * 1000)) {
+    throw new ValidationError('Le nouveau creneau doit etre dans plus de 24h');
+  }
+
+  // Check conflicts for the organizer
+  const conflicts = await checkConflicts(newScheduledAt, newEndAt, [appt.organizerId], appt.id);
+  if (conflicts.length > 0) {
+    throw new ConflictError('Ce creneau est deja pris. Veuillez en choisir un autre.');
+  }
+
+  await db.update(appointments).set({
+    scheduledAt: newScheduledAt,
+    endAt: newEndAt,
+    reminder2hSent: false,
+    reminder30mSent: false,
+    updatedAt: new Date(),
+  }).where(eq(appointments.id, appt.id));
+
+  // Send SMS confirmation of reschedule
+  const meta = appt.metadata as any;
+  if (meta?.phone) {
+    const { sendSms } = await import('../../lib/sms');
+    const typeLabels: Record<string, string> = {
+      visite_technique: 'Visite technique',
+      audit: 'Audit complet',
+      rdv_commercial: 'RDV Commercial',
+    };
+    const dateObj = new Date(`${newDate}T00:00:00`);
+    const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    sendSms({
+      phoneNumber: meta.phone,
+      message: [
+        `✅ Neo Domotique - RDV modifie`,
+        ``,
+        `Votre ${typeLabels[appt.type] || 'rendez-vous'} est deplace au :`,
+        `📅 ${dateStr} a ${newStartTime}`,
+        ``,
+        `A bientot !`,
+      ].join('\n'),
+      context: 'booking_reschedule',
+      contextId: appt.id,
+    }).catch(() => {});
+  }
+
+  return { success: true, scheduledAt: newScheduledAt, endAt: newEndAt };
+}
+
+// ─── SMS Reminders (called by cron) ────────────────────────────────────────
+
+export async function sendReminders() {
+  const { sendSms } = await import('../../lib/sms');
+  const { and, gte, lte, not } = await import('drizzle-orm');
+
+  const now = new Date();
+  const typeLabels: Record<string, string> = {
+    visite_technique: 'Visite technique',
+    audit: 'Audit complet',
+    rdv_commercial: 'RDV Commercial',
+  };
+
+  // 2h reminder: appointments between 1h50 and 2h10 from now
+  const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const twoHMin = new Date(twoHoursFromNow.getTime() - 10 * 60 * 1000);
+  const twoHMax = new Date(twoHoursFromNow.getTime() + 10 * 60 * 1000);
+
+  const upcoming2h = await db
+    .select({
+      id: appointments.id,
+      type: appointments.type,
+      scheduledAt: appointments.scheduledAt,
+      publicToken: appointments.publicToken,
+      metadata: appointments.metadata,
+      organizerFirstName: users.firstName,
+    })
+    .from(appointments)
+    .innerJoin(users, eq(appointments.organizerId, users.id))
+    .where(and(
+      gte(appointments.scheduledAt, twoHMin),
+      lte(appointments.scheduledAt, twoHMax),
+      eq(appointments.status, 'propose'),
+      eq(appointments.reminder2hSent, false),
+    ));
+
+  for (const appt of upcoming2h) {
+    const meta = appt.metadata as any;
+    const phone = meta?.phone || meta?.clientPhone;
+    if (!phone) continue;
+
+    const dateStr = appt.scheduledAt.toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const msg = [
+      `⏰ Rappel Neo Domotique`,
+      ``,
+      `Votre ${typeLabels[appt.type] || 'rendez-vous'} est dans 2h (${dateStr}).`,
+      `${appt.organizerFirstName} sera chez vous.`,
+      ``,
+      appt.publicToken ? `Gerer : https://neo-domotique.fr/rdv?t=${appt.publicToken}` : '',
+    ].filter(Boolean).join('\n');
+
+    await sendSms({ phoneNumber: phone, message: msg, context: 'reminder_2h', contextId: appt.id });
+    await db.update(appointments).set({ reminder2hSent: true }).where(eq(appointments.id, appt.id));
+  }
+
+  // 30min reminder: appointments between 20 and 40 min from now
+  const thirtyMin = new Date(now.getTime() + 30 * 60 * 1000);
+  const thirtyMin_min = new Date(thirtyMin.getTime() - 10 * 60 * 1000);
+  const thirtyMin_max = new Date(thirtyMin.getTime() + 10 * 60 * 1000);
+
+  const upcoming30m = await db
+    .select({
+      id: appointments.id,
+      type: appointments.type,
+      scheduledAt: appointments.scheduledAt,
+      publicToken: appointments.publicToken,
+      metadata: appointments.metadata,
+      organizerFirstName: users.firstName,
+    })
+    .from(appointments)
+    .innerJoin(users, eq(appointments.organizerId, users.id))
+    .where(and(
+      gte(appointments.scheduledAt, thirtyMin_min),
+      lte(appointments.scheduledAt, thirtyMin_max),
+      eq(appointments.status, 'propose'),
+      eq(appointments.reminder30mSent, false),
+    ));
+
+  for (const appt of upcoming30m) {
+    const meta = appt.metadata as any;
+    const phone = meta?.phone || meta?.clientPhone;
+    if (!phone) continue;
+
+    const msg = [
+      `🏠 Neo Domotique - On arrive !`,
+      ``,
+      `${appt.organizerFirstName} sera chez vous dans environ 30 minutes.`,
+      ``,
+      appt.publicToken ? `Suivre : https://neo-domotique.fr/rdv?t=${appt.publicToken}` : '',
+    ].filter(Boolean).join('\n');
+
+    await sendSms({ phoneNumber: phone, message: msg, context: 'reminder_30m', contextId: appt.id });
+    await db.update(appointments).set({ reminder30mSent: true }).where(eq(appointments.id, appt.id));
+  }
+
+  return { sent2h: upcoming2h.length, sent30m: upcoming30m.length };
 }

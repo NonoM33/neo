@@ -8,7 +8,7 @@ export const callsService = {
     if (leadId) formData.append('leadId', leadId);
 
     const response = await api.post<CallRecording>('/api/calls/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
     return response.data;
   },

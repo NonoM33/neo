@@ -25,9 +25,11 @@ export const publicBookingSchema = z.object({
   lastName: z.string().min(1, 'Nom requis').max(100),
   email: z.string().email('Email invalide'),
   phone: z.string().min(1, 'T\u00e9l\u00e9phone requis').max(20),
+  address: z.string().min(1, 'Adresse requise').max(500),
   postalCode: z
     .string()
     .regex(/^[0-9]{5}$/, 'Code postal \u00e0 5 chiffres requis'),
+  city: z.string().min(1, 'Ville requise').max(100),
   housingType: z.enum(['appartement', 'maison', 'autre']).optional(),
   needs: z.array(z.string()).optional(),
   message: z.string().max(2000).optional(),

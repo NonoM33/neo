@@ -291,4 +291,19 @@ class AppointmentRepositoryImpl implements AppointmentRepository {
       return Error(UnknownFailure(originalError: e));
     }
   }
+
+  @override
+  Future<Result<Appointment>> updateAuditData(String id, Map<String, dynamic> data) async {
+    try {
+      final appointment = await _remoteDataSource.updateAuditData(id, data);
+      return Success(appointment);
+    } on ValidationException catch (e) {
+      return Error(ValidationFailure(message: e.message));
+    } on NotFoundException {
+      return const Error(NotFoundFailure());
+    } catch (e, st) {
+      developer.log('updateAuditData error: $e', name: 'AppointmentRepo', error: e, stackTrace: st);
+      return Error(UnknownFailure(originalError: e));
+    }
+  }
 }

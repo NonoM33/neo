@@ -123,7 +123,10 @@ class LaserMeterService {
       _setStatus(LaserMeterStatus.connecting);
       await stopScan();
 
-      await meterDevice.device.connect(timeout: const Duration(seconds: 10));
+      await meterDevice.device.connect(
+        license: License.free,
+        timeout: const Duration(seconds: 10),
+      );
       _connectedDevice = meterDevice.device;
 
       // Discover services and find measurement characteristic
@@ -199,11 +202,8 @@ class LaserMeterService {
 
       // Alternative: 4-byte IEEE 754 float (little-endian)
       if (bytes.length >= 4) {
-        final bd = ByteData(4);
-        for (var i = 0; i < 4; i++) {
-          bd.setUint8(i, bytes[i]);
-        }
-        return bd.getFloat32(0, Endian.little);
+        final byteData = Uint8List.fromList(bytes.sublist(0, 4));
+        return byteData.buffer.asByteData().getFloat32(0, Endian.little);
       }
     } catch (_) {
       // Silent fail

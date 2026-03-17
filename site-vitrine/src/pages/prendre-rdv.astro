@@ -102,7 +102,9 @@ const schema = {
             <input type="text" name="lastName" placeholder="Nom *" required class="rdv-input" />
             <input type="email" name="email" placeholder="Email *" required class="rdv-input" />
             <input type="tel" name="phone" placeholder="Telephone *" required class="rdv-input" />
+            <input type="text" name="address" placeholder="Adresse *" required class="rdv-input sm:col-span-2" />
             <input type="text" name="postalCode" placeholder="Code postal *" required pattern="[0-9]{5}" class="rdv-input" />
+            <input type="text" name="city" placeholder="Ville *" required class="rdv-input" />
             <select name="housingType" class="rdv-input">
               <option value="">Type de logement</option>
               <option value="appartement">Appartement</option>
@@ -388,7 +390,9 @@ const schema = {
         lastName: form.lastName.value,
         email: form.email.value,
         phone: form.phone.value,
+        address: form.address.value,
         postalCode: form.postalCode.value,
+        city: form.city.value,
         housingType: form.housingType.value || undefined,
         message: form.message.value || undefined,
         consent: true,
@@ -409,10 +413,10 @@ const schema = {
           ' a ' + state.selectedSlot.startTime + (data.assignedTo ? ' avec ' + data.assignedTo : '');
 
         // Hide everything except success
-        document.querySelectorAll('.rdv-type').forEach(function(b) { b.parentElement.style.display = 'none'; });
-        calGrid.parentElement.parentElement.parentElement.style.display = 'none';
-        summaryBar.style.display = 'none';
-        formPanel.style.display = 'none';
+        document.querySelectorAll('.rdv-type').forEach(function(b) { b.parentElement.classList.add('hidden'); });
+        document.getElementById('booking').querySelector('.grid').classList.add('hidden');
+        summaryBar.classList.add('hidden');
+        formPanel.classList.add('hidden');
         successPanel.classList.remove('hidden');
       } else {
         alert(data.error?.message || 'Erreur lors de la reservation');

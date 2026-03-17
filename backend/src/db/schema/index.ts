@@ -15,3 +15,7 @@ export * from './support';
 export * from './appointments';
 export * from './calendar-sync';
 export * from './calls';
+export * from './sms';
+export * from './tracking';
+export * from './cloud-instances';
+export * from './floor-plans';

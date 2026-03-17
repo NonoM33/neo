@@ -29,6 +29,7 @@ import type {
   CreateRecurringInput,
   UpdateTypeConfigInput,
   AvailableSlotsQuery,
+  UpdateAuditInput,
   DayOfWeek,
 } from './appointments.schema';
 
@@ -577,6 +578,76 @@ export async function completeAppointment(
   const [updated] = await db
     .update(appointments)
     .set(updateData)
+    .where(eq(appointments.id, id))
+    .returning();
+
+  return updated;
+}
+
+/**
+ * Update audit data in appointment metadata (deep-merge).
+ * Only allowed when appointment status is en_cours.
+ */
+export async function updateAuditData(
+  id: string,
+  auditData: UpdateAuditInput,
+  user: JWTPayload
+) {
+  const [existing] = await db
+    .select({
+      id: appointments.id,
+      organizerId: appointments.organizerId,
+      status: appointments.status,
+      metadata: appointments.metadata,
+    })
+    .from(appointments)
+    .where(eq(appointments.id, id))
+    .limit(1);
+
+  if (!existing) {
+    throw new NotFoundError('Rendez-vous');
+  }
+
+  if (!isAdmin(user) && existing.organizerId !== user.userId) {
+    throw new ForbiddenError('Seul l\'organisateur peut modifier l\'audit');
+  }
+
+  if (existing.status !== 'en_cours') {
+    throw new ValidationError('L\'audit ne peut être modifié que pour un rendez-vous en cours');
+  }
+
+  // Deep-merge audit data into metadata
+  const currentMetadata = (existing.metadata as Record<string, any>) || {};
+  const currentAudit = currentMetadata.audit || {};
+
+  const mergedAudit: Record<string, any> = { ...currentAudit };
+
+  if (auditData.startedAt !== undefined) {
+    mergedAudit.startedAt = auditData.startedAt;
+  }
+  if (auditData.currentSection !== undefined) {
+    mergedAudit.currentSection = auditData.currentSection;
+  }
+
+  // Deep-merge sections at item level
+  if (auditData.sections) {
+    const existingSections = mergedAudit.sections || {};
+    for (const [sectionId, sectionData] of Object.entries(auditData.sections)) {
+      const existingSection = existingSections[sectionId] || {};
+      existingSections[sectionId] = {
+        ...existingSection,
+        items: { ...(existingSection.items || {}), ...(sectionData.items || {}) },
+        notes: sectionData.notes !== undefined ? sectionData.notes : existingSection.notes,
+      };
+    }
+    mergedAudit.sections = existingSections;
+  }
+
+  const newMetadata = { ...currentMetadata, audit: mergedAudit };
+
+  const [updated] = await db
+    .update(appointments)
+    .set({ metadata: newMetadata, updatedAt: new Date() })
     .where(eq(appointments.id, id))
     .returning();
 

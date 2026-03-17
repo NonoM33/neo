@@ -468,6 +468,7 @@ class Appointment extends Equatable {
   final DateTime? cancelledAt;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final Map<String, dynamic>? metadata;
 
   const Appointment({
     required this.id,
@@ -499,6 +500,7 @@ class Appointment extends Equatable {
     this.cancelledAt,
     required this.createdAt,
     this.updatedAt,
+    this.metadata,
   });
 
   /// Whether this appointment is in the past
@@ -569,5 +571,6 @@ class Appointment extends Equatable {
         projectId,
         createdAt,
         updatedAt,
+        metadata,
       ];
 }

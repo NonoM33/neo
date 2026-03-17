@@ -171,7 +171,18 @@ export const availableSlotsQuerySchema = z.object({
   duration: z.coerce.number().int().min(1).default(60),
 });
 
+// Update audit data schema (deep-merge into metadata.audit)
+export const updateAuditSchema = z.object({
+  startedAt: z.string().optional(),
+  currentSection: z.number().int().min(0).optional(),
+  sections: z.record(z.string(), z.object({
+    items: z.record(z.string(), z.union([z.boolean(), z.string(), z.number()])).optional(),
+    notes: z.string().optional(),
+  })).optional(),
+});
+
 // Type exports
+export type UpdateAuditInput = z.infer<typeof updateAuditSchema>;
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type AppointmentFilter = z.infer<typeof appointmentFilterSchema>;

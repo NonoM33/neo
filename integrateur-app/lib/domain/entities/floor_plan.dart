@@ -346,6 +346,7 @@ class FloorPlan extends Equatable {
   final int version;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? usdzFilePath;
 
   const FloorPlan({
     required this.id,
@@ -361,6 +362,7 @@ class FloorPlan extends Equatable {
     this.version = 1,
     required this.createdAt,
     this.updatedAt,
+    this.usdzFilePath,
   });
 
   int get equipmentCount => equipment.fold(0, (sum, e) => sum + e.quantity);
@@ -379,6 +381,7 @@ class FloorPlan extends Equatable {
     int? version,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? usdzFilePath,
   }) {
     return FloorPlan(
       id: id ?? this.id,
@@ -394,6 +397,7 @@ class FloorPlan extends Equatable {
       version: version ?? this.version,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      usdzFilePath: usdzFilePath ?? this.usdzFilePath,
     );
   }
 
@@ -401,5 +405,6 @@ class FloorPlan extends Equatable {
   List<Object?> get props => [
         id, roomId, projectId, widthMeters, heightMeters, pixelsPerMeter,
         walls, openings, equipment, annotations, version, createdAt, updatedAt,
+        usdzFilePath,
       ];
 }

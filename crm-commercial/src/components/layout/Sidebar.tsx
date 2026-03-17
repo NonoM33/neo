@@ -64,6 +64,12 @@ export function Sidebar() {
 
         {user?.roles?.includes('admin') && (
           <>
+            <div className="nav-section">Infrastructure</div>
+            <NavLink to="/cloud" className="nav-link">
+              <i className="bi bi-cloud-arrow-up"></i>
+              Cloud HA
+            </NavLink>
+
             <div className="nav-section">Administration</div>
             <NavLink to="/objectives" className="nav-link">
               <i className="bi bi-bullseye"></i>

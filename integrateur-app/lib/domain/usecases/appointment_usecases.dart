@@ -176,6 +176,17 @@ class SetAvailabilityUseCase {
   }
 }
 
+/// Update audit data use case
+class UpdateAuditDataUseCase {
+  final AppointmentRepository _repository;
+
+  UpdateAuditDataUseCase(this._repository);
+
+  Future<Result<Appointment>> call(String id, Map<String, dynamic> data) async {
+    return _repository.updateAuditData(id, data);
+  }
+}
+
 /// Get available slots use case
 class GetAvailableSlotsUseCase {
   final AppointmentRepository _repository;

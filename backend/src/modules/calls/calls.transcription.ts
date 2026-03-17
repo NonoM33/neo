@@ -33,9 +33,15 @@ export async function transcribeAudio(
   formData.append('language', language);
   formData.append('response_format', 'verbose_json');
 
+  const headers: Record<string, string> = {};
+  if (env.WHISPER_API_KEY) {
+    headers['Authorization'] = `Bearer ${env.WHISPER_API_KEY}`;
+  }
+
   const response = await fetch(`${whisperUrl}/v1/audio/transcriptions`, {
     method: 'POST',
     body: formData,
+    headers,
   });
 
   if (!response.ok) {

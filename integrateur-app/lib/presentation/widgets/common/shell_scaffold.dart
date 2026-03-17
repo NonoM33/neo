@@ -238,6 +238,11 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
         label: Text('Catalogue'),
       ),
       NavigationRailDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: Text('Maison'),
+      ),
+      NavigationRailDestination(
         icon: Icon(Icons.support_agent_outlined),
         selectedIcon: Icon(Icons.support_agent),
         label: Text('Support'),
@@ -268,6 +273,11 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
         label: 'Catalogue',
       ),
       NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: 'Maison',
+      ),
+      NavigationDestination(
         icon: Icon(Icons.support_agent_outlined),
         selectedIcon: Icon(Icons.support_agent),
         label: 'Support',
@@ -279,7 +289,8 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
     if (location.startsWith('/projects')) return 1;
     if (location.startsWith('/calendar')) return 2;
     if (location.startsWith('/catalogue')) return 3;
-    if (location.startsWith('/tickets')) return 4;
+    if (location.startsWith('/homes')) return 4;
+    if (location.startsWith('/tickets')) return 5;
     return 0; // Dashboard
   }
 
@@ -294,6 +305,8 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
       case 3:
         context.goToCatalogue();
       case 4:
+        context.goToHomes();
+      case 5:
         context.goToTickets();
     }
   }

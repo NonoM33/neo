@@ -4,6 +4,10 @@
 App Flutter pour integrateurs domotique. **Usage exclusif sur tablette** (iPad 10.2" a 12.9").
 Chaque modification UI DOIT respecter les guidelines ci-dessous. Aucune exception.
 
+## Qualite du code
+- **TOUJOURS** verifier les warnings Dart/Flutter apres chaque modification et les corriger immediatement
+- Zero warning tolere : traiter les warnings comme des erreurs
+
 ## Langue
 - Code (variables, classes, comments techniques) : anglais
 - Textes affiches a l'utilisateur (labels, messages, tooltips) : francais

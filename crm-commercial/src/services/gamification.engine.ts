@@ -42,26 +42,32 @@ export function computeXPFromLeads(leads: Lead[]): number {
 }
 
 // Compute XP from activities
+// Only non-canceled activities earn creation XP, and type-specific XP requires completion
 export function computeXPFromActivities(activities: Activity[]): number {
   let xp = 0;
   for (const activity of activities) {
-    xp += 5; // activity_created
+    // Canceled activities earn nothing
+    if (activity.status === 'annule') continue;
+
+    xp += 5; // activity_created (only if not canceled)
+
     if (activity.status === 'termine') {
       xp += 10; // activity_completed
-    }
-    switch (activity.type) {
-      case 'appel':
-        xp += 10;
-        break;
-      case 'email':
-        xp += 5;
-        break;
-      case 'reunion':
-        xp += 50;
-        break;
-      case 'visite':
-        xp += 40;
-        break;
+      // Type-specific bonus only on completion
+      switch (activity.type) {
+        case 'appel':
+          xp += 10;
+          break;
+        case 'email':
+          xp += 5;
+          break;
+        case 'reunion':
+          xp += 50;
+          break;
+        case 'visite':
+          xp += 40;
+          break;
+      }
     }
   }
   return xp;
@@ -87,10 +93,12 @@ export function computeLevelProgress(totalXP: number): number {
 }
 
 // Compute streak from activities and leads (consecutive active days)
+// Only completed activities count toward streaks (prevent cancel-farming)
 export function computeStreak(activities: Activity[], leads: Lead[]): { current: number; longest: number; lastActive: string } {
   const activeDates = new Set<string>();
 
   for (const a of activities) {
+    if (a.status === 'annule') continue; // canceled activities don't count
     const date = a.completedAt || a.createdAt;
     if (date) activeDates.add(date.split('T')[0]);
   }
@@ -144,17 +152,18 @@ export function computeStreak(activities: Activity[], leads: Lead[]): { current:
   };
 }
 
-// Compute stats from leads and activities
+// Compute stats from leads and activities (excludes canceled activities)
 export function computeStats(leads: Lead[], activities: Activity[]) {
+  const activeActivities = activities.filter(a => a.status !== 'annule');
   return {
     leadsCreated: leads.length,
     leadsWon: leads.filter(l => l.status === 'gagne').length,
     leadsLost: leads.filter(l => l.status === 'perdu').length,
     activitiesCompleted: activities.filter(a => a.status === 'termine').length,
-    callsMade: activities.filter(a => a.type === 'appel').length,
-    emailsSent: activities.filter(a => a.type === 'email').length,
-    meetingsHeld: activities.filter(a => a.type === 'reunion').length,
-    visitsDone: activities.filter(a => a.type === 'visite').length,
+    callsMade: activeActivities.filter(a => a.type === 'appel' && a.status === 'termine').length,
+    emailsSent: activeActivities.filter(a => a.type === 'email' && a.status === 'termine').length,
+    meetingsHeld: activeActivities.filter(a => a.type === 'reunion' && a.status === 'termine').length,
+    visitsDone: activeActivities.filter(a => a.type === 'visite' && a.status === 'termine').length,
     totalRevenue: leads
       .filter(l => l.status === 'gagne' && l.estimatedValue)
       .reduce((sum, l) => sum + parseFloat(l.estimatedValue!), 0),
