@@ -101,7 +101,7 @@ export const NEEDS_ICONS: Record<string, string> = {
   autre: 'bi-three-dots',
 };
 
-export const TIMELINE_LABELS: Record<Timeline, string> = {
+export const CALL_TIMELINE_LABELS: Record<Timeline, string> = {
   urgent: 'Urgent',
   '1_3_mois': '1-3 mois',
   '3_6_mois': '3-6 mois',

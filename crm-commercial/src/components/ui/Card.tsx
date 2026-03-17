@@ -3,10 +3,12 @@ import type { ReactNode } from 'react';
 interface CardProps {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
+  onClick?: () => void | Promise<void>;
 }
 
-export function Card({ children, className = '' }: CardProps) {
-  return <div className={`card ${className}`}>{children}</div>;
+export function Card({ children, className = '', style, onClick }: CardProps) {
+  return <div className={`card ${className}`} style={style} onClick={onClick}>{children}</div>;
 }
 
 interface CardHeaderProps {

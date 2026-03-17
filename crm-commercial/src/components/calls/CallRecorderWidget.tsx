@@ -14,7 +14,7 @@ export function CallRecorderWidget({ leadId, onCallComplete }: CallRecorderWidge
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [_audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [duration, setDuration] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [currentCall, setCurrentCall] = useState<CallRecording | null>(null);

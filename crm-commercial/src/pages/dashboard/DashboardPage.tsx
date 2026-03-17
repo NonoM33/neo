@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardBody, Spinner, Table } from '../../components';
 import { kpisService, leadsService, activitiesService } from '../../services';
@@ -186,7 +186,7 @@ export function DashboardPage() {
     });
   };
 
-  const formatFullDate = (dateStr: string) => {
+  const _formatFullDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
@@ -194,7 +194,7 @@ export function DashboardPage() {
     });
   };
 
-  const formatTime = (dateStr: string) => {
+  const _formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',

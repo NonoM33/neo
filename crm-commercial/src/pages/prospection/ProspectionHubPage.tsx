@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useState, useCallback } from 'react';
 import { Card, CardHeader, CardBody } from '../../components';
 import { ProspectionDashboardPage } from './ProspectionDashboardPage';

@@ -9,7 +9,7 @@ import {
   SENTIMENT_ICONS,
   NEEDS_LABELS,
   NEEDS_ICONS,
-  TIMELINE_LABELS,
+  CALL_TIMELINE_LABELS,
 } from '../../types/call.types';
 
 interface CallAnalysisCardProps {
@@ -327,7 +327,7 @@ export function CallAnalysisCard({ call, onApplied }: CallAnalysisCardProps) {
                   fontWeight: 600,
                   color: analysis.timeline === 'urgent' ? 'var(--neo-danger)' : 'var(--neo-text-primary)',
                 }}>
-                  {TIMELINE_LABELS[analysis.timeline]}
+                  {CALL_TIMELINE_LABELS[analysis.timeline]}
                   {analysis.timeline === 'urgent' && (
                     <i className="bi bi-exclamation-triangle ms-2" style={{ color: 'var(--neo-danger)' }}></i>
                   )}
