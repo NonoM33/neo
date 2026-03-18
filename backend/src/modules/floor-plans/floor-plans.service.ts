@@ -2,6 +2,8 @@ import { eq, and, SQL } from 'drizzle-orm';
 import { db } from '../../config/database';
 import { floorPlans } from '../../db/schema';
 import { rooms, projects } from '../../db/schema';
+import { uploadFile, deleteFile } from '../../config/s3';
+import { env } from '../../config/env';
 import { NotFoundError } from '../../lib/errors';
 import type { CreateFloorPlanInput, UpdateFloorPlanInput } from './floor-plans.schema';
 
@@ -146,7 +148,7 @@ export async function upsertFloorPlan(
 
 export async function deleteFloorPlan(id: string, userId: string, userRole: string) {
   const [existing] = await db
-    .select({ id: floorPlans.id, roomId: floorPlans.roomId })
+    .select({ id: floorPlans.id, roomId: floorPlans.roomId, usdzFilePath: floorPlans.usdzFilePath })
     .from(floorPlans)
     .where(eq(floorPlans.id, id))
     .limit(1);
@@ -156,5 +158,59 @@ export async function deleteFloorPlan(id: string, userId: string, userRole: stri
   }
 
   await verifyRoomAccess(existing.roomId, userId, userRole);
+
+  if (existing.usdzFilePath) {
+    const s3Prefix = `${env.S3_ENDPOINT}/${env.S3_BUCKET_SCANS}/`;
+    if (existing.usdzFilePath.startsWith(s3Prefix)) {
+      const key = existing.usdzFilePath.slice(s3Prefix.length);
+      await deleteFile(env.S3_BUCKET_SCANS, key).catch(() => {});
+    }
+  }
+
   await db.delete(floorPlans).where(eq(floorPlans.id, id));
+}
+
+export async function uploadUsdzFile(
+  id: string,
+  file: File,
+  userId: string,
+  userRole: string,
+) {
+  const [existing] = await db
+    .select({ id: floorPlans.id, roomId: floorPlans.roomId, usdzFilePath: floorPlans.usdzFilePath })
+    .from(floorPlans)
+    .where(eq(floorPlans.id, id))
+    .limit(1);
+
+  if (!existing) {
+    throw new NotFoundError('Plan');
+  }
+
+  await verifyRoomAccess(existing.roomId, userId, userRole);
+
+  // Delete previous S3 file if exists
+  if (existing.usdzFilePath) {
+    const s3Prefix = `${env.S3_ENDPOINT}/${env.S3_BUCKET_SCANS}/`;
+    if (existing.usdzFilePath.startsWith(s3Prefix)) {
+      const key = existing.usdzFilePath.slice(s3Prefix.length);
+      await deleteFile(env.S3_BUCKET_SCANS, key).catch(() => {});
+    }
+  }
+
+  const buffer = await file.arrayBuffer();
+  const key = `${id}/${Date.now()}.usdz`;
+  const url = await uploadFile(
+    env.S3_BUCKET_SCANS,
+    key,
+    new Uint8Array(buffer),
+    'model/vnd.usdz+zip',
+  );
+
+  const [plan] = await db
+    .update(floorPlans)
+    .set({ usdzFilePath: url, updatedAt: new Date() })
+    .where(eq(floorPlans.id, id))
+    .returning();
+
+  return plan;
 }

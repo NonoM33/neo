@@ -4,6 +4,7 @@ import { createFloorPlanSchema, updateFloorPlanSchema } from './floor-plans.sche
 import * as floorPlansService from './floor-plans.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { ValidationError } from '../../lib/errors';
 
 const floorPlansRouter = new Hono();
 
@@ -52,6 +53,32 @@ floorPlansRouter.delete('/plans/:id', async (c) => {
   const user = c.get('user');
   await floorPlansService.deleteFloorPlan(id, user.userId, user.role);
   return c.json({ message: 'Plan supprimé' });
+});
+
+// Upload USDZ 3D model for a floor plan
+floorPlansRouter.post('/plans/:id/usdz', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+
+  const formData = await c.req.formData();
+  const file = formData.get('file') as File | null;
+
+  if (!file) {
+    throw new ValidationError('Fichier requis');
+  }
+
+  const allowedTypes = ['model/vnd.usdz+zip', 'application/octet-stream', 'application/zip'];
+  if (!allowedTypes.includes(file.type) && !file.name.endsWith('.usdz')) {
+    throw new ValidationError('Type de fichier non supporté. Format accepté: USDZ');
+  }
+
+  const maxSize = 100 * 1024 * 1024; // 100MB
+  if (file.size > maxSize) {
+    throw new ValidationError('Fichier trop volumineux. Maximum 100MB');
+  }
+
+  const plan = await floorPlansService.uploadUsdzFile(id, file, user.userId, user.role);
+  return c.json(plan);
 });
 
 export default floorPlansRouter;

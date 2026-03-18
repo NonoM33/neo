@@ -25,4 +25,9 @@ class FloorPlanRepositoryImpl implements FloorPlanRepository {
   Future<void> deleteFloorPlan(String id) async {
     await _remoteDataSource.deleteFloorPlan(id);
   }
+
+  @override
+  Future<FloorPlan> uploadUsdzFile(String planId, String filePath) async {
+    return _remoteDataSource.uploadUsdzFile(planId, filePath);
+  }
 }

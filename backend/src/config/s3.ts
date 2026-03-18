@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { env } from './env';
 
 export const s3Client = new S3Client({
@@ -11,12 +11,21 @@ export const s3Client = new S3Client({
   forcePathStyle: true, // Required for MinIO
 });
 
+async function ensureBucketExists(bucket: string): Promise<void> {
+  try {
+    await s3Client.send(new HeadBucketCommand({ Bucket: bucket }));
+  } catch {
+    await s3Client.send(new CreateBucketCommand({ Bucket: bucket }));
+  }
+}
+
 export async function uploadFile(
   bucket: string,
   key: string,
   body: Buffer | Uint8Array,
   contentType: string
 ): Promise<string> {
+  await ensureBucketExists(bucket);
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucket,

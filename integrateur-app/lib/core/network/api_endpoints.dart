@@ -25,6 +25,7 @@ class ApiEndpoints {
   // Floor Plans
   static String roomFloorPlan(String roomId) => '/pieces/$roomId/plan';
   static String floorPlan(String id) => '/plans/$id';
+  static String floorPlanUsdz(String id) => '/plans/$id/usdz';
 
   // Photos
   static String roomPhotos(String roomId) => '/pieces/$roomId/photos';

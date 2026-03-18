@@ -463,28 +463,40 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.grid_on, size: 14, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text('Grille 25cm',
-              style: textTheme.bodySmall
-                  ?.copyWith(color: colorScheme.onSurfaceVariant)),
-          const SizedBox(width: 16),
-          Icon(Icons.straighten, size: 14, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text(
-            '${state.plan.widthMeters.toStringAsFixed(0)} x ${state.plan.heightMeters.toStringAsFixed(0)} m',
-            style: textTheme.bodySmall
-                ?.copyWith(color: colorScheme.onSurfaceVariant),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(Icons.grid_on, size: 14, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Text('Grille 25cm',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant)),
+                const SizedBox(width: 16),
+                Icon(Icons.straighten, size: 14, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    '${state.plan.widthMeters.toStringAsFixed(0)} x ${state.plan.heightMeters.toStringAsFixed(0)} m',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.layers, size: 14, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    '${state.plan.walls.length} murs · ${state.plan.equipmentCount} équip.',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 16),
-          Icon(Icons.layers, size: 14, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text(
-            '${state.plan.walls.length} murs · ${state.plan.equipmentCount} équip.',
-            style: textTheme.bodySmall
-                ?.copyWith(color: colorScheme.onSurfaceVariant),
-          ),
-          const Spacer(),
+          const SizedBox(width: 8),
           // Tool name
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

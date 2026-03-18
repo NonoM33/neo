@@ -7,6 +7,7 @@ abstract class FloorPlanRemoteDataSource {
   Future<FloorPlanModel> saveFloorPlan(String roomId, Map<String, dynamic> data);
   Future<FloorPlanModel> updateFloorPlan(String id, Map<String, dynamic> data);
   Future<void> deleteFloorPlan(String id);
+  Future<FloorPlanModel> uploadUsdzFile(String planId, String filePath);
 }
 
 class FloorPlanRemoteDataSourceImpl implements FloorPlanRemoteDataSource {
@@ -42,5 +43,15 @@ class FloorPlanRemoteDataSourceImpl implements FloorPlanRemoteDataSource {
   @override
   Future<void> deleteFloorPlan(String id) async {
     await _apiClient.delete(ApiEndpoints.floorPlan(id));
+  }
+
+  @override
+  Future<FloorPlanModel> uploadUsdzFile(String planId, String filePath) async {
+    final response = await _apiClient.uploadFile(
+      ApiEndpoints.floorPlanUsdz(planId),
+      filePath: filePath,
+      fieldName: 'file',
+    );
+    return FloorPlanModel.fromApiJson(response.data as Map<String, dynamic>);
   }
 }

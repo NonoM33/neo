@@ -58,6 +58,7 @@ services:
       mc alias set neo http://minio:9000 neo_minio neo_minio_secret;
       mc mb neo/neo-photos --ignore-existing;
       mc mb neo/neo-documents --ignore-existing;
+      mc mb neo/neo-scans --ignore-existing;
       mc anonymous set download neo/neo-photos;
       exit 0;
       "

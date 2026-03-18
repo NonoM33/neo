@@ -84,7 +84,15 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
 
     emit(s.copyWith(isSaving: true));
     try {
-      final saved = await _repository.saveFloorPlan(s.plan);
+      var saved = await _repository.saveFloorPlan(s.plan);
+      // If USDZ file is a local iOS path, upload it to the backend
+      if (saved.usdzFilePath != null && saved.usdzFilePath!.startsWith('/')) {
+        try {
+          saved = await _repository.uploadUsdzFile(saved.id, saved.usdzFilePath!);
+        } catch (_) {
+          // Upload failed silently — the 2D plan is saved, USDZ will retry next save
+        }
+      }
       emit(s.copyWith(plan: saved, isSaving: false, isDirty: false));
     } catch (_) {
       emit(s.copyWith(isSaving: false));

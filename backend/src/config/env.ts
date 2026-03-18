@@ -19,6 +19,7 @@ const envSchema = z.object({
   S3_SECRET_KEY: z.string(),
   S3_BUCKET_PHOTOS: z.string().default('neo-photos'),
   S3_BUCKET_DOCUMENTS: z.string().default('neo-documents'),
+  S3_BUCKET_SCANS: z.string().default('neo-scans'),
   S3_REGION: z.string().default('us-east-1'),
 
   // AI
