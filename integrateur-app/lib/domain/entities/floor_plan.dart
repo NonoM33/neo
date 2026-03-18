@@ -242,6 +242,7 @@ class PlanEquipment extends Equatable {
   final String? label;
   final String? notes;
   final EquipmentPlacementStatus status;
+  final List<String> photoUrls; // reference photos (S3 URLs)
 
   const PlanEquipment({
     required this.id,
@@ -253,6 +254,7 @@ class PlanEquipment extends Equatable {
     this.label,
     this.notes,
     this.status = EquipmentPlacementStatus.planned,
+    this.photoUrls = const [],
   });
 
   PlanEquipment copyWith({
@@ -266,6 +268,7 @@ class PlanEquipment extends Equatable {
     String? label,
     String? notes,
     EquipmentPlacementStatus? status,
+    List<String>? photoUrls,
   }) {
     return PlanEquipment(
       id: id ?? this.id,
@@ -277,12 +280,13 @@ class PlanEquipment extends Equatable {
       label: label ?? this.label,
       notes: notes ?? this.notes,
       status: status ?? this.status,
+      photoUrls: photoUrls ?? this.photoUrls,
     );
   }
 
   @override
   List<Object?> get props =>
-      [id, productId, deviceId, position, rotation, quantity, label, notes, status];
+      [id, productId, deviceId, position, rotation, quantity, label, notes, status, photoUrls];
 }
 
 /// A text annotation on the floor plan
@@ -293,6 +297,7 @@ class PlanAnnotation extends Equatable {
   final String text;
   final int? colorValue; // ARGB int
   final Offset? endPosition; // for measurement lines
+  final List<String> photoUrls; // reference photos (S3 URLs)
 
   const PlanAnnotation({
     required this.id,
@@ -301,6 +306,7 @@ class PlanAnnotation extends Equatable {
     required this.text,
     this.colorValue,
     this.endPosition,
+    this.photoUrls = const [],
   });
 
   /// For measurement annotations, the length in meters
@@ -316,6 +322,7 @@ class PlanAnnotation extends Equatable {
     String? text,
     int? colorValue,
     Offset? endPosition,
+    List<String>? photoUrls,
   }) {
     return PlanAnnotation(
       id: id ?? this.id,
@@ -324,11 +331,12 @@ class PlanAnnotation extends Equatable {
       text: text ?? this.text,
       colorValue: colorValue ?? this.colorValue,
       endPosition: endPosition ?? this.endPosition,
+      photoUrls: photoUrls ?? this.photoUrls,
     );
   }
 
   @override
-  List<Object?> get props => [id, position, type, text, colorValue, endPosition];
+  List<Object?> get props => [id, position, type, text, colorValue, endPosition, photoUrls];
 }
 
 /// The complete floor plan for a room
@@ -338,6 +346,7 @@ class FloorPlan extends Equatable {
   final String projectId;
   final double widthMeters;
   final double heightMeters;
+  final double ceilingHeight; // height in meters, default 2.5m
   final double pixelsPerMeter;
   final List<PlanWall> walls;
   final List<PlanOpening> openings;
@@ -354,6 +363,7 @@ class FloorPlan extends Equatable {
     required this.projectId,
     this.widthMeters = 10,
     this.heightMeters = 8,
+    this.ceilingHeight = 2.5,
     this.pixelsPerMeter = 100,
     this.walls = const [],
     this.openings = const [],
@@ -367,12 +377,105 @@ class FloorPlan extends Equatable {
 
   int get equipmentCount => equipment.fold(0, (sum, e) => sum + e.quantity);
 
+  /// Raw bounding box area from actual wall coordinates (no rounding).
+  double get _rawBboxArea {
+    if (walls.isEmpty) return widthMeters * heightMeters;
+    double minX = double.infinity, minY = double.infinity;
+    double maxX = double.negativeInfinity, maxY = double.negativeInfinity;
+    for (final wall in walls) {
+      for (final pt in [wall.startPoint, wall.endPoint]) {
+        if (pt.dx < minX) minX = pt.dx;
+        if (pt.dy < minY) minY = pt.dy;
+        if (pt.dx > maxX) maxX = pt.dx;
+        if (pt.dy > maxY) maxY = pt.dy;
+      }
+    }
+    return (maxX - minX) * (maxY - minY);
+  }
+
+  /// Surface area computed from wall polygon using shoelace formula.
+  /// Falls back to raw bounding box if walls don't form a proper polygon
+  /// or if the result is unreasonably large (LiDAR scan artefacts).
+  double get polygonAreaM2 {
+    final bbox = _rawBboxArea;
+    if (walls.length < 3) return bbox;
+
+    // Collect unique vertices with ~5cm tolerance (handles LiDAR imprecision)
+    final vertices = <Offset>[];
+    final edgeIndices = <(int, int)>[];
+    const tol = 0.05;
+
+    int findOrAdd(Offset p) {
+      for (int i = 0; i < vertices.length; i++) {
+        if ((vertices[i] - p).distance < tol) return i;
+      }
+      vertices.add(p);
+      return vertices.length - 1;
+    }
+
+    for (final wall in walls) {
+      final a = findOrAdd(wall.startPoint);
+      final b = findOrAdd(wall.endPoint);
+      if (a != b) edgeIndices.add((a, b));
+    }
+
+    if (vertices.length < 3) return bbox;
+
+    // Build adjacency list
+    final adj = <int, List<int>>{};
+    for (final (a, b) in edgeIndices) {
+      adj.putIfAbsent(a, () => []).add(b);
+      adj.putIfAbsent(b, () => []).add(a);
+    }
+
+    // Traverse boundary from vertex 0
+    final path = <int>[0];
+    final visitedEdges = <String>{};
+    int current = 0;
+
+    while (true) {
+      final neighbors = adj[current] ?? [];
+      int? next;
+      for (final n in neighbors) {
+        final key = current < n ? '$current-$n' : '$n-$current';
+        if (!visitedEdges.contains(key)) {
+          visitedEdges.add(key);
+          next = n;
+          break;
+        }
+      }
+      if (next == null) break;
+      path.add(next);
+      current = next;
+    }
+
+    if (path.length < 3) return bbox;
+
+    // Shoelace formula
+    double area = 0;
+    final n = path.length;
+    for (int i = 0; i < n - 1; i++) {
+      final vi = vertices[path[i]];
+      final vj = vertices[path[i + 1]];
+      area += vi.dx * vj.dy - vj.dx * vi.dy;
+    }
+    final shoelaceArea = area.abs() / 2;
+
+    // Sanity check: if shoelace result is more than 1.5× the bounding box,
+    // the polygon likely has LiDAR artefacts (duplicate walls, stray segments).
+    // Fall back to bounding box in that case.
+    if (bbox > 0 && shoelaceArea > bbox * 1.5) return bbox;
+
+    return shoelaceArea;
+  }
+
   FloorPlan copyWith({
     String? id,
     String? roomId,
     String? projectId,
     double? widthMeters,
     double? heightMeters,
+    double? ceilingHeight,
     double? pixelsPerMeter,
     List<PlanWall>? walls,
     List<PlanOpening>? openings,
@@ -389,6 +492,7 @@ class FloorPlan extends Equatable {
       projectId: projectId ?? this.projectId,
       widthMeters: widthMeters ?? this.widthMeters,
       heightMeters: heightMeters ?? this.heightMeters,
+      ceilingHeight: ceilingHeight ?? this.ceilingHeight,
       pixelsPerMeter: pixelsPerMeter ?? this.pixelsPerMeter,
       walls: walls ?? this.walls,
       openings: openings ?? this.openings,
@@ -403,8 +507,8 @@ class FloorPlan extends Equatable {
 
   @override
   List<Object?> get props => [
-        id, roomId, projectId, widthMeters, heightMeters, pixelsPerMeter,
-        walls, openings, equipment, annotations, version, createdAt, updatedAt,
-        usdzFilePath,
+        id, roomId, projectId, widthMeters, heightMeters, ceilingHeight,
+        pixelsPerMeter, walls, openings, equipment, annotations, version,
+        createdAt, updatedAt, usdzFilePath,
       ];
 }

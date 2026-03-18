@@ -28,6 +28,7 @@ import { callsRoutes } from './modules/calls';
 import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
 import { cloudInstancesRoutes } from './modules/cloud-instances';
 import { floorPlansRoutes } from './modules/floor-plans';
+import { signaturesRouter, signingPageRouter, webhookRouter } from './modules/signatures';
 import { clientAuthRoutes, ticketsRoutes, kbRoutes, chatRoutes } from './support';
 
 import { scanSessionsRoutes } from './modules/scan-sessions';
@@ -105,6 +106,9 @@ app.route('/api/calls', callsRoutes);
 app.route('/api/tracking', trackingRoutes);
 app.route('/api/cloud-instances', cloudInstancesRoutes);
 app.route('/api', floorPlansRoutes);
+app.route('/api', signaturesRouter);
+app.route('/', signingPageRouter);
+app.route('/', webhookRouter);
 
 // Public tracking page (no auth, token-based)
 app.route('/tracking', publicTrackingRoutes);

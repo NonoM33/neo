@@ -53,6 +53,10 @@ const envSchema = z.object({
   // Tracking
   TRACKING_EXPIRY_HOURS: z.coerce.number().default(4),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
+
+  // Documenso (signature electronique)
+  DOCUMENSO_API_KEY: z.string().default('api_14g3cmhffs4hk6ry'),
+  DOCUMENSO_BASE_URL: z.string().default('https://app.documenso.com'),
 });
 
 export type Env = z.infer<typeof envSchema>;

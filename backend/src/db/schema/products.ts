@@ -51,6 +51,9 @@ export const productDependencies = pgTable('product_dependencies', {
     .references(() => products.id, { onDelete: 'cascade' }),
   type: dependencyTypeEnum('type').notNull().default('required'),
   description: text('description'), // Ex: "1 bridge pour jusqu'à 50 ampoules"
+  // Nb de produits dépendants couverts par 1 unité du produit requis.
+  // Ex: 1 bridge Hue couvre 50 ampoules → coveredQuantity = 50
+  coveredQuantity: integer('covered_quantity').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

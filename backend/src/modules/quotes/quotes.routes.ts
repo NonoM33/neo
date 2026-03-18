@@ -74,25 +74,25 @@ quotesRouter.get('/devis/:id/dependances-manquantes', async (c) => {
   const user = c.get('user');
   const quote = await quotesService.getQuoteById(id, user.userId, user.role);
 
-  // Extraire les productIds des lignes (exclure les lignes clientOwned)
-  const productIds = quote.lines
-    .filter((line: any) => line.product?.id && !line.clientOwned)
-    .map((line: any) => line.product.id);
+  // Construire la liste {productId, quantity} en incluant les clientOwned
+  // (ils comptent comme "présents" pour couvrir les dépendances)
+  const allProductLines: { productId: string; quantity: number }[] = quote.lines
+    .filter((line: any) => line.product?.id)
+    .map((line: any) => ({
+      productId: line.product.id,
+      quantity: line.quantity ?? 1,
+    }));
 
-  // Ajouter aussi les produits marqués clientOwned (ils sont "satisfaits")
-  const clientOwnedProductIds = quote.lines
-    .filter((line: any) => line.product?.id && line.clientOwned)
-    .map((line: any) => line.product.id);
+  const missing = await productsService.checkMissingDependencies(allProductLines);
 
-  const allCoveredProductIds = [...productIds, ...clientOwnedProductIds];
-
-  const missing = await productsService.checkMissingDependencies(
-    quote.lines.filter((line: any) => line.product?.id).map((line: any) => line.product.id)
+  // Exclure les manquants déjà couverts par des produits clientOwned
+  const clientOwnedProductIds = new Set(
+    quote.lines
+      .filter((line: any) => line.product?.id && line.clientOwned)
+      .map((line: any) => line.product.id)
   );
-
-  // Filtrer ceux qui sont déjà couverts par clientOwned
   const actuallyMissing = missing.filter(
-    (m) => !allCoveredProductIds.includes(m.requiredProductId)
+    (m) => !clientOwnedProductIds.has(m.requiredProductId)
   );
 
   return c.json({

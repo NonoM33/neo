@@ -67,6 +67,8 @@ dependencies:
   # WebSocket
   web_socket_channel: ^3.0.1
 
+  # (webview_flutter removed — signature directe via canvas Flutter natif)
+
   # Secure storage
   flutter_secure_storage: ^10.0.0
 

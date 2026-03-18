@@ -28,6 +28,9 @@ final class FloorPlanLoaded extends FloorPlanState {
   final PlanViewMode viewMode;
   final List<FloorPlan> undoStack;
   final List<FloorPlan> redoStack;
+  final bool hasDraft;
+  /// Set when equipment is placed (non-silent); triggers orchestration in screen
+  final PlanEquipment? lastPlacedEquipment;
 
   const FloorPlanLoaded({
     required this.plan,
@@ -39,6 +42,8 @@ final class FloorPlanLoaded extends FloorPlanState {
     this.viewMode = PlanViewMode.edit,
     this.undoStack = const [],
     this.redoStack = const [],
+    this.hasDraft = false,
+    this.lastPlacedEquipment,
   });
 
   bool get canUndo => undoStack.isNotEmpty;
@@ -83,6 +88,9 @@ final class FloorPlanLoaded extends FloorPlanState {
     PlanViewMode? viewMode,
     List<FloorPlan>? undoStack,
     List<FloorPlan>? redoStack,
+    bool? hasDraft,
+    PlanEquipment? lastPlacedEquipment,
+    bool clearLastPlaced = false,
   }) {
     return FloorPlanLoaded(
       plan: plan ?? this.plan,
@@ -97,13 +105,18 @@ final class FloorPlanLoaded extends FloorPlanState {
       viewMode: viewMode ?? this.viewMode,
       undoStack: undoStack ?? this.undoStack,
       redoStack: redoStack ?? this.redoStack,
+      hasDraft: hasDraft ?? this.hasDraft,
+      lastPlacedEquipment: clearLastPlaced
+          ? null
+          : (lastPlacedEquipment ?? this.lastPlacedEquipment),
     );
   }
 
   @override
   List<Object?> get props => [
         plan, activeTool, selectedElementId, selectedElementType,
-        isDirty, isSaving, viewMode, undoStack, redoStack,
+        isDirty, isSaving, viewMode, undoStack, redoStack, hasDraft,
+        lastPlacedEquipment,
       ];
 }
 

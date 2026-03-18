@@ -32,11 +32,14 @@ export const createDependencySchema = z.object({
   requiredProductId: z.string().uuid('ID produit requis invalide'),
   type: z.enum(['required', 'recommended']).default('required'),
   description: z.string().optional(),
+  // Nb de dépendants couverts par 1 unité du requis (ex: 1 bridge = 50 ampoules → 50)
+  coveredQuantity: z.coerce.number().int().min(1).default(1),
 });
 
 export const updateDependencySchema = z.object({
   type: z.enum(['required', 'recommended']).optional(),
   description: z.string().optional(),
+  coveredQuantity: z.coerce.number().int().min(1).optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

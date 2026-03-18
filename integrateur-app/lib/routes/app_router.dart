@@ -439,7 +439,7 @@ extension GoRouterExtension on GoRouter {
   void goToTicketCreate() => go(AppPaths.ticketCreate);
   void goToHomes() => go(AppPaths.homes);
   void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
-      go('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
+      push('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }
 
 /// Extension for BuildContext navigation
@@ -464,6 +464,7 @@ extension NavigationExtension on BuildContext {
   void goToTicketDetail(String id) => go('/tickets/$id');
   void goToTicketCreate() => go(AppPaths.ticketCreate);
   void goToHomes() => go(AppPaths.homes);
+  /// Push floor plan on top of current screen — back returns to caller
   void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
-      go('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
+      push('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }

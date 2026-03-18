@@ -9,6 +9,7 @@ import '../../../core/utils/validators.dart';
 import '../../../domain/entities/client.dart';
 import '../../../domain/entities/project.dart';
 import '../../blocs/projects/projects_event.dart';
+import '../../blocs/projects/projects_state.dart';
 
 /// Project creation/edit form screen - tablet optimized 2-column layout
 class ProjectFormScreen extends ConsumerStatefulWidget {
@@ -46,17 +47,60 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
 
   bool _isLoading = false;
   bool _hasUnsavedChanges = false;
+  Project? _existingProject;
 
   @override
   void initState() {
     super.initState();
-    // Track changes for unsaved warning
+
+    if (widget.isEditing) {
+      _loadExistingProject();
+    }
+
+    // Track changes for unsaved warning (after potential pre-fill)
     for (final controller in [
       _firstNameController, _lastNameController, _emailController,
       _phoneController, _streetController, _postalCodeController,
       _cityController, _nameController, _surfaceController, _notesController,
     ]) {
       controller.addListener(_onFieldChanged);
+    }
+  }
+
+  void _loadExistingProject() {
+    final state = ref.read(projectsBlocProvider).state;
+    Project? project;
+
+    if (state is ProjectDetailLoaded) {
+      project = state.project;
+    } else if (state is ProjectsLoaded) {
+      final found = state.projects.where((p) => p.id == widget.projectId);
+      if (found.isNotEmpty) project = found.first;
+    }
+
+    if (project == null) return;
+    _existingProject = project;
+
+    // Pre-fill controllers (before listeners are added, so no unsaved-change flag)
+    _nameController.text = project.name;
+    if (project.surface != null) {
+      _surfaceController.text = project.surface!.toStringAsFixed(0);
+    }
+    if (project.description != null) _notesController.text = project.description!;
+
+    final client = project.client;
+    if (client != null) {
+      _firstNameController.text = client.firstName;
+      _lastNameController.text = client.lastName;
+      if (client.email != null) _emailController.text = client.email!;
+      if (client.phone != null) _phoneController.text = client.phone!;
+      if (client.address != null) _streetController.text = client.address!;
+      if (client.postalCode != null) _postalCodeController.text = client.postalCode!;
+      if (client.city != null) _cityController.text = client.city!;
+    } else {
+      if (project.address != null) _streetController.text = project.address!;
+      if (project.postalCode != null) _postalCodeController.text = project.postalCode!;
+      if (project.city != null) _cityController.text = project.city!;
     }
   }
 
@@ -440,7 +484,8 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     setState(() => _isLoading = true);
     HapticFeedback.lightImpact();
 
-    final clientId = _uuid.v4();
+    // Preserve existing clientId when editing (avoid creating a ghost client)
+    final clientId = _existingProject?.clientId ?? _uuid.v4();
     final project = Project(
       id: widget.projectId ?? _uuid.v4(),
       name: _nameController.text.trim(),
@@ -465,7 +510,8 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
             ? _cityController.text.trim()
             : null,
       ),
-      status: ProjectStatus.brouillon,
+      // Preserve status when editing, default to brouillon for new projects
+      status: _existingProject?.status ?? ProjectStatus.brouillon,
       address: _streetController.text.trim().isNotEmpty
           ? _streetController.text.trim()
           : null,
@@ -481,7 +527,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
       description: _notesController.text.isNotEmpty
           ? _notesController.text
           : null,
-      createdAt: DateTime.now(),
+      createdAt: _existingProject?.createdAt ?? DateTime.now(),
     );
 
     final bloc = ref.read(projectsBlocProvider);

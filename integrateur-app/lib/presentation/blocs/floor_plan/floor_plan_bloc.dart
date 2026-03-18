@@ -1,14 +1,18 @@
+import 'dart:convert';
 import 'dart:ui' show Offset;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../data/models/floor_plan_model.dart';
 import '../../../domain/entities/floor_plan.dart';
 import '../../../domain/repositories/floor_plan_repository.dart';
 import 'floor_plan_event.dart';
 import 'floor_plan_state.dart';
 
 const _uuid = Uuid();
+const _draftBoxName = 'floor_plan_drafts';
 
 class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
   final FloorPlanRepository _repository;
@@ -28,11 +32,20 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     on<OpeningAddRequested>(_onOpeningAdd);
     on<OpeningDeleteRequested>(_onOpeningDelete);
     on<EquipmentPlaceRequested>(_onEquipmentPlace);
+    on<EquipmentPlacementAcknowledged>(_onPlacementAcknowledged);
     on<EquipmentMoveRequested>(_onEquipmentMove);
     on<EquipmentDeleteRequested>(_onEquipmentDelete);
     on<EquipmentStatusChanged>(_onEquipmentStatusChanged);
     on<AnnotationAddRequested>(_onAnnotationAdd);
+    on<AnnotationMoveRequested>(_onAnnotationMove);
+    on<AnnotationUpdateRequested>(_onAnnotationUpdate);
+    on<AnnotationPhotoAdded>(_onAnnotationPhotoAdded);
+    on<AnnotationPhotoRemoved>(_onAnnotationPhotoRemoved);
     on<AnnotationDeleteRequested>(_onAnnotationDelete);
+    on<EquipmentUpdateRequested>(_onEquipmentUpdate);
+    on<EquipmentPhotoAdded>(_onEquipmentPhotoAdded);
+    on<EquipmentPhotoRemoved>(_onEquipmentPhotoRemoved);
+    on<FloorPlanCeilingHeightChanged>(_onCeilingHeightChanged);
     on<FloorPlanUndoRequested>(_onUndo);
     on<FloorPlanRedoRequested>(_onRedo);
     on<FloorPlanDeleteSelectedRequested>(_onDeleteSelected);
@@ -40,19 +53,57 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     on<FloorPlanImportFromScan>(_onImportFromScan);
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────
+  // ─── Hive draft helpers ───────────────────────────────────────
 
-  /// Push current plan onto undo stack before modifying
-  FloorPlanLoaded _pushUndo(FloorPlanLoaded current) {
+  /// Save a plan draft locally to Hive (fire-and-forget)
+  Future<void> _saveDraftLocally(String roomId, FloorPlan plan) async {
+    try {
+      final box = await Hive.openBox<String>(_draftBoxName);
+      final model = FloorPlanModel.fromEntity(plan);
+      await box.put(roomId, jsonEncode(model.toJson()));
+    } catch (_) {}
+  }
+
+  /// Load draft from Hive; returns null if none exists
+  Future<FloorPlan?> _loadDraftLocally(String roomId) async {
+    try {
+      final box = await Hive.openBox<String>(_draftBoxName);
+      final raw = box.get(roomId);
+      if (raw == null) return null;
+      final model = FloorPlanModel.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>);
+      return model;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Clear draft after successful server save
+  Future<void> _clearDraftLocally(String roomId) async {
+    try {
+      final box = await Hive.openBox<String>(_draftBoxName);
+      await box.delete(roomId);
+    } catch (_) {}
+  }
+
+  // ─── Undo helper ─────────────────────────────────────────────
+
+  /// Build a new state with [newPlan] applied, current plan pushed onto the
+  /// undo stack, redo stack cleared, and a Hive draft saved (fire-and-forget).
+  FloorPlanLoaded _withNewPlan(FloorPlanLoaded current, FloorPlan newPlan) {
     final newStack = [...current.undoStack, current.plan];
-    // Keep max 30 undo steps
-    final trimmed = newStack.length > 30
-        ? newStack.sublist(newStack.length - 30)
+    final trimmed = newStack.length > 50
+        ? newStack.sublist(newStack.length - 50)
         : newStack;
+    // Fire-and-forget — do not await so the UI stays responsive
+    _saveDraftLocally(newPlan.roomId, newPlan);
     return current.copyWith(
+      plan: newPlan,
       undoStack: trimmed,
       redoStack: const [],
       isDirty: true,
+      hasDraft: true,
+      clearLastPlaced: true,
     );
   }
 
@@ -64,11 +115,17 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
   ) async {
     emit(const FloorPlanLoading());
     try {
-      final plan = await _repository.getFloorPlanByRoom(event.roomId);
-      if (plan == null) {
+      final serverPlan = await _repository.getFloorPlanByRoom(event.roomId);
+      if (serverPlan == null) {
         emit(FloorPlanEmpty(roomId: event.roomId, projectId: event.projectId));
+        return;
+      }
+      // Check for a local draft that may be more recent than the server copy
+      final draft = await _loadDraftLocally(event.roomId);
+      if (draft != null) {
+        emit(FloorPlanLoaded(plan: draft, hasDraft: true, isDirty: true));
       } else {
-        emit(FloorPlanLoaded(plan: plan));
+        emit(FloorPlanLoaded(plan: serverPlan));
       }
     } catch (_) {
       emit(FloorPlanEmpty(roomId: event.roomId, projectId: event.projectId));
@@ -88,12 +145,16 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
       // If USDZ file is a local iOS path, upload it to the backend
       if (saved.usdzFilePath != null && saved.usdzFilePath!.startsWith('/')) {
         try {
-          saved = await _repository.uploadUsdzFile(saved.id, saved.usdzFilePath!);
+          saved =
+              await _repository.uploadUsdzFile(saved.id, saved.usdzFilePath!);
         } catch (_) {
           // Upload failed silently — the 2D plan is saved, USDZ will retry next save
         }
       }
-      emit(s.copyWith(plan: saved, isSaving: false, isDirty: false));
+      // Clear local draft now that changes are persisted on the server
+      await _clearDraftLocally(saved.roomId);
+      emit(s.copyWith(
+          plan: saved, isSaving: false, isDirty: false, hasDraft: false));
     } catch (_) {
       emit(s.copyWith(isSaving: false));
     }
@@ -163,18 +224,15 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
     final wall = PlanWall(
       id: _uuid.v4(),
       startPoint: event.startPoint,
       endPoint: event.endPoint,
       type: event.wallType,
     );
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        walls: [...withUndo.plan.walls, wall],
-      ),
+    final newPlan = s.plan.copyWith(walls: [...s.plan.walls, wall]);
+    final next = _withNewPlan(s, newPlan);
+    emit(next.copyWith(
       selectedElementId: wall.id,
       selectedElementType: ElementType.wall,
     ));
@@ -187,8 +245,7 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
-    final updatedWalls = withUndo.plan.walls.map((w) {
+    final updatedWalls = s.plan.walls.map((w) {
       if (w.id != event.wallId) return w;
       return w.copyWith(
         startPoint: event.startPoint,
@@ -197,10 +254,7 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
         thickness: event.thickness,
       );
     }).toList();
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(walls: updatedWalls),
-    ));
+    emit(_withNewPlan(s, s.plan.copyWith(walls: updatedWalls)));
   }
 
   void _onWallDelete(
@@ -210,19 +264,13 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
-    // Also remove openings on this wall
-    final updatedOpenings = withUndo.plan.openings
-        .where((o) => o.wallId != event.wallId)
-        .toList();
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        walls: withUndo.plan.walls.where((w) => w.id != event.wallId).toList(),
-        openings: updatedOpenings,
-      ),
-      clearSelection: true,
-    ));
+    final updatedOpenings =
+        s.plan.openings.where((o) => o.wallId != event.wallId).toList();
+    final newPlan = s.plan.copyWith(
+      walls: s.plan.walls.where((w) => w.id != event.wallId).toList(),
+      openings: updatedOpenings,
+    );
+    emit(_withNewPlan(s, newPlan).copyWith(clearSelection: true));
   }
 
   // ─── Openings ─────────────────────────────────────────────────
@@ -234,7 +282,6 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
     final opening = PlanOpening(
       id: _uuid.v4(),
       wallId: event.wallId,
@@ -242,12 +289,8 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
       offsetOnWall: event.offsetOnWall,
       widthMeters: event.widthMeters,
     );
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        openings: [...withUndo.plan.openings, opening],
-      ),
-    ));
+    emit(_withNewPlan(
+        s, s.plan.copyWith(openings: [...s.plan.openings, opening])));
   }
 
   void _onOpeningDelete(
@@ -257,15 +300,11 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        openings: withUndo.plan.openings
-            .where((o) => o.id != event.openingId)
-            .toList(),
-      ),
-      clearSelection: true,
-    ));
+    final newPlan = s.plan.copyWith(
+      openings:
+          s.plan.openings.where((o) => o.id != event.openingId).toList(),
+    );
+    emit(_withNewPlan(s, newPlan).copyWith(clearSelection: true));
   }
 
   // ─── Equipment ────────────────────────────────────────────────
@@ -277,7 +316,6 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
     final eq = PlanEquipment(
       id: _uuid.v4(),
       productId: event.productId,
@@ -285,14 +323,22 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
       quantity: event.quantity,
       label: event.label,
     );
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        equipment: [...withUndo.plan.equipment, eq],
-      ),
+    final next = _withNewPlan(
+        s, s.plan.copyWith(equipment: [...s.plan.equipment, eq]));
+    emit(next.copyWith(
       selectedElementId: eq.id,
       selectedElementType: ElementType.equipment,
+      lastPlacedEquipment: event.silent ? null : eq,
     ));
+  }
+
+  void _onPlacementAcknowledged(
+    EquipmentPlacementAcknowledged event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+    emit(s.copyWith(clearLastPlaced: true));
   }
 
   void _onEquipmentMove(
@@ -302,15 +348,11 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
-    final updatedEquipment = withUndo.plan.equipment.map((e) {
+    final updatedEquipment = s.plan.equipment.map((e) {
       if (e.id != event.equipmentId) return e;
       return e.copyWith(position: event.newPosition);
     }).toList();
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(equipment: updatedEquipment),
-    ));
+    emit(_withNewPlan(s, s.plan.copyWith(equipment: updatedEquipment)));
   }
 
   void _onEquipmentDelete(
@@ -320,15 +362,11 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        equipment: withUndo.plan.equipment
-            .where((e) => e.id != event.equipmentId)
-            .toList(),
-      ),
-      clearSelection: true,
-    ));
+    final newPlan = s.plan.copyWith(
+      equipment:
+          s.plan.equipment.where((e) => e.id != event.equipmentId).toList(),
+    );
+    emit(_withNewPlan(s, newPlan).copyWith(clearSelection: true));
   }
 
   void _onEquipmentStatusChanged(
@@ -342,11 +380,10 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
       if (e.id != event.equipmentId) return e;
       return e.copyWith(status: event.status);
     }).toList();
-
-    emit(s.copyWith(
-      plan: s.plan.copyWith(equipment: updated),
-      isDirty: true,
-    ));
+    // Status change is tracked as dirty + draft but not added to undo stack
+    final newPlan = s.plan.copyWith(equipment: updated);
+    _saveDraftLocally(newPlan.roomId, newPlan);
+    emit(s.copyWith(plan: newPlan, isDirty: true, hasDraft: true));
   }
 
   // ─── Annotations ──────────────────────────────────────────────
@@ -358,7 +395,6 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
     final annotation = PlanAnnotation(
       id: _uuid.v4(),
       position: event.position,
@@ -366,12 +402,8 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
       text: event.text,
       endPosition: event.endPosition,
     );
-
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        annotations: [...withUndo.plan.annotations, annotation],
-      ),
-    ));
+    emit(_withNewPlan(s,
+        s.plan.copyWith(annotations: [...s.plan.annotations, annotation])));
   }
 
   void _onAnnotationDelete(
@@ -381,15 +413,137 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded) return;
 
-    final withUndo = _pushUndo(s);
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        annotations: withUndo.plan.annotations
-            .where((a) => a.id != event.annotationId)
-            .toList(),
-      ),
-      clearSelection: true,
-    ));
+    final newPlan = s.plan.copyWith(
+      annotations: s.plan.annotations
+          .where((a) => a.id != event.annotationId)
+          .toList(),
+    );
+    emit(_withNewPlan(s, newPlan).copyWith(clearSelection: true));
+  }
+
+  void _onAnnotationMove(
+    AnnotationMoveRequested event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.annotations.map((a) {
+      if (a.id != event.annotationId) return a;
+      return a.copyWith(position: event.newPosition);
+    }).toList();
+    emit(_withNewPlan(s, s.plan.copyWith(annotations: updated)));
+  }
+
+  void _onAnnotationUpdate(
+    AnnotationUpdateRequested event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.annotations.map((a) {
+      if (a.id != event.annotationId) return a;
+      return a.copyWith(text: event.text ?? a.text);
+    }).toList();
+    emit(_withNewPlan(s, s.plan.copyWith(annotations: updated)));
+  }
+
+  void _onAnnotationPhotoAdded(
+    AnnotationPhotoAdded event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.annotations.map((a) {
+      if (a.id != event.annotationId) return a;
+      return a.copyWith(photoUrls: [...a.photoUrls, event.photoUrl]);
+    }).toList();
+    final newPlan = s.plan.copyWith(annotations: updated);
+    _saveDraftLocally(newPlan.roomId, newPlan);
+    emit(s.copyWith(plan: newPlan, isDirty: true, hasDraft: true));
+  }
+
+  void _onAnnotationPhotoRemoved(
+    AnnotationPhotoRemoved event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.annotations.map((a) {
+      if (a.id != event.annotationId) return a;
+      return a.copyWith(
+        photoUrls: a.photoUrls.where((u) => u != event.photoUrl).toList(),
+      );
+    }).toList();
+    final newPlan = s.plan.copyWith(annotations: updated);
+    _saveDraftLocally(newPlan.roomId, newPlan);
+    emit(s.copyWith(plan: newPlan, isDirty: true, hasDraft: true));
+  }
+
+  void _onEquipmentUpdate(
+    EquipmentUpdateRequested event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.equipment.map((e) {
+      if (e.id != event.equipmentId) return e;
+      return e.copyWith(
+        label: event.label ?? e.label,
+        notes: event.notes ?? e.notes,
+      );
+    }).toList();
+    emit(_withNewPlan(s, s.plan.copyWith(equipment: updated)));
+  }
+
+  void _onEquipmentPhotoAdded(
+    EquipmentPhotoAdded event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.equipment.map((e) {
+      if (e.id != event.equipmentId) return e;
+      return e.copyWith(photoUrls: [...e.photoUrls, event.photoUrl]);
+    }).toList();
+    final newPlan = s.plan.copyWith(equipment: updated);
+    _saveDraftLocally(newPlan.roomId, newPlan);
+    emit(s.copyWith(plan: newPlan, isDirty: true, hasDraft: true));
+  }
+
+  void _onEquipmentPhotoRemoved(
+    EquipmentPhotoRemoved event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final updated = s.plan.equipment.map((e) {
+      if (e.id != event.equipmentId) return e;
+      return e.copyWith(
+        photoUrls: e.photoUrls.where((u) => u != event.photoUrl).toList(),
+      );
+    }).toList();
+    final newPlan = s.plan.copyWith(equipment: updated);
+    _saveDraftLocally(newPlan.roomId, newPlan);
+    emit(s.copyWith(plan: newPlan, isDirty: true, hasDraft: true));
+  }
+
+  void _onCeilingHeightChanged(
+    FloorPlanCeilingHeightChanged event,
+    Emitter<FloorPlanState> emit,
+  ) {
+    final s = state;
+    if (s is! FloorPlanLoaded) return;
+
+    final newPlan = s.plan.copyWith(ceilingHeight: event.ceilingHeight);
+    _saveDraftLocally(newPlan.roomId, newPlan);
+    emit(s.copyWith(plan: newPlan, isDirty: true, hasDraft: true));
   }
 
   // ─── Undo / Redo ──────────────────────────────────────────────
@@ -404,11 +558,13 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final previousPlan = s.undoStack.last;
     final newUndoStack = s.undoStack.sublist(0, s.undoStack.length - 1);
 
+    _saveDraftLocally(previousPlan.roomId, previousPlan);
     emit(s.copyWith(
       plan: previousPlan,
       undoStack: newUndoStack,
-      redoStack: [...s.redoStack, s.plan],
+      redoStack: [s.plan, ...s.redoStack],
       clearSelection: true,
+      hasDraft: true,
     ));
   }
 
@@ -419,14 +575,16 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final s = state;
     if (s is! FloorPlanLoaded || !s.canRedo) return;
 
-    final nextPlan = s.redoStack.last;
-    final newRedoStack = s.redoStack.sublist(0, s.redoStack.length - 1);
+    final nextPlan = s.redoStack.first;
+    final newRedoStack = s.redoStack.sublist(1);
 
+    _saveDraftLocally(nextPlan.roomId, nextPlan);
     emit(s.copyWith(
       plan: nextPlan,
       undoStack: [...s.undoStack, s.plan],
       redoStack: newRedoStack,
       clearSelection: true,
+      hasDraft: true,
     ));
   }
 
@@ -471,7 +629,6 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
     final bottomRight = Offset(w - margin, h - margin);
     final bottomLeft = Offset(margin, h - margin);
 
-    final withUndo = _pushUndo(s);
     final walls = [
       PlanWall(
         id: _uuid.v4(),
@@ -499,11 +656,9 @@ class FloorPlanBloc extends Bloc<FloorPlanEvent, FloorPlanState> {
       ),
     ];
 
-    emit(withUndo.copyWith(
-      plan: withUndo.plan.copyWith(
-        walls: [...withUndo.plan.walls, ...walls],
-      ),
-    ));
+    final newPlan =
+        s.plan.copyWith(walls: [...s.plan.walls, ...walls]);
+    emit(_withNewPlan(s, newPlan));
   }
 
   // ─── Import from LiDAR scan ───────────────────────────────────

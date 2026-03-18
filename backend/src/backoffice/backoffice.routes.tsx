@@ -838,6 +838,7 @@ backofficeRouter.post('/products/:id/dependances', async (c) => {
       requiredProductId: body.requiredProductId as string,
       type: (body.type as 'required' | 'recommended') || 'required',
       description: (body.description as string) || undefined,
+      coveredQuantity: parseInt(body.coveredQuantity as string, 10) || 1,
     });
 
     return c.redirect(`/backoffice/products/${id}/edit?success=Dependance ajoutee`);

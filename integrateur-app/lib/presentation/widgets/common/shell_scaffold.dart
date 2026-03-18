@@ -37,6 +37,11 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
     final currentLocation = GoRouterState.of(context).matchedLocation;
     _selectedIndex = _getIndexFromLocation(currentLocation);
 
+    // Immersive routes: full screen, no navigation
+    if (_isImmersive(currentLocation)) {
+      return Scaffold(body: widget.child);
+    }
+
     if (isTabletOrLarger) {
       return Scaffold(
         body: Row(
@@ -284,6 +289,9 @@ class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
       ),
     ];
   }
+
+  bool _isImmersive(String location) =>
+      location.contains('/audit') || location.contains('/rooms/');
 
   int _getIndexFromLocation(String location) {
     if (location.startsWith('/projects')) return 1;

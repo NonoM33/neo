@@ -170,9 +170,13 @@ class AppTheme {
       // Navigation Rail
       navigationRailTheme: NavigationRailThemeData(
         elevation: 0,
-        minWidth: 80,
+        minWidth: 88,
         backgroundColor: colorScheme.surface,
         indicatorColor: colorScheme.primaryContainer,
+        indicatorShape: const StadiumBorder(),
+        useIndicator: true,
+        selectedLabelTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+        unselectedLabelTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
         selectedIconTheme: IconThemeData(
           color: colorScheme.primary,
           size: 24,
@@ -374,9 +378,13 @@ class AppTheme {
 
       navigationRailTheme: NavigationRailThemeData(
         elevation: 0,
-        minWidth: 80,
+        minWidth: 88,
         backgroundColor: _darkSurface1,
-        indicatorColor: colorScheme.primary.withAlpha(30),
+        indicatorColor: colorScheme.primary.withAlpha(45),
+        indicatorShape: const StadiumBorder(),
+        useIndicator: true,
+        selectedLabelTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+        unselectedLabelTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
         selectedIconTheme: IconThemeData(
           color: colorScheme.primary,
           size: 24,

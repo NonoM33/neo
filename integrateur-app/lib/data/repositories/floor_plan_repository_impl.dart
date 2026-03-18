@@ -30,4 +30,14 @@ class FloorPlanRepositoryImpl implements FloorPlanRepository {
   Future<FloorPlan> uploadUsdzFile(String planId, String filePath) async {
     return _remoteDataSource.uploadUsdzFile(planId, filePath);
   }
+
+  @override
+  Future<String> uploadElementPhoto(
+    String planId,
+    String elementId,
+    String elementType,
+    String filePath,
+  ) async {
+    return _remoteDataSource.uploadElementPhoto(planId, elementId, elementType, filePath);
+  }
 }

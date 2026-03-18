@@ -121,6 +121,7 @@ class PlanEquipmentModel extends PlanEquipment {
     super.label,
     super.notes,
     super.status,
+    super.photoUrls,
   });
 
   factory PlanEquipmentModel.fromJson(Map<String, dynamic> json) {
@@ -135,6 +136,10 @@ class PlanEquipmentModel extends PlanEquipment {
       notes: json['notes'] as String?,
       status: EquipmentPlacementStatus.fromString(
           json['status'] as String? ?? 'planned'),
+      photoUrls: (json['photoUrls'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -149,6 +154,7 @@ class PlanEquipmentModel extends PlanEquipment {
       if (label != null) 'label': label,
       if (notes != null) 'notes': notes,
       'status': status.name,
+      'photoUrls': photoUrls,
     };
   }
 
@@ -163,6 +169,7 @@ class PlanEquipmentModel extends PlanEquipment {
       label: eq.label,
       notes: eq.notes,
       status: eq.status,
+      photoUrls: eq.photoUrls,
     );
   }
 }
@@ -177,6 +184,7 @@ class PlanAnnotationModel extends PlanAnnotation {
     required super.text,
     super.colorValue,
     super.endPosition,
+    super.photoUrls,
   });
 
   factory PlanAnnotationModel.fromJson(Map<String, dynamic> json) {
@@ -189,6 +197,10 @@ class PlanAnnotationModel extends PlanAnnotation {
       endPosition: json['endPosition'] != null
           ? _offsetFromJson(json['endPosition'] as Map<String, dynamic>)
           : null,
+      photoUrls: (json['photoUrls'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -200,6 +212,7 @@ class PlanAnnotationModel extends PlanAnnotation {
       'text': text,
       if (colorValue != null) 'colorValue': colorValue,
       if (endPosition != null) 'endPosition': _offsetToJson(endPosition!),
+      'photoUrls': photoUrls,
     };
   }
 
@@ -211,6 +224,7 @@ class PlanAnnotationModel extends PlanAnnotation {
       text: annotation.text,
       colorValue: annotation.colorValue,
       endPosition: annotation.endPosition,
+      photoUrls: annotation.photoUrls,
     );
   }
 }
@@ -224,6 +238,7 @@ class FloorPlanModel extends FloorPlan {
     required super.projectId,
     super.widthMeters,
     super.heightMeters,
+    super.ceilingHeight,
     super.pixelsPerMeter,
     super.walls,
     super.openings,
@@ -244,6 +259,7 @@ class FloorPlanModel extends FloorPlan {
       'projectId': json['projectId'],
       'widthMeters': json['widthMeters'],
       'heightMeters': json['heightMeters'],
+      'ceilingHeight': json['ceilingHeight'],
       'pixelsPerMeter': json['pixelsPerMeter'],
       'walls': data['walls'],
       'openings': data['openings'],
@@ -261,6 +277,7 @@ class FloorPlanModel extends FloorPlan {
     return {
       'widthMeters': widthMeters,
       'heightMeters': heightMeters,
+      'ceilingHeight': ceilingHeight,
       'pixelsPerMeter': pixelsPerMeter,
       'walls': walls.map((w) => PlanWallModel.fromEntity(w).toJson()).toList(),
       'openings': openings.map((o) => PlanOpeningModel.fromEntity(o).toJson()).toList(),
@@ -278,6 +295,7 @@ class FloorPlanModel extends FloorPlan {
       projectId: json['projectId'] as String? ?? '',
       widthMeters: (json['widthMeters'] as num?)?.toDouble() ?? 10,
       heightMeters: (json['heightMeters'] as num?)?.toDouble() ?? 8,
+      ceilingHeight: (json['ceilingHeight'] as num?)?.toDouble() ?? 2.5,
       pixelsPerMeter: (json['pixelsPerMeter'] as num?)?.toDouble() ?? 100,
       walls: (json['walls'] as List<dynamic>?)
               ?.map((e) => PlanWallModel.fromJson(e as Map<String, dynamic>))
@@ -316,6 +334,7 @@ class FloorPlanModel extends FloorPlan {
       'projectId': projectId,
       'widthMeters': widthMeters,
       'heightMeters': heightMeters,
+      'ceilingHeight': ceilingHeight,
       'pixelsPerMeter': pixelsPerMeter,
       'walls': walls.map((w) => PlanWallModel.fromEntity(w).toJson()).toList(),
       'openings':
@@ -339,6 +358,7 @@ class FloorPlanModel extends FloorPlan {
       projectId: plan.projectId,
       widthMeters: plan.widthMeters,
       heightMeters: plan.heightMeters,
+      ceilingHeight: plan.ceilingHeight,
       pixelsPerMeter: plan.pixelsPerMeter,
       walls: plan.walls,
       openings: plan.openings,

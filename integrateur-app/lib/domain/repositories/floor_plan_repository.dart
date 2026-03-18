@@ -5,4 +5,5 @@ abstract class FloorPlanRepository {
   Future<FloorPlan> saveFloorPlan(FloorPlan plan);
   Future<void> deleteFloorPlan(String id);
   Future<FloorPlan> uploadUsdzFile(String planId, String filePath);
+  Future<String> uploadElementPhoto(String planId, String elementId, String elementType, String filePath);
 }

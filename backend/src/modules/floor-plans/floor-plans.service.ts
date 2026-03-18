@@ -214,3 +214,33 @@ export async function uploadUsdzFile(
 
   return plan;
 }
+
+export async function uploadElementPhoto(
+  planId: string,
+  elementId: string,
+  elementType: string,
+  file: File,
+  userId: string,
+  userRole: string,
+): Promise<string> {
+  const [existing] = await db
+    .select({ id: floorPlans.id, roomId: floorPlans.roomId })
+    .from(floorPlans)
+    .where(eq(floorPlans.id, planId))
+    .limit(1);
+
+  if (!existing) throw new NotFoundError('Plan');
+  await verifyRoomAccess(existing.roomId, userId, userRole);
+
+  const buffer = await file.arrayBuffer();
+  const ext = file.name.split('.').pop() ?? 'jpg';
+  const key = `plans/${planId}/${elementType}/${elementId}/${Date.now()}.${ext}`;
+  const url = await uploadFile(
+    env.S3_BUCKET_PHOTOS,
+    key,
+    new Uint8Array(buffer),
+    file.type || 'image/jpeg',
+  );
+
+  return url;
+}

@@ -10,6 +10,7 @@ import '../../data/datasources/remote/sync_remote_datasource.dart';
 import '../../data/datasources/remote/ticket_remote_datasource.dart';
 import '../../data/datasources/remote/appointment_remote_datasource.dart';
 import '../../data/datasources/remote/floor_plan_remote_datasource.dart';
+import '../../data/datasources/remote/signature_remote_datasource.dart';
 import '../../data/datasources/remote/ha_remote_datasource.dart';
 import '../../data/datasources/remote/user_remote_datasource.dart';
 import '../../data/repositories/floor_plan_repository_impl.dart';
@@ -511,6 +512,10 @@ final ticketDetailBlocProvider = Provider.family<TicketsBloc, String>((ref, tick
   );
   bloc.add(TicketLoadRequested(ticketId));
   return bloc;
+});
+
+final signatureDataSourceProvider = Provider<SignatureRemoteDataSource>((ref) {
+  return SignatureRemoteDataSourceImpl(ref.watch(apiClientProvider));
 });
 
 final floorPlanRemoteDataSourceProvider = Provider<FloorPlanRemoteDataSource>((ref) {

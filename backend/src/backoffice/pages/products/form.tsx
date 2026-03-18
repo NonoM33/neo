@@ -20,6 +20,7 @@ interface DependencyData {
   id: string;
   type: string;
   description: string | null;
+  coveredQuantity?: number;
   requiredProduct: {
     id: string;
     reference: string;
@@ -580,6 +581,11 @@ export const ProductFormPage: FC<ProductFormPageProps> = ({ productData, categor
                                 {dep.type === 'required' ? 'Obligatoire' : 'Recommande'}
                               </span>
                             </div>
+                            {(dep.coveredQuantity ?? 1) > 1 && (
+                              <div style="font-size:0.72rem;color:#0d6efd;margin-top:4px;font-weight:600;">
+                                Couvre {dep.coveredQuantity} unités
+                              </div>
+                            )}
                             {dep.description && (
                               <div style="font-size:0.72rem;color:#6c757d;margin-top:4px;font-style:italic;">
                                 {dep.description}
@@ -708,7 +714,21 @@ export const ProductFormPage: FC<ProductFormPageProps> = ({ productData, categor
                         <option value="recommended">Recommande</option>
                       </select>
                     </div>
-                    <div class="col-lg-3">
+                    <div class="col-lg-2">
+                      <label class="form-label small fw-medium" for="coveredQuantity">
+                        Couvre (nb)
+                      </label>
+                      <input
+                        type="number"
+                        name="coveredQuantity"
+                        id="coveredQuantity"
+                        class="form-control"
+                        min="1"
+                        value="1"
+                        title="Nb de dependants couverts par 1 requis (ex: 1 bridge = 50 ampoules)"
+                      />
+                    </div>
+                    <div class="col-lg-2">
                       <label class="form-label small fw-medium" for="description">Note</label>
                       <input
                         type="text"

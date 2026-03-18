@@ -105,6 +105,7 @@ class ProductDependencyModel extends ProductDependency {
     required super.id,
     required super.type,
     super.description,
+    super.coveredQuantity,
     required super.requiredProduct,
   });
 
@@ -114,6 +115,7 @@ class ProductDependencyModel extends ProductDependency {
       id: json['id'] as String,
       type: DependencyType.fromString(json['type'] as String? ?? 'required'),
       description: json['description'] as String?,
+      coveredQuantity: json['coveredQuantity'] as int? ?? 1,
       requiredProduct: ProductModel.fromJson(requiredProductJson),
     );
   }

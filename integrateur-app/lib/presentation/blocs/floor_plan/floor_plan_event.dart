@@ -140,16 +140,24 @@ final class EquipmentPlaceRequested extends FloorPlanEvent {
   final Offset position;
   final int quantity;
   final String? label;
+  /// When true, placement won't trigger quote/dependency orchestration
+  final bool silent;
 
   const EquipmentPlaceRequested({
     required this.productId,
     required this.position,
     this.quantity = 1,
     this.label,
+    this.silent = false,
   });
 
   @override
-  List<Object?> get props => [productId, position, quantity, label];
+  List<Object?> get props => [productId, position, quantity, label, silent];
+}
+
+/// Dispatched by the screen after it has handled quote/dependency orchestration
+final class EquipmentPlacementAcknowledged extends FloorPlanEvent {
+  const EquipmentPlacementAcknowledged();
 }
 
 final class EquipmentMoveRequested extends FloorPlanEvent {
@@ -206,6 +214,49 @@ final class AnnotationAddRequested extends FloorPlanEvent {
   List<Object?> get props => [position, type, text, endPosition];
 }
 
+final class AnnotationMoveRequested extends FloorPlanEvent {
+  final String annotationId;
+  final Offset newPosition;
+
+  const AnnotationMoveRequested({
+    required this.annotationId,
+    required this.newPosition,
+  });
+
+  @override
+  List<Object?> get props => [annotationId, newPosition];
+}
+
+final class AnnotationUpdateRequested extends FloorPlanEvent {
+  final String annotationId;
+  final String? text;
+
+  const AnnotationUpdateRequested({required this.annotationId, this.text});
+
+  @override
+  List<Object?> get props => [annotationId, text];
+}
+
+final class AnnotationPhotoAdded extends FloorPlanEvent {
+  final String annotationId;
+  final String photoUrl;
+
+  const AnnotationPhotoAdded({required this.annotationId, required this.photoUrl});
+
+  @override
+  List<Object?> get props => [annotationId, photoUrl];
+}
+
+final class AnnotationPhotoRemoved extends FloorPlanEvent {
+  final String annotationId;
+  final String photoUrl;
+
+  const AnnotationPhotoRemoved({required this.annotationId, required this.photoUrl});
+
+  @override
+  List<Object?> get props => [annotationId, photoUrl];
+}
+
 final class AnnotationDeleteRequested extends FloorPlanEvent {
   final String annotationId;
 
@@ -213,6 +264,54 @@ final class AnnotationDeleteRequested extends FloorPlanEvent {
 
   @override
   List<Object?> get props => [annotationId];
+}
+
+// ─── Equipment update ─────────────────────────────────────────────────
+
+final class EquipmentUpdateRequested extends FloorPlanEvent {
+  final String equipmentId;
+  final String? label;
+  final String? notes;
+
+  const EquipmentUpdateRequested({
+    required this.equipmentId,
+    this.label,
+    this.notes,
+  });
+
+  @override
+  List<Object?> get props => [equipmentId, label, notes];
+}
+
+final class EquipmentPhotoAdded extends FloorPlanEvent {
+  final String equipmentId;
+  final String photoUrl;
+
+  const EquipmentPhotoAdded({required this.equipmentId, required this.photoUrl});
+
+  @override
+  List<Object?> get props => [equipmentId, photoUrl];
+}
+
+final class EquipmentPhotoRemoved extends FloorPlanEvent {
+  final String equipmentId;
+  final String photoUrl;
+
+  const EquipmentPhotoRemoved({required this.equipmentId, required this.photoUrl});
+
+  @override
+  List<Object?> get props => [equipmentId, photoUrl];
+}
+
+// ─── Ceiling height ───────────────────────────────────────────────────
+
+final class FloorPlanCeilingHeightChanged extends FloorPlanEvent {
+  final double ceilingHeight;
+
+  const FloorPlanCeilingHeightChanged(this.ceilingHeight);
+
+  @override
+  List<Object?> get props => [ceilingHeight];
 }
 
 // ─── Selection ────────────────────────────────────────────────────────

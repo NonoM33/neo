@@ -36,6 +36,10 @@ class _FloorPlanCanvasState extends State<FloorPlanCanvas> {
   Offset? _wallStart; // in plan meters
   Offset? _wallEnd; // in plan meters (preview)
 
+  // Drag-to-move state (handled via Listener for touch compatibility)
+  String? _draggingElementId;
+  ElementType? _draggingElementType;
+
   @override
   void dispose() {
     _transformController.dispose();
@@ -77,6 +81,66 @@ class _FloorPlanCanvasState extends State<FloorPlanCanvas> {
     }
   }
 
+  // ─── Pointer event handlers (bypass gesture arena for reliable touch drag) ──
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (widget.state.activeTool != PlanTool.select) return;
+    final planPoint = _screenToPlan(event.localPosition);
+    final hit = PlanHitTester.hitTest(plan, planPoint);
+    if (hit != null &&
+        (hit.elementType == ElementType.equipment ||
+            hit.elementType == ElementType.annotation)) {
+      if (widget.state.selectedElementId != hit.elementId) {
+        widget.bloc.add(FloorPlanElementSelected(
+          elementId: hit.elementId,
+          elementType: hit.elementType,
+        ));
+      }
+      setState(() {
+        _draggingElementId = hit.elementId;
+        _draggingElementType = hit.elementType;
+      });
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_draggingElementId == null) return;
+    final planPoint = _screenToPlan(event.localPosition);
+    final snapped = PlanHitTester.snapToGrid(planPoint);
+    if (_draggingElementType == ElementType.equipment) {
+      widget.bloc.add(EquipmentMoveRequested(
+        equipmentId: _draggingElementId!,
+        newPosition: snapped,
+      ));
+    } else if (_draggingElementType == ElementType.annotation) {
+      widget.bloc.add(AnnotationMoveRequested(
+        annotationId: _draggingElementId!,
+        newPosition: snapped,
+      ));
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (_draggingElementId != null) {
+      HapticFeedback.lightImpact();
+      setState(() {
+        _draggingElementId = null;
+        _draggingElementType = null;
+      });
+    }
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (_draggingElementId != null) {
+      setState(() {
+        _draggingElementId = null;
+        _draggingElementType = null;
+      });
+    }
+  }
+
+  // ─── Wall/measurement pan handlers ────────────────────────────
+
   void _handlePanUpdate(DragUpdateDetails details) {
     if (widget.state.activeTool == PlanTool.wall && _wallStart != null) {
       final planPoint = _screenToPlan(details.localPosition);
@@ -92,7 +156,6 @@ class _FloorPlanCanvasState extends State<FloorPlanCanvas> {
     if (widget.state.activeTool == PlanTool.wall &&
         _wallStart != null &&
         _wallEnd != null) {
-      // Only create wall if it has meaningful length
       if ((_wallEnd! - _wallStart!).distance > 0.1) {
         widget.bloc.add(WallAddRequested(
           startPoint: _wallStart!,
@@ -283,34 +346,41 @@ class _FloorPlanCanvasState extends State<FloorPlanCanvas> {
         widget.state.activeTool == PlanTool.measurement;
 
     return ClipRect(
-      child: InteractiveViewer(
-        transformationController: _transformController,
-        constrained: false,
-        boundaryMargin: const EdgeInsets.all(200),
-        minScale: 0.3,
-        maxScale: 3.0,
-        // Disable pan when drawing walls (handled by gesture detector)
-        panEnabled: !isWallTool || _wallStart == null,
-        child: GestureDetector(
-          onTapDown: _handleTapDown,
-          onPanUpdate: isWallTool ? _handlePanUpdate : null,
-          onPanEnd: isWallTool ? _handlePanEnd : null,
-          child: SizedBox(
-            width: canvasWidth + 100, // padding
-            height: canvasHeight + 100,
-            child: Padding(
-              padding: const EdgeInsets.all(50),
-              child: CustomPaint(
-                size: Size(canvasWidth, canvasHeight),
-                painter: FloorPlanPainter(
-                  plan: plan,
-                  pixelsPerMeter: ppm,
-                  selectedElementId: widget.state.selectedElementId,
-                  activeTool: widget.state.activeTool,
-                  ghostStart: _wallStart,
-                  ghostEnd: _wallEnd,
-                  productCache: widget.productCache,
-                  colorScheme: colorScheme,
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        child: InteractiveViewer(
+          transformationController: _transformController,
+          constrained: false,
+          boundaryMargin: const EdgeInsets.all(200),
+          minScale: 0.3,
+          maxScale: 3.0,
+          panEnabled: _draggingElementId == null &&
+              (!isWallTool || _wallStart == null),
+          child: GestureDetector(
+            onTapDown: _handleTapDown,
+            onPanUpdate: isWallTool ? _handlePanUpdate : null,
+            onPanEnd: isWallTool ? _handlePanEnd : null,
+            child: SizedBox(
+              width: canvasWidth + 100,
+              height: canvasHeight + 100,
+              child: Padding(
+                padding: const EdgeInsets.all(50),
+                child: CustomPaint(
+                  size: Size(canvasWidth, canvasHeight),
+                  painter: FloorPlanPainter(
+                    plan: plan,
+                    pixelsPerMeter: ppm,
+                    selectedElementId: widget.state.selectedElementId,
+                    activeTool: widget.state.activeTool,
+                    ghostStart: _wallStart,
+                    ghostEnd: _wallEnd,
+                    productCache: widget.productCache,
+                    colorScheme: colorScheme,
+                  ),
                 ),
               ),
             ),
@@ -318,5 +388,11 @@ class _FloorPlanCanvasState extends State<FloorPlanCanvas> {
         ),
       ),
     );
+  }
+}
+
+      ),
+    ),
+  );
   }
 }

@@ -12,6 +12,7 @@ import '../../../domain/entities/quote.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/catalogue_repository.dart' show CatalogueRepository, ProductFilter;
 import '../../blocs/quotes/quotes_bloc.dart';
+import 'signature_screen.dart';
 
 class QuoteScreen extends ConsumerStatefulWidget {
   final String projectId;
@@ -42,6 +43,7 @@ class _QuoteScreenState extends ConsumerState<QuoteScreen> {
             bloc: quotesBloc,
             builder: (context, state) {
               if (state is QuotesLoaded && state.currentQuote != null) {
+                final quote = state.currentQuote!;
                 return Row(
                   children: [
                     IconButton(
@@ -49,23 +51,23 @@ class _QuoteScreenState extends ConsumerState<QuoteScreen> {
                       onPressed: state.isGeneratingPdf
                           ? null
                           : () => quotesBloc.add(const QuoteGeneratePdfRequested()),
-                      tooltip: 'Generer PDF',
+                      tooltip: 'Apercu PDF',
                     ),
-                    FilledButton(
-                      onPressed: state.isSending
-                          ? null
-                          : () {
-                              HapticFeedback.lightImpact();
-                              quotesBloc.add(const QuoteSendRequested());
-                            },
-                      child: state.isSending
-                          ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Envoyer'),
+                    IconButton(
+                      icon: const Icon(Icons.draw_outlined),
+                      tooltip: 'Signature electronique',
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SignatureScreen(
+                              quote: quote,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    AppSpacing.hGapMd,
+                    AppSpacing.hGapSm,
                   ],
                 );
               }

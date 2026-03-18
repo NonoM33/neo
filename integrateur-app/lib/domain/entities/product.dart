@@ -211,17 +211,21 @@ class ProductDependency extends Equatable {
   final String id;
   final DependencyType type;
   final String? description;
+  /// How many units of [requiredProduct] are covered by 1 unit of the required product.
+  /// e.g. 1 Hue Bridge covers 50 bulbs → coveredQuantity = 50
+  final int coveredQuantity;
   final Product requiredProduct;
 
   const ProductDependency({
     required this.id,
     required this.type,
     this.description,
+    this.coveredQuantity = 1,
     required this.requiredProduct,
   });
 
   @override
-  List<Object?> get props => [id, type, description, requiredProduct];
+  List<Object?> get props => [id, type, description, coveredQuantity, requiredProduct];
 }
 
 /// Product entity

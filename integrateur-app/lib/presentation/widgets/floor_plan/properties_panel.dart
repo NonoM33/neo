@@ -1,9 +1,14 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../domain/entities/floor_plan.dart';
 import '../../../domain/entities/product.dart';
+import '../../../domain/repositories/floor_plan_repository.dart';
 import '../../blocs/floor_plan/floor_plan_bloc.dart';
 import '../../blocs/floor_plan/floor_plan_event.dart';
 import '../../blocs/floor_plan/floor_plan_state.dart';
@@ -14,6 +19,7 @@ class PropertiesPanel extends StatefulWidget {
   final FloorPlanBloc bloc;
   final Map<String, Product> productCache;
   final ValueChanged<String?>? onProductSelectedForPlacement;
+  final FloorPlanRepository? repository;
 
   const PropertiesPanel({
     super.key,
@@ -21,6 +27,7 @@ class PropertiesPanel extends StatefulWidget {
     required this.bloc,
     this.productCache = const {},
     this.onProductSelectedForPlacement,
+    this.repository,
   });
 
   @override
@@ -31,13 +38,13 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   String _searchQuery = '';
   ProductCategory? _filterCategory;
   String? _selectedProductId;
+  bool _isUploadingPhoto = false;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    // Show catalogue picker when equipment tool is active and nothing is selected
     final showCatalogue = widget.state.activeTool == PlanTool.equipment &&
         widget.state.selectedElementId == null;
 
@@ -100,8 +107,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                 ? _buildCataloguePicker(context, colorScheme, textTheme)
                 : SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
-                    child:
-                        _buildContent(context, colorScheme, textTheme),
+                    child: _buildContent(context, colorScheme, textTheme),
                   ),
           ),
         ],
@@ -148,11 +154,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   ) {
     final products = widget.productCache.values.toList();
 
-    // Filter
     var filtered = products.where((p) => p.isActive).toList();
     if (_filterCategory != null) {
-      filtered =
-          filtered.where((p) => p.category == _filterCategory).toList();
+      filtered = filtered.where((p) => p.category == _filterCategory).toList();
     }
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
@@ -162,12 +166,6 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               p.brand.toLowerCase().contains(q) ||
               p.reference.toLowerCase().contains(q))
           .toList();
-    }
-
-    // Group by category
-    final byCategory = <ProductCategory, List<Product>>{};
-    for (final p in filtered) {
-      byCategory.putIfAbsent(p.category, () => []).add(p);
     }
 
     return Column(
@@ -214,7 +212,6 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           ),
         ),
 
-        // Hint
         if (_selectedProductId == null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -231,9 +228,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                   Expanded(
                     child: Text(
                       'Sélectionnez un produit puis appuyez sur le plan',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.primary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.primary,
+                          ),
                     ),
                   ),
                 ],
@@ -241,12 +238,11 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
 
-        // Product list
         Expanded(
           child: filtered.isEmpty
               ? Center(
                   child: Text('Aucun produit',
-                      style: textTheme.bodyMedium?.copyWith(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant)),
                 )
               : ListView.builder(
@@ -261,8 +257,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                       onTap: () {
                         HapticFeedback.selectionClick();
                         setState(() {
-                          _selectedProductId =
-                              isSelected ? null : product.id;
+                          _selectedProductId = isSelected ? null : product.id;
                         });
                         widget.onProductSelectedForPlacement
                             ?.call(isSelected ? null : product.id);
@@ -288,12 +283,42 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _infoRow('Dimensions',
-            '${plan.widthMeters.toStringAsFixed(1)} x ${plan.heightMeters.toStringAsFixed(1)} m',
+            '${plan.widthMeters.toStringAsFixed(1)} × ${plan.heightMeters.toStringAsFixed(1)} m',
             textTheme),
         AppSpacing.vGapSm,
         _infoRow('Surface',
-            '${(plan.widthMeters * plan.heightMeters).toStringAsFixed(1)} m\u00B2',
+            '${plan.polygonAreaM2.toStringAsFixed(1)} m²',
             textTheme),
+        AppSpacing.vGapSm,
+        // Ceiling height with edit
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Hauteur sous plafond',
+                style: textTheme.bodySmall
+                    ?.copyWith(color: colorScheme.onSurfaceVariant)),
+            InkWell(
+              onTap: () => _showCeilingHeightDialog(plan.ceilingHeight),
+              borderRadius: AppRadius.borderRadiusSm,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${plan.ceilingHeight.toStringAsFixed(2)} m',
+                      style: textTheme.bodySmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    AppSpacing.hGapXs,
+                    Icon(Icons.edit_outlined,
+                        size: 13, color: colorScheme.primary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
         AppSpacing.vGapSm,
         _infoRow('Murs', '${plan.walls.length}', textTheme),
         AppSpacing.vGapSm,
@@ -327,10 +352,48 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
         AppSpacing.vGapLg,
-
-        // Contextual tip card
         _buildTipCard(colorScheme, textTheme),
       ],
+    );
+  }
+
+  void _showCeilingHeightDialog(double current) {
+    final controller =
+        TextEditingController(text: current.toStringAsFixed(2));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hauteur sous plafond'),
+        content: TextField(
+          controller: controller,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Hauteur (m)',
+            suffixText: 'm',
+          ),
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () {
+              final v = double.tryParse(
+                  controller.text.replaceAll(',', '.'));
+              if (v != null && v > 0 && v < 10) {
+                widget.bloc
+                    .add(FloorPlanCeilingHeightChanged(v));
+                HapticFeedback.lightImpact();
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -351,11 +414,13 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             children: [
               Icon(tip.icon, size: 18, color: colorScheme.primary),
               AppSpacing.hGapSm,
-              Text(
-                tip.title,
-                style: textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.primary,
+              Expanded(
+                child: Text(
+                  tip.title,
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.primary,
+                  ),
                 ),
               ),
             ],
@@ -380,8 +445,11 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           icon: Icons.near_me,
           title: 'Sélection',
           description:
-              'Appuyez sur un mur ou équipement pour voir ses propriétés. '
-                  'Utilisez les outils à gauche pour dessiner.',
+              '• Appuyez sur un équipement ou une note pour le sélectionner\n'
+                  '• Glissez-le pour le déplacer\n'
+                  '• Panneau droit → "Étiquette" pour le renommer\n'
+                  '• Bouton 🗑️ dans la barre en haut pour le supprimer\n'
+                  '• Outil Gomme pour supprimer en appuyant directement',
         ),
       PlanTool.wall => (
           icon: Icons.horizontal_rule,
@@ -397,8 +465,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           icon: Icons.door_front_door_outlined,
           title: 'Placer une porte',
           description:
-              'Appuyez près d\'un mur existant pour y placer une porte. '
-                  'La porte sera centrée sur le point le plus proche du mur.',
+              'Appuyez près d\'un mur existant pour y placer une porte.',
         ),
       PlanTool.window => (
           icon: Icons.window_outlined,
@@ -465,8 +532,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         AppSpacing.vGapXs,
         SegmentedButton<WallType>(
           segments: WallType.values
-              .map(
-                  (t) => ButtonSegment(value: t, label: Text(t.displayName)))
+              .map((t) =>
+                  ButtonSegment(value: t, label: Text(t.displayName)))
               .toList(),
           selected: {wall.type},
           onSelectionChanged: (selected) {
@@ -488,8 +555,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               widget.bloc.add(WallDeleteRequested(wall.id));
             },
             icon: Icon(Icons.delete_outline, color: colorScheme.error),
-            label:
-                Text('Supprimer', style: TextStyle(color: colorScheme.error)),
+            label: Text('Supprimer',
+                style: TextStyle(color: colorScheme.error)),
           ),
         ),
       ],
@@ -514,7 +581,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               style: textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w600)),
           AppSpacing.vGapXs,
-          Text('${product.reference} \u00B7 ${product.brand}',
+          Text('${product.reference} · ${product.brand}',
               style: textTheme.bodySmall
                   ?.copyWith(color: colorScheme.onSurfaceVariant)),
           AppSpacing.vGapSm,
@@ -527,6 +594,51 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         _infoRow('Quantité', '${eq.quantity}', textTheme),
         AppSpacing.vGapSm,
         _infoRow('Statut', eq.status.displayName, textTheme),
+        // Label
+        AppSpacing.vGapSm,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Étiquette',
+                style: textTheme.bodySmall
+                    ?.copyWith(color: colorScheme.onSurfaceVariant)),
+            InkWell(
+              onTap: () => _showEquipmentEditDialog(eq),
+              borderRadius: AppRadius.borderRadiusSm,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        eq.label?.isNotEmpty == true
+                            ? eq.label!
+                            : 'Ajouter...',
+                        style: textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: eq.label?.isNotEmpty == true
+                              ? null
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    AppSpacing.hGapXs,
+                    Icon(Icons.edit_outlined,
+                        size: 13, color: colorScheme.primary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (eq.notes?.isNotEmpty == true) ...[
+          AppSpacing.vGapXs,
+          Text(eq.notes!,
+              style: textTheme.bodySmall
+                  ?.copyWith(color: colorScheme.onSurfaceVariant)),
+        ],
         if (product != null) ...[
           AppSpacing.vGapMd,
           Container(
@@ -540,7 +652,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               children: [
                 Text('Prix HT', style: textTheme.bodySmall),
                 Text(
-                  '${(product.salePrice * eq.quantity).toStringAsFixed(2)} \u20AC',
+                  '${(product.salePrice * eq.quantity).toStringAsFixed(2)} €',
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.primary,
@@ -550,6 +662,23 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
         ],
+        AppSpacing.vGapMd,
+        // Photos section
+        _buildPhotoSection(
+          context,
+          colorScheme,
+          textTheme,
+          photoUrls: eq.photoUrls,
+          onAddPhoto: () => _pickAndUploadPhoto(
+            planId: widget.state.plan.id,
+            elementId: eq.id,
+            elementType: 'equipment',
+            onUploaded: (url) => widget.bloc
+                .add(EquipmentPhotoAdded(equipmentId: eq.id, photoUrl: url)),
+          ),
+          onRemovePhoto: (url) => widget.bloc.add(
+              EquipmentPhotoRemoved(equipmentId: eq.id, photoUrl: url)),
+        ),
         AppSpacing.vGapLg,
         SizedBox(
           width: double.infinity,
@@ -559,11 +688,58 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               widget.bloc.add(EquipmentDeleteRequested(eq.id));
             },
             icon: Icon(Icons.delete_outline, color: colorScheme.error),
-            label:
-                Text('Supprimer', style: TextStyle(color: colorScheme.error)),
+            label: Text('Supprimer',
+                style: TextStyle(color: colorScheme.error)),
           ),
         ),
       ],
+    );
+  }
+
+  void _showEquipmentEditDialog(PlanEquipment eq) {
+    final labelCtrl = TextEditingController(text: eq.label ?? '');
+    final notesCtrl = TextEditingController(text: eq.notes ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier l\'équipement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: labelCtrl,
+              decoration: const InputDecoration(labelText: 'Étiquette'),
+              textInputAction: TextInputAction.next,
+            ),
+            AppSpacing.vGapMd,
+            TextField(
+              controller: notesCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Notes de pose', hintText: 'Ex: placer à 1.2m du sol'),
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () {
+              widget.bloc.add(EquipmentUpdateRequested(
+                equipmentId: eq.id,
+                label: labelCtrl.text.trim().isEmpty ? null : labelCtrl.text.trim(),
+                notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+              ));
+              HapticFeedback.lightImpact();
+              Navigator.pop(ctx);
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -580,9 +756,33 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       children: [
         _infoRow('Type', ann.type.displayName, textTheme),
         AppSpacing.vGapSm,
-        Text('Texte',
-            style:
-                textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Texte',
+                style: textTheme.labelMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            InkWell(
+              onTap: () => _showAnnotationEditDialog(ann),
+              borderRadius: AppRadius.borderRadiusSm,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Modifier',
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: colorScheme.primary)),
+                    AppSpacing.hGapXs,
+                    Icon(Icons.edit_outlined,
+                        size: 13, color: colorScheme.primary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
         AppSpacing.vGapXs,
         Text(ann.text, style: textTheme.bodyMedium),
         if (ann.measurementLength != null) ...[
@@ -590,6 +790,23 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           _infoRow('Distance',
               '${ann.measurementLength!.toStringAsFixed(2)} m', textTheme),
         ],
+        AppSpacing.vGapMd,
+        // Photos section
+        _buildPhotoSection(
+          context,
+          colorScheme,
+          textTheme,
+          photoUrls: ann.photoUrls,
+          onAddPhoto: () => _pickAndUploadPhoto(
+            planId: widget.state.plan.id,
+            elementId: ann.id,
+            elementType: 'annotation',
+            onUploaded: (url) => widget.bloc.add(
+                AnnotationPhotoAdded(annotationId: ann.id, photoUrl: url)),
+          ),
+          onRemovePhoto: (url) => widget.bloc.add(
+              AnnotationPhotoRemoved(annotationId: ann.id, photoUrl: url)),
+        ),
         AppSpacing.vGapLg,
         SizedBox(
           width: double.infinity,
@@ -599,12 +816,243 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               widget.bloc.add(AnnotationDeleteRequested(ann.id));
             },
             icon: Icon(Icons.delete_outline, color: colorScheme.error),
-            label:
-                Text('Supprimer', style: TextStyle(color: colorScheme.error)),
+            label: Text('Supprimer',
+                style: TextStyle(color: colorScheme.error)),
           ),
         ),
       ],
     );
+  }
+
+  void _showAnnotationEditDialog(PlanAnnotation ann) {
+    final controller = TextEditingController(text: ann.text);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier la note'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Texte'),
+          maxLines: 4,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                widget.bloc.add(AnnotationUpdateRequested(
+                  annotationId: ann.id,
+                  text: text,
+                ));
+                HapticFeedback.lightImpact();
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Photo section ────────────────────────────────────────────
+
+  Widget _buildPhotoSection(
+    BuildContext context,
+    ColorScheme colorScheme,
+    TextTheme textTheme, {
+    required List<String> photoUrls,
+    required VoidCallback onAddPhoto,
+    required ValueChanged<String> onRemovePhoto,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Photos de référence',
+                style: textTheme.labelMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            TextButton.icon(
+              onPressed: _isUploadingPhoto ? null : onAddPhoto,
+              icon: _isUploadingPhoto
+                  ? SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.primary),
+                    )
+                  : const Icon(Icons.add_a_photo_outlined, size: 16),
+              label: const Text('Ajouter'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        ),
+        if (photoUrls.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Aucune photo — ajoutez des photos pour montrer exactement où placer cet élément.',
+              style: textTheme.bodySmall
+                  ?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+          )
+        else
+          SizedBox(
+            height: 90,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: photoUrls.length,
+              separatorBuilder: (context, index) => AppSpacing.hGapSm,
+              itemBuilder: (context, index) {
+                final url = photoUrls[index];
+                return Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showPhotoFullscreen(context, url),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderRadiusSm,
+                        child: url.startsWith('/')
+                            ? Image.file(File(url),
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover)
+                            : CachedNetworkImage(
+                                imageUrl: url,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          onRemovePhoto(url);
+                        },
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: colorScheme.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 12, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showPhotoFullscreen(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            Center(
+              child: url.startsWith('/')
+                  ? Image.file(File(url))
+                  : CachedNetworkImage(imageUrl: url),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                tooltip: 'Fermer',
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadPhoto({
+    required String planId,
+    required String elementId,
+    required String elementType,
+    required ValueChanged<String> onUploaded,
+  }) async {
+    final picker = ImagePicker();
+
+    // Show source choice
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choisir dans la galerie'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 1920,
+    );
+    if (picked == null) return;
+
+    // If no repository, store local path directly
+    if (widget.repository == null) {
+      onUploaded(picked.path);
+      return;
+    }
+
+    setState(() => _isUploadingPhoto = true);
+    try {
+      final url = await widget.repository!.uploadElementPhoto(
+        planId,
+        elementId,
+        elementType,
+        picked.path,
+      );
+      onUploaded(url);
+      HapticFeedback.lightImpact();
+    } catch (_) {
+      // Fallback: store local path so UI shows the photo even without upload
+      onUploaded(picked.path);
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
   }
 
   // ─── Helpers ──────────────────────────────────────────────────
@@ -614,8 +1062,10 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: textTheme.bodySmall
-                ?.copyWith(color: Colors.grey[600])),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         Flexible(
           child: Text(value,
               style: textTheme.bodySmall
@@ -685,7 +1135,6 @@ class _ProductPickerTile extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              // Category icon
               Container(
                 width: 36,
                 height: 36,
@@ -704,7 +1153,6 @@ class _ProductPickerTile extends StatelessWidget {
                 ),
               ),
               AppSpacing.hGapSm,
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,7 +1169,7 @@ class _ProductPickerTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${product.brand} \u00B7 ${product.salePrice.toStringAsFixed(0)}\u20AC',
+                      '${product.brand} · ${product.salePrice.toStringAsFixed(0)}€',
                       style: TextStyle(
                         fontSize: 10,
                         color: isSelected
@@ -733,8 +1181,7 @@ class _ProductPickerTile extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                Icon(Icons.check_circle,
-                    size: 20, color: colorScheme.primary),
+                Icon(Icons.check_circle, size: 20, color: colorScheme.primary),
             ],
           ),
         ),

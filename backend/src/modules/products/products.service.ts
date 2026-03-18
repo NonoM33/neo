@@ -261,6 +261,7 @@ export async function getProductDependencies(productId: string) {
       id: productDependencies.id,
       type: productDependencies.type,
       description: productDependencies.description,
+      coveredQuantity: productDependencies.coveredQuantity,
       requiredProduct: {
         id: products.id,
         reference: products.reference,
@@ -310,6 +311,7 @@ export async function addProductDependency(productId: string, input: CreateDepen
       requiredProductId: input.requiredProductId,
       type: input.type,
       description: input.description,
+      coveredQuantity: input.coveredQuantity ?? 1,
     })
     .returning();
 
@@ -330,6 +332,7 @@ export async function updateProductDependency(dependencyId: string, input: Updat
   const updateData: Record<string, any> = {};
   if (input.type !== undefined) updateData.type = input.type;
   if (input.description !== undefined) updateData.description = input.description;
+  if (input.coveredQuantity !== undefined) updateData.coveredQuantity = input.coveredQuantity;
 
   const [dep] = await db
     .update(productDependencies)
@@ -382,11 +385,22 @@ export async function getProductWithDependencies(id: string) {
   };
 }
 
-// Vérifier les dépendances manquantes pour une liste de produits
-export async function checkMissingDependencies(productIds: string[]) {
-  if (productIds.length === 0) return [];
+/**
+ * Vérifie les dépendances manquantes en tenant compte des quantités.
+ *
+ * Logique : 1 unité du produit requis couvre `coveredQuantity` unités du dépendant.
+ * Ex : 1 bridge Hue couvre 50 ampoules (coveredQuantity=50).
+ * Si on a 12 ampoules et 1 bridge → ceil(12/50)=1 bridge nécessaire, on en a 1 → OK.
+ * Si on a 55 ampoules et 1 bridge → ceil(55/50)=2 bridges nécessaires, il en manque 1.
+ */
+export async function checkMissingDependencies(
+  lines: { productId: string; quantity: number }[]
+) {
+  if (lines.length === 0) return [];
 
-  // Récupérer toutes les dépendances des produits dans la liste
+  const productIds = [...new Set(lines.map(l => l.productId))];
+
+  // Récupérer toutes les dépendances required pour les produits de la liste
   const deps = await db
     .select({
       id: productDependencies.id,
@@ -394,34 +408,92 @@ export async function checkMissingDependencies(productIds: string[]) {
       requiredProductId: productDependencies.requiredProductId,
       type: productDependencies.type,
       description: productDependencies.description,
+      coveredQuantity: productDependencies.coveredQuantity,
     })
     .from(productDependencies)
-    .where(inArray(productDependencies.productId, productIds));
+    .where(
+      and(
+        inArray(productDependencies.productId, productIds),
+        eq(productDependencies.type, 'required')
+      )
+    );
 
-  // Filtrer les dépendances required dont le produit requis n'est pas déjà dans la liste
-  const missingDeps = deps.filter(
-    dep => dep.type === 'required' && !productIds.includes(dep.requiredProductId)
-  );
+  if (deps.length === 0) return [];
 
-  if (missingDeps.length === 0) return [];
+  // Construire un map quantité par productId (somme des lignes)
+  const quantityByProductId = new Map<string, number>();
+  for (const line of lines) {
+    quantityByProductId.set(
+      line.productId,
+      (quantityByProductId.get(line.productId) ?? 0) + line.quantity
+    );
+  }
 
-  // Dédupliquer par requiredProductId
-  const uniqueRequiredIds = [...new Set(missingDeps.map(d => d.requiredProductId))];
+  // Pour chaque produit requis unique, calculer combien sont nécessaires vs présents
+  const requiredProductIds = [...new Set(deps.map(d => d.requiredProductId))];
+  const missingResults: Array<{
+    id: string;
+    productId: string;
+    requiredProductId: string;
+    type: string;
+    description: string | null;
+    coveredQuantity: number;
+    missingQuantity: number;
+    productName: string;
+    requiredProduct: any;
+  }> = [];
 
-  // Récupérer les infos des produits manquants + les produits source
-  const [requiredProducts, sourceProducts] = await Promise.all([
-    db.select().from(products).where(inArray(products.id, uniqueRequiredIds)),
+  // Pour chaque dépendance unique (productId → requiredProductId)
+  // Regrouper par requiredProductId pour calculer le besoin total
+  const depsByRequired = new Map<string, typeof deps>();
+  for (const dep of deps) {
+    const group = depsByRequired.get(dep.requiredProductId) ?? [];
+    group.push(dep);
+    depsByRequired.set(dep.requiredProductId, group);
+  }
+
+  const [requiredProductsData, sourceProductsData] = await Promise.all([
+    db.select().from(products).where(inArray(products.id, requiredProductIds)),
     db.select({ id: products.id, name: products.name, reference: products.reference })
       .from(products)
-      .where(inArray(products.id, missingDeps.map(d => d.productId))),
+      .where(inArray(products.id, productIds)),
   ]);
 
-  const requiredMap = new Map(requiredProducts.map(p => [p.id, p]));
-  const sourceMap = new Map(sourceProducts.map(p => [p.id, p]));
+  const requiredMap = new Map(requiredProductsData.map(p => [p.id, p]));
+  const sourceMap = new Map(sourceProductsData.map(p => [p.id, p]));
 
-  return missingDeps.map(dep => ({
-    ...dep,
-    productName: sourceMap.get(dep.productId)?.name ?? '',
-    requiredProduct: requiredMap.get(dep.requiredProductId),
-  }));
+  for (const [requiredProductId, depsForRequired] of depsByRequired) {
+    // Calculer la demande totale en "required" couvrant tous les dépendants
+    let totalNeeded = 0;
+    for (const dep of depsForRequired) {
+      const dependentQty = quantityByProductId.get(dep.productId) ?? 0;
+      const coveredQty = dep.coveredQuantity ?? 1;
+      totalNeeded = Math.max(totalNeeded, Math.ceil(dependentQty / coveredQty));
+    }
+
+    // Quantité déjà présente dans la liste
+    const currentQty = quantityByProductId.get(requiredProductId) ?? 0;
+    const missingQty = totalNeeded - currentQty;
+
+    if (missingQty > 0) {
+      // Utiliser la première dépendance comme représentante
+      const rep = depsForRequired[0]!;
+      missingResults.push({
+        id: rep.id ?? '',
+        productId: rep.productId,
+        requiredProductId: rep.requiredProductId,
+        type: rep.type,
+        description: rep.description ?? null,
+        coveredQuantity: rep.coveredQuantity ?? 1,
+        missingQuantity: missingQty,
+        productName: depsForRequired
+          .map(d => sourceMap.get(d.productId)?.name ?? '')
+          .filter(Boolean)
+          .join(', '),
+        requiredProduct: requiredMap.get(requiredProductId),
+      });
+    }
+  }
+
+  return missingResults;
 }

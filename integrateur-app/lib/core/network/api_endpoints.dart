@@ -26,6 +26,7 @@ class ApiEndpoints {
   static String roomFloorPlan(String roomId) => '/pieces/$roomId/plan';
   static String floorPlan(String id) => '/plans/$id';
   static String floorPlanUsdz(String id) => '/plans/$id/usdz';
+  static String floorPlanElementPhoto(String planId) => '/plans/$planId/element-photo';
 
   // Photos
   static String roomPhotos(String roomId) => '/pieces/$roomId/photos';
@@ -49,6 +50,11 @@ class ApiEndpoints {
   static String quote(String id) => '/devis/$id';
   static String quotePdf(String id) => '/devis/$id/pdf';
   static String sendQuote(String id) => '/devis/$id/envoyer';
+
+  // Signature (Documenso)
+  static String quoteSignature(String id) => '/devis/$id/signature';
+  static String quoteSignatureRefresh(String id) => '/devis/$id/signature/refresh';
+  static String quoteContractPdf(String id) => '/devis/$id/contrat.pdf';
 
   // Sync
   static const String syncStatus = '/sync/status';

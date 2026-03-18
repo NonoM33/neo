@@ -383,101 +383,152 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
       child: InkWell(
         onTap: () => context.goToProjectDetail(project.id),
         borderRadius: AppRadius.borderRadiusLg,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.borderRadiusLg,
-            border: Border.all(
-              color: isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Avatar
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: statusColor.withAlpha(isDark ? 40 : 25),
-                  borderRadius: AppRadius.borderRadiusMd,
-                ),
-                child: Center(
-                  child: Text(
-                    _initials(project),
-                    style: tt.titleSmall?.copyWith(
-                      color: statusColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.only(left: 20, right: 16, top: 16, bottom: 16),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.borderRadiusLg,
+                border: Border.all(
+                  color: isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40),
                 ),
               ),
-              const SizedBox(width: 14),
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _displayName(project),
-                      style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (sub.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_outlined, size: 14, color: cs.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              sub,
-                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Avatar
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: statusColor.withAlpha(isDark ? 40 : 25),
+                          borderRadius: AppRadius.borderRadiusMd,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _initials(project),
+                            style: tt.titleSmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _displayName(project),
+                              style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                            ),
+                            if (sub.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(Icons.location_on_outlined, size: 14, color: cs.onSurfaceVariant),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      sub,
+                                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Meta
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: statusColor.withAlpha(isDark ? 35 : 20),
+                              borderRadius: AppRadius.borderRadiusSm,
+                              border: Border.all(
+                                color: statusColor.withAlpha(isDark ? 50 : 30),
+                              ),
+                            ),
+                            child: Text(
+                              project.status.displayName,
+                              style: tt.labelSmall?.copyWith(
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            project.createdAt.relativeTime,
+                            style: tt.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant.withAlpha(140),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withAlpha(100), size: 24),
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Meta
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withAlpha(isDark ? 35 : 20),
-                      borderRadius: AppRadius.borderRadiusSm,
-                      border: Border.all(
-                        color: statusColor.withAlpha(isDark ? 50 : 30),
-                      ),
-                    ),
-                    child: Text(
-                      project.status.displayName,
-                      style: tt.labelSmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    project.createdAt.relativeTime,
-                    style: tt.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant.withAlpha(140),
-                    ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: AppRadius.borderRadiusXs,
+                          child: LinearProgressIndicator(
+                            value: project.progressPercentage,
+                            minHeight: 3,
+                            backgroundColor: isDark
+                                ? Colors.white.withAlpha(12)
+                                : cs.outlineVariant.withAlpha(30),
+                            valueColor: AlwaysStoppedAnimation(statusColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${(project.progressPercentage * 100).toInt()}%',
+                        style: tt.labelSmall?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withAlpha(100), size: 24),
-            ],
-          ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -499,101 +550,148 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
       child: InkWell(
         onTap: () => context.goToProjectDetail(project.id),
         borderRadius: AppRadius.borderRadiusLg,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.borderRadiusLg,
-            border: Border.all(
-              color: isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.only(left: 24, right: 20, top: 20, bottom: 20),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.borderRadiusLg,
+                border: Border.all(
+                  color: isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: statusColor.withAlpha(isDark ? 40 : 25),
-                      borderRadius: AppRadius.borderRadiusMd,
-                    ),
-                    child: Center(
-                      child: Text(
-                        _initials(project),
-                        style: tt.titleSmall?.copyWith(
-                          color: statusColor,
-                          fontWeight: FontWeight.w700,
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: statusColor.withAlpha(isDark ? 40 : 25),
+                          borderRadius: AppRadius.borderRadiusMd,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _initials(project),
+                            style: tt.titleSmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withAlpha(isDark ? 35 : 20),
-                      borderRadius: AppRadius.borderRadiusSm,
-                      border: Border.all(
-                        color: statusColor.withAlpha(isDark ? 50 : 30),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: statusColor.withAlpha(isDark ? 35 : 20),
+                          borderRadius: AppRadius.borderRadiusSm,
+                          border: Border.all(
+                            color: statusColor.withAlpha(isDark ? 50 : 30),
+                          ),
+                        ),
+                        child: Text(
+                          project.status.displayName,
+                          style: tt.labelSmall?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      project.status.displayName,
-                      style: tt.labelSmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                _displayName(project),
-                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (sub.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  sub,
-                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const Spacer(),
-              Row(
-                children: [
-                  if (project.surface != null) ...[
-                    Icon(Icons.square_foot_rounded, size: 14, color: cs.onSurfaceVariant.withAlpha(160)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${project.surface!.toStringAsFixed(0)} m\u00B2',
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withAlpha(160)),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  if (project.roomCount != null && project.roomCount! > 0) ...[
-                    Icon(Icons.meeting_room_outlined, size: 14, color: cs.onSurfaceVariant.withAlpha(160)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${project.roomCount} piece${project.roomCount! > 1 ? 's' : ''}',
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withAlpha(160)),
-                    ),
-                  ],
-                  const Spacer(),
+                  const SizedBox(height: 14),
                   Text(
-                    project.createdAt.relativeTime,
-                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withAlpha(120)),
+                    _displayName(project),
+                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (sub.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      sub,
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const Spacer(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: AppRadius.borderRadiusXs,
+                          child: LinearProgressIndicator(
+                            value: project.progressPercentage,
+                            minHeight: 4,
+                            backgroundColor: isDark
+                                ? Colors.white.withAlpha(12)
+                                : cs.outlineVariant.withAlpha(30),
+                            valueColor: AlwaysStoppedAnimation(statusColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${(project.progressPercentage * 100).toInt()}%',
+                        style: tt.labelSmall?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      if (project.surface != null) ...[
+                        Icon(Icons.square_foot_rounded, size: 14, color: cs.onSurfaceVariant.withAlpha(160)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${project.surface!.toStringAsFixed(0)} m\u00B2',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withAlpha(160)),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      if (project.roomCount != null && project.roomCount! > 0) ...[
+                        Icon(Icons.meeting_room_outlined, size: 14, color: cs.onSurfaceVariant.withAlpha(160)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${project.roomCount} piece${project.roomCount! > 1 ? 's' : ''}',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withAlpha(160)),
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        project.createdAt.relativeTime,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withAlpha(120)),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
