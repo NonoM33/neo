@@ -58,5 +58,5 @@ export const SITE_CONFIG = {
   plausibleDomain: 'neo-domotique.fr', // TODO: remplacer si différent
 
   // API
-  apiBaseUrl: 'http://localhost:3000', // TODO: remplacer en production par l'URL de l'API
+  apiBaseUrl: 'http://neo-api.157.180.43.90.sslip.io',
 } as const;
