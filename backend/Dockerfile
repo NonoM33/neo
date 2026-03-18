@@ -11,4 +11,4 @@ RUN bun run typecheck || true
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "bun run db:migrate && bun run db:seed; bun run start"]
+CMD ["sh", "-c", "bun run src/db/migrate.ts && (bun run db:seed || true) && bun run start"]
