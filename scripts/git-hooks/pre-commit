@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Pre-commit hook: runs flutter test for integrateur-app when Dart files are
+# staged. Blocks the commit on test failure.
+#
+# Enable once per clone: bash scripts/install-hooks.sh
+
+set -e
+
+# Find staged files (Added, Modified, Renamed, Copied)
+STAGED_DART_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^integrateur-app/.*\.dart$' || true)
+
+if [ -z "$STAGED_DART_FILES" ]; then
+  exit 0
+fi
+
+echo "📋 Dart files staged in integrateur-app, running flutter test..."
+
+cd integrateur-app
+
+if ! command -v flutter >/dev/null 2>&1; then
+  echo "⚠️  flutter not found in PATH — skipping tests (hook is non-blocking when toolchain missing)."
+  exit 0
+fi
+
+if ! flutter test --no-pub --reporter=compact; then
+  echo ""
+  echo "❌ flutter test failed. Commit aborted."
+  echo "   Fix the failing tests then re-stage and commit again."
+  echo "   To bypass intentionally (e.g. WIP), use: git commit --no-verify"
+  exit 1
+fi
+
+echo "✅ flutter test passed."
