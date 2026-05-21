@@ -16,90 +16,15 @@ import '../../../routes/app_router.dart';
 import '../../blocs/audit/audit_bloc.dart';
 import '../../blocs/audit/audit_event.dart';
 import '../../blocs/audit/audit_state.dart';
+import 'widgets/audit_sheets.dart';
+import 'widgets/audit_visuals.dart';
+import 'widgets/qty_button.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper enums & functions
+// Helper enum
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum _ChecklistFilter { all, pending, done }
-
-IconData _roomIcon(RoomType type) {
-  switch (type) {
-    case RoomType.salon:
-      return Icons.weekend_outlined;
-    case RoomType.cuisine:
-      return Icons.kitchen_outlined;
-    case RoomType.chambre:
-      return Icons.bed_outlined;
-    case RoomType.salleDeBain:
-      return Icons.bathtub_outlined;
-    case RoomType.bureau:
-      return Icons.desk_outlined;
-    case RoomType.garage:
-      return Icons.garage_outlined;
-    case RoomType.exterieur:
-      return Icons.park_outlined;
-    case RoomType.autre:
-      return Icons.room_outlined;
-  }
-}
-
-IconData _catIcon(ChecklistCategory cat) {
-  switch (cat) {
-    case ChecklistCategory.eclairage:
-      return Icons.lightbulb_outlined;
-    case ChecklistCategory.ouvrants:
-      return Icons.sensor_window_outlined;
-    case ChecklistCategory.climat:
-      return Icons.thermostat_outlined;
-    case ChecklistCategory.securite:
-      return Icons.security_outlined;
-    case ChecklistCategory.energie:
-      return Icons.bolt_outlined;
-    case ChecklistCategory.multimedia:
-      return Icons.tv_outlined;
-    case ChecklistCategory.infrastructure:
-      return Icons.electrical_services_outlined;
-    case ChecklistCategory.reseau:
-      return Icons.wifi_outlined;
-    case ChecklistCategory.chauffage:
-      return Icons.local_fire_department_outlined;
-    case ChecklistCategory.autre:
-      return Icons.category_outlined;
-  }
-}
-
-Color _catColor(ChecklistCategory cat, ColorScheme cs) {
-  switch (cat) {
-    case ChecklistCategory.eclairage:
-      return AppTheme.warningColor;
-    case ChecklistCategory.ouvrants:
-      return AppTheme.statusEnCours;
-    case ChecklistCategory.climat:
-      return AppTheme.secondaryColor;
-    case ChecklistCategory.securite:
-      return AppTheme.errorColor;
-    case ChecklistCategory.energie:
-      return AppTheme.tertiaryColor;
-    case ChecklistCategory.multimedia:
-      return AppTheme.statusBrouillon;
-    case ChecklistCategory.infrastructure:
-      return cs.onSurfaceVariant;
-    case ChecklistCategory.reseau:
-      return AppTheme.statusEnCours;
-    case ChecklistCategory.chauffage:
-      return AppTheme.tertiaryColor;
-    case ChecklistCategory.autre:
-      return AppTheme.statusArchive;
-  }
-}
-
-Color _progressColor(double p) {
-  if (p <= 0) return AppTheme.statusArchive;
-  if (p < 0.4) return AppTheme.warningColor;
-  if (p < 0.8) return AppTheme.statusEnCours;
-  return AppTheme.successColor;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AuditScreen
@@ -137,7 +62,7 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
       ),
-      builder: (_) => _AddRoomSheet(
+      builder: (_) => AddRoomSheet(
         onAdd: (name, type) {
           bloc.add(AuditAddRoomRequested(name: name, type: type));
           Navigator.of(context).pop();
@@ -154,7 +79,7 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
       ),
-      builder: (_) => _EditRoomSheet(
+      builder: (_) => EditRoomSheet(
         room: room,
         onSave: (updated) {
           bloc.add(AuditUpdateRoomRequested(updated));
@@ -523,7 +448,7 @@ class _ProgressSummary extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final pct = state.completionPercentage;
-    final pctColor = _progressColor(pct);
+    final pctColor = progressColor(pct);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -585,7 +510,7 @@ class _RoomListCard extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final progress = room.checklistProgress;
-    final iconColor = isSelected ? cs.primary : _progressColor(progress);
+    final iconColor = isSelected ? cs.primary : progressColor(progress);
 
     return Stack(
       children: [
@@ -635,7 +560,7 @@ class _RoomListCard extends StatelessWidget {
                       borderRadius: AppRadius.borderRadiusSm,
                     ),
                     child: Icon(
-                      _roomIcon(room.type),
+                      roomIcon(room.type),
                       size: 20,
                       color: iconColor,
                     ),
@@ -680,7 +605,7 @@ class _RoomListCard extends StatelessWidget {
                           backgroundColor:
                               cs.outlineVariant.withAlpha(40),
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            _progressColor(progress),
+                            progressColor(progress),
                           ),
                         ),
                         if (progress > 0)
@@ -688,7 +613,7 @@ class _RoomListCard extends StatelessWidget {
                             '${(progress * 100).round()}',
                             style: tt.labelSmall?.copyWith(
                               fontSize: 9,
-                              color: _progressColor(progress),
+                              color: progressColor(progress),
                             ),
                           ),
                       ],
@@ -870,7 +795,7 @@ class _RoomDetailHeader extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final progress = room.checklistProgress;
-    final iconColor = _progressColor(progress);
+    final iconColor = progressColor(progress);
     final topPad = MediaQuery.of(context).padding.top;
 
     return Padding(
@@ -912,7 +837,7 @@ class _RoomDetailHeader extends StatelessWidget {
               borderRadius: AppRadius.borderRadiusMd,
             ),
             child: Icon(
-              _roomIcon(room.type),
+              roomIcon(room.type),
               size: 22,
               color: iconColor,
             ),
@@ -1260,7 +1185,7 @@ class _ChecklistTabState extends State<_ChecklistTab> {
   void _showAddItemDialog(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (_) => _AddItemDialog(
+      builder: (_) => AddItemDialog(
         onAdd: (label, category) {
           context.read<AuditBloc>().add(AuditAddChecklistItemRequested(
                 label: label,
@@ -1335,7 +1260,7 @@ class _CategorySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    final catColor = _catColor(category, cs);
+    final categoryColor = catColor(category, cs);
     final checkedCount = items.where((i) => i.isChecked).length;
     final totalCount = items.length;
     final catProgress = totalCount > 0 ? checkedCount / totalCount : 0.0;
@@ -1358,17 +1283,17 @@ class _CategorySection extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: catColor.withAlpha(20),
+                  color: categoryColor.withAlpha(20),
                   borderRadius: AppRadius.borderRadiusXs,
                 ),
-                child: Icon(_catIcon(category), size: 16, color: catColor),
+                child: Icon(catIcon(category), size: 16, color: categoryColor),
               ),
               AppSpacing.hGapSm,
               Expanded(
                 child: Text(
                   category.displayName,
                   style: tt.labelMedium?.copyWith(
-                    color: catColor,
+                    color: categoryColor,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1377,13 +1302,13 @@ class _CategorySection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: catColor.withAlpha(18),
+                  color: categoryColor.withAlpha(18),
                   borderRadius: AppRadius.borderRadiusFull,
                 ),
                 child: Text(
                   '$checkedCount/$totalCount',
                   style: tt.labelSmall?.copyWith(
-                    color: catColor,
+                    color: categoryColor,
                     fontSize: 10,
                   ),
                 ),
@@ -1414,7 +1339,7 @@ class _CategorySection extends StatelessWidget {
               value: catProgress,
               minHeight: 3,
               backgroundColor: cs.outlineVariant.withAlpha(40),
-              valueColor: AlwaysStoppedAnimation<Color>(catColor),
+              valueColor: AlwaysStoppedAnimation<Color>(categoryColor),
             ),
           ),
         ),
@@ -1631,7 +1556,7 @@ class _QuantityControl extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _QtyButton(
+        QtyButton(
           icon: Icons.remove_rounded,
           cs: cs,
           isDark: isDark,
@@ -1654,7 +1579,7 @@ class _QuantityControl extends StatelessWidget {
             style: Theme.of(context).textTheme.labelMedium,
           ),
         ),
-        _QtyButton(
+        QtyButton(
           icon: Icons.add_rounded,
           cs: cs,
           isDark: isDark,
@@ -1669,38 +1594,6 @@ class _QuantityControl extends StatelessWidget {
           },
         ),
       ],
-    );
-  }
-}
-
-class _QtyButton extends StatelessWidget {
-  final IconData icon;
-  final ColorScheme cs;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  const _QtyButton({
-    required this.icon,
-    required this.cs,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 26,
-        height: 26,
-        decoration: BoxDecoration(
-          color: isDark
-              ? Colors.white.withAlpha(10)
-              : cs.surfaceContainerHighest,
-          borderRadius: AppRadius.borderRadiusXs,
-        ),
-        child: Icon(icon, size: 14, color: cs.onSurfaceVariant),
-      ),
     );
   }
 }
@@ -2121,501 +2014,5 @@ class _NotesTabState extends State<_NotesTab> {
         ],
       ),
     );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Add Room Sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AddRoomSheet extends StatefulWidget {
-  final void Function(String name, RoomType type) onAdd;
-
-  const _AddRoomSheet({required this.onAdd});
-
-  @override
-  State<_AddRoomSheet> createState() => _AddRoomSheetState();
-}
-
-class _AddRoomSheetState extends State<_AddRoomSheet> {
-  RoomType _selectedType = RoomType.salon;
-  final _nameController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        0,
-        AppSpacing.lg,
-        AppSpacing.lg + bottomInset,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Text(
-              'Ajouter une pièce',
-              style: tt.titleLarge,
-            ),
-          ),
-          AppSpacing.vGapLg,
-
-          Text('Type de pièce', style: tt.labelMedium),
-          AppSpacing.vGapSm,
-
-          // Room type selector
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: RoomType.values.map((type) {
-              final isSelected = _selectedType == type;
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _selectedType = type);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  constraints: const BoxConstraints(minHeight: 48),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? cs.primary
-                        : cs.surfaceContainerHighest,
-                    borderRadius: AppRadius.borderRadiusMd,
-                    border: Border.all(
-                      color: isSelected
-                          ? cs.primary
-                          : cs.outlineVariant.withAlpha(60),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _roomIcon(type),
-                        size: 18,
-                        color: isSelected
-                            ? cs.onPrimary
-                            : cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        type.displayName,
-                        style: tt.labelMedium?.copyWith(
-                          color: isSelected
-                              ? cs.onPrimary
-                              : cs.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          AppSpacing.vGapLg,
-
-          Text('Nom (optionnel)', style: tt.labelMedium),
-          AppSpacing.vGapSm,
-          TextField(
-            controller: _nameController,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              hintText: _selectedType.displayName,
-            ),
-            onSubmitted: (_) => _submit(),
-          ),
-          AppSpacing.vGapLg,
-
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _submit,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: Text('Ajouter ${_selectedType.displayName}'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _submit() {
-    HapticFeedback.lightImpact();
-    widget.onAdd(_nameController.text, _selectedType);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Edit Room Sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _EditRoomSheet extends StatefulWidget {
-  final Room room;
-  final void Function(Room updated) onSave;
-  final VoidCallback onDelete;
-
-  const _EditRoomSheet({
-    required this.room,
-    required this.onSave,
-    required this.onDelete,
-  });
-
-  @override
-  State<_EditRoomSheet> createState() => _EditRoomSheetState();
-}
-
-class _EditRoomSheetState extends State<_EditRoomSheet> {
-  late RoomType _selectedType;
-  late TextEditingController _nameController;
-  late int _floor;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedType = widget.room.type;
-    _nameController = TextEditingController(text: widget.room.name);
-    _floor = widget.room.floor;
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        0,
-        AppSpacing.lg,
-        AppSpacing.lg + bottomInset,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Text('Modifier la pièce', style: tt.titleLarge),
-          ),
-          AppSpacing.vGapLg,
-
-          Text('Type de pièce', style: tt.labelMedium),
-          AppSpacing.vGapSm,
-
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: RoomType.values.map((type) {
-              final isSelected = _selectedType == type;
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _selectedType = type);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  constraints: const BoxConstraints(minHeight: 48),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? cs.primary
-                        : cs.surfaceContainerHighest,
-                    borderRadius: AppRadius.borderRadiusMd,
-                    border: Border.all(
-                      color: isSelected
-                          ? cs.primary
-                          : cs.outlineVariant.withAlpha(60),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _roomIcon(type),
-                        size: 18,
-                        color: isSelected
-                            ? cs.onPrimary
-                            : cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        type.displayName,
-                        style: tt.labelMedium?.copyWith(
-                          color: isSelected
-                              ? cs.onPrimary
-                              : cs.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          AppSpacing.vGapLg,
-
-          Text('Nom', style: tt.labelMedium),
-          AppSpacing.vGapSm,
-          TextField(
-            controller: _nameController,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(hintText: 'Nom de la pièce'),
-          ),
-          AppSpacing.vGapLg,
-
-          Text('Étage', style: tt.labelMedium),
-          AppSpacing.vGapSm,
-          Row(
-            children: [
-              _QtyButton(
-                icon: Icons.remove_rounded,
-                cs: cs,
-                isDark: isDark,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _floor--);
-                },
-              ),
-              const SizedBox(width: 16),
-              Text(
-                _floor == 0
-                    ? 'RDC'
-                    : _floor > 0
-                        ? 'Étage $_floor'
-                        : 'Sous-sol ${_floor.abs()}',
-                style: tt.bodyMedium,
-              ),
-              const SizedBox(width: 16),
-              _QtyButton(
-                icon: Icons.add_rounded,
-                cs: cs,
-                isDark: isDark,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _floor++);
-                },
-              ),
-            ],
-          ),
-          AppSpacing.vGapLg,
-
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _confirmDelete,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: cs.error,
-                    side: BorderSide(color: cs.error.withAlpha(120)),
-                  ),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('Supprimer'),
-                ),
-              ),
-              AppSpacing.hGapSm,
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _submit,
-                  icon: const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Enregistrer'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _submit() {
-    HapticFeedback.lightImpact();
-    final updated = widget.room.copyWith(
-      name: _nameController.text,
-      type: _selectedType,
-      floor: _floor,
-    );
-    widget.onSave(updated);
-  }
-
-  Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la pièce'),
-        content: const Text(
-          'La pièce et toutes ses données seront supprimées définitivement.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      HapticFeedback.lightImpact();
-      widget.onDelete();
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Add Item Dialog
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AddItemDialog extends StatefulWidget {
-  final void Function(String label, ChecklistCategory category) onAdd;
-
-  const _AddItemDialog({required this.onAdd});
-
-  @override
-  State<_AddItemDialog> createState() => _AddItemDialogState();
-}
-
-class _AddItemDialogState extends State<_AddItemDialog> {
-  final _labelController = TextEditingController();
-  ChecklistCategory _selectedCategory = ChecklistCategory.autre;
-
-  @override
-  void dispose() {
-    _labelController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-
-    return AlertDialog(
-      constraints: AppSpacing.dialogConstraints,
-      title: const Text('Ajouter un item'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _labelController,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              hintText: 'Ex: Interrupteur connecté',
-            ),
-            onSubmitted: (_) => _submit(),
-          ),
-          AppSpacing.vGapLg,
-
-          Text('Catégorie', style: tt.labelMedium),
-          AppSpacing.vGapSm,
-
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: ChecklistCategory.values.map((cat) {
-              final isSelected = _selectedCategory == cat;
-              final catColor = _catColor(cat, cs);
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _selectedCategory = cat);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  constraints: const BoxConstraints(minHeight: 36),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? catColor.withAlpha(30)
-                        : cs.surfaceContainerHighest,
-                    borderRadius: AppRadius.borderRadiusSm,
-                    border: Border.all(
-                      color: isSelected
-                          ? catColor
-                          : cs.outlineVariant.withAlpha(40),
-                      width: isSelected ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _catIcon(cat),
-                        size: 14,
-                        color: isSelected ? catColor : cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        cat.displayName,
-                        style: tt.labelSmall?.copyWith(
-                          color: isSelected ? catColor : cs.onSurface,
-                          fontWeight: isSelected ? FontWeight.w700 : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Ajouter'),
-        ),
-      ],
-    );
-  }
-
-  void _submit() {
-    final label = _labelController.text.trim();
-    if (label.isEmpty) return;
-    HapticFeedback.lightImpact();
-    widget.onAdd(label, _selectedCategory);
-    Navigator.pop(context);
   }
 }

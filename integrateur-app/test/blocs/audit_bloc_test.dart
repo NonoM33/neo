@@ -274,8 +274,8 @@ void main() {
         'AuditToggleChecklistItemRequested optimistically flips isChecked',
         setUp: () {
           when(() => mockRepository.updateChecklistItem(any(), any()))
-              .thenAnswer((_) async => Success(salonRoom.checklist.first
-                  .copyWith(isChecked: true) as ChecklistItem));
+              .thenAnswer((_) async =>
+                  Success(salonRoom.checklist.first.copyWith(isChecked: true)));
         },
         seed: loadedState,
         build: buildBloc,
