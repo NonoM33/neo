@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>🚀 Neo ERP — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.7/dist/cdn.min.js"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto;
+        background:
+          radial-gradient(circle at 15% 0%, #1e293b 0%, transparent 40%),
+          radial-gradient(circle at 85% 100%, #1e1b4b 0%, transparent 40%),
+          #0b1020;
+        color: #e5e7eb;
+      }
+      .card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        backdrop-filter: blur(8px);
+        border-radius: 1rem;
+      }
+      .card-hl {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+        border: 1px solid rgba(139, 92, 246, 0.25);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+      .scrollbar-thin::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.3);
+        border-radius: 3px;
+      }
+      .glow {
+        box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.4);
+      }
+      .gradient-text {
+        background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      [x-cloak] { display: none !important; }
+    </style>
+  </head>
+  <body
+    x-data="dashboard()"
+    x-init="load()"
+    class="min-h-screen"
+  >
+    <!-- HEADER -->
+    <header class="border-b border-slate-800/50 sticky top-0 z-50 backdrop-blur-xl bg-slate-950/60">
+      <div class="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight gradient-text">
+            🚀 Neo Domotique ERP
+          </h1>
+          <p class="text-xs text-slate-400 mt-0.5" x-show="status">
+            Branche
+            <code class="text-violet-300" x-text="status?.branch"></code>
+            <template x-if="status?.commitsAhead">
+              <span class="text-amber-300 ml-2">
+                · <span x-text="status.commitsAhead"></span> commit(s) à push
+              </span>
+            </template>
+            ·
+            <span x-text="`mis à jour ${formatDate(status?.generatedAt)}`"></span>
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-2 text-xs text-slate-400 px-3 py-2 rounded-lg border border-slate-700/50">
+            <input type="checkbox" x-model="autoRefresh" class="accent-violet-500" />
+            Auto 30s
+          </label>
+          <button
+            @click="load()"
+            class="px-4 py-2 text-sm rounded-lg bg-violet-600 hover:bg-violet-500 transition font-medium flex items-center gap-2"
+            :disabled="loading"
+          >
+            <svg
+              class="w-4 h-4"
+              :class="loading ? 'animate-spin' : ''"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4 4v6h6M20 20v-6h-6M5.4 9A8 8 0 0119 14.7M18.6 15A8 8 0 015 9.3"
+              />
+            </svg>
+            <span x-text="loading ? 'Scan…' : 'Rafraîchir'"></span>
+          </button>
+          <button
+            @click="regenerateMarkdown()"
+            class="px-3 py-2 text-sm rounded-lg border border-emerald-700/50 hover:bg-emerald-700/20 transition text-emerald-300"
+            :disabled="loading"
+          >
+            📝 STATUS.md
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto px-6 py-8 space-y-8" x-cloak>
+      <!-- ERROR -->
+      <div
+        x-show="error"
+        class="p-4 rounded-xl bg-rose-950/40 border border-rose-700/50 text-rose-200"
+      >
+        <strong>Erreur :</strong> <span x-text="error"></span>
+      </div>
+
+      <!-- KPIs -->
+      <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <template
+          x-for="kpi in [
+            { label: 'LOC total', value: status?.totals?.loc, format: 'n' },
+            { label: 'Fichiers', value: status?.totals?.files, format: 'n' },
+            { label: 'Tests', value: status?.totals?.testFiles, format: 'n', accent: 'emerald' },
+            { label: 'Modules backend', value: status?.totals?.modulesBackend, format: 'n' },
+            { label: 'Fichiers > 300L', value: status?.totals?.bigFilesCount, format: 'n', accent: 'amber' },
+            { label: 'Commits 30j', value: status?.totals?.commitsLast30d, format: 'n' },
+          ]"
+          :key="kpi.label"
+        >
+          <div
+            class="card p-4"
+            :class="kpi.accent === 'emerald' ? 'card-hl' : ''"
+          >
+            <div
+              class="text-xs uppercase tracking-wider text-slate-400"
+              x-text="kpi.label"
+            ></div>
+            <div
+              class="text-3xl font-bold mt-1"
+              :class="{
+                'text-emerald-300': kpi.accent === 'emerald',
+                'text-amber-300': kpi.accent === 'amber',
+              }"
+              x-text="kpi.value != null ? Number(kpi.value).toLocaleString('fr-FR') : '—'"
+            ></div>
+          </div>
+        </template>
+      </section>
+
+      <!-- HEALTH + CHARTS -->
+      <section class="grid lg:grid-cols-3 gap-6">
+        <!-- Health -->
+        <div class="card p-5 lg:col-span-1">
+          <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            🩺 Santé du projet
+          </h2>
+          <ul class="space-y-3">
+            <template x-for="h in status?.health || []" :key="h.label">
+              <li class="flex items-start gap-3">
+                <span
+                  class="mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  :class="{
+                    'bg-emerald-400 shadow-[0_0_10px] shadow-emerald-400/60': h.level === 'ok',
+                    'bg-amber-400 shadow-[0_0_10px] shadow-amber-400/60': h.level === 'warn',
+                    'bg-rose-400 shadow-[0_0_10px] shadow-rose-400/60': h.level === 'alert',
+                  }"
+                ></span>
+                <div class="text-sm">
+                  <div class="font-medium" x-text="h.label"></div>
+                  <div class="text-slate-400 text-xs" x-text="h.message"></div>
+                </div>
+              </li>
+            </template>
+          </ul>
+        </div>
+
+        <!-- LOC par projet (chart) -->
+        <div class="card p-5 lg:col-span-2">
+          <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            📦 Lignes de code par projet
+          </h2>
+          <canvas id="locChart" height="120"></canvas>
+        </div>
+      </section>
+
+      <!-- PROJECTS GRID -->
+      <section>
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>📦</span> Projets
+          <span class="text-xs text-slate-400 font-normal" x-text="status?.projects?.length"></span>
+        </h2>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="p in status?.projects || []" :key="p.slug">
+            <div class="card p-5 hover:border-violet-500/40 transition">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <div class="text-3xl" x-text="p.emoji"></div>
+                  <div>
+                    <div class="font-bold text-lg" x-text="p.name"></div>
+                    <div class="text-xs text-slate-400" x-text="p.stack"></div>
+                  </div>
+                </div>
+                <span
+                  class="pill"
+                  :class="{
+                    'bg-emerald-950/60 text-emerald-300 border border-emerald-800/50': p.status === 'prod',
+                    'bg-blue-950/60 text-blue-300 border border-blue-800/50': p.status === 'dev',
+                    'bg-amber-950/60 text-amber-300 border border-amber-800/50': p.status === 'exp',
+                  }"
+                  x-text="p.status === 'prod' ? '🟢 PROD' : p.status === 'dev' ? '🔵 DEV' : '🟡 EXP'"
+                ></span>
+              </div>
+              <p class="text-sm text-slate-400 mb-4" x-text="p.description"></p>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-slate-900/40 rounded-lg py-2">
+                  <div class="text-xs text-slate-500">LOC</div>
+                  <div class="font-bold" x-text="p.loc.toLocaleString('fr-FR')"></div>
+                </div>
+                <div class="bg-slate-900/40 rounded-lg py-2">
+                  <div class="text-xs text-slate-500">Fichiers</div>
+                  <div class="font-bold" x-text="p.files"></div>
+                </div>
+                <div
+                  class="rounded-lg py-2"
+                  :class="p.testCount > 0 ? 'bg-emerald-950/40' : 'bg-rose-950/40'"
+                >
+                  <div class="text-xs text-slate-500">Tests</div>
+                  <div
+                    class="font-bold"
+                    :class="p.testCount > 0 ? 'text-emerald-300' : 'text-rose-300'"
+                    x-text="p.testCount"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ROADMAP (Kanban-like) -->
+      <section>
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>🗺️</span> Roadmap
+        </h2>
+        <div class="space-y-4">
+          <template x-for="section in status?.roadmap || []" :key="section.title">
+            <div class="card p-5">
+              <h3 class="font-bold text-lg mb-3 flex items-center gap-2">
+                <span x-text="section.title"></span>
+                <span
+                  class="text-xs text-slate-400 font-normal"
+                  x-text="`${section.items.filter(i => i.status === 'done').length}/${section.items.length}`"
+                ></span>
+              </h3>
+              <div class="grid md:grid-cols-3 gap-3">
+                <template x-for="col in ['done', 'in_progress', 'todo']" :key="col">
+                  <div>
+                    <div
+                      class="text-xs uppercase tracking-wider mb-2 font-semibold"
+                      :class="{
+                        'text-emerald-400': col === 'done',
+                        'text-amber-400': col === 'in_progress',
+                        'text-slate-400': col === 'todo',
+                      }"
+                      x-text="col === 'done' ? '✅ Terminé' : col === 'in_progress' ? '🔄 En cours' : '📋 À faire'"
+                    ></div>
+                    <ul class="space-y-2">
+                      <template
+                        x-for="item in section.items.filter(i => i.status === col)"
+                        :key="item.label"
+                      >
+                        <li
+                          class="text-sm p-3 rounded-lg"
+                          :class="{
+                            'bg-emerald-950/30 border border-emerald-800/30': col === 'done',
+                            'bg-amber-950/30 border border-amber-800/30': col === 'in_progress',
+                            'bg-slate-900/40 border border-slate-700/30': col === 'todo',
+                          }"
+                        >
+                          <div x-text="item.label"></div>
+                          <div
+                            class="text-xs text-slate-400 mt-1"
+                            x-show="item.detail"
+                            x-text="item.detail"
+                          ></div>
+                        </li>
+                      </template>
+                    </ul>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- DETTE TECHNIQUE -->
+      <section class="grid lg:grid-cols-2 gap-6">
+        <!-- Big files -->
+        <div class="card p-5">
+          <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            🐘 Fichiers monstres (>300L)
+            <span class="text-amber-300" x-text="`${status?.bigFiles?.length || 0} fichiers`"></span>
+          </h2>
+          <div class="max-h-96 overflow-y-auto scrollbar-thin">
+            <table class="w-full text-sm">
+              <thead class="text-xs text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th class="text-right pr-3 pb-2">Lignes</th>
+                  <th class="text-left pb-2">Fichier</th>
+                </tr>
+              </thead>
+              <tbody class="font-mono text-xs">
+                <template x-for="f in (status?.bigFiles || []).slice(0, 25)" :key="f.path">
+                  <tr class="border-t border-slate-800/40">
+                    <td
+                      class="text-right pr-3 py-1.5 font-bold"
+                      :class="{
+                        'text-rose-300': f.lines > 1500,
+                        'text-amber-300': f.lines >= 800 && f.lines <= 1500,
+                        'text-slate-300': f.lines < 800,
+                      }"
+                      x-text="f.lines"
+                    ></td>
+                    <td class="py-1.5 text-slate-300 truncate max-w-md" :title="f.path">
+                      <span x-text="f.path"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TODOs -->
+        <div class="card p-5">
+          <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            📝 TODOs / FIXMEs
+            <span class="text-amber-300" x-text="`${status?.todos?.length || 0} marqueurs`"></span>
+          </h2>
+          <div class="max-h-96 overflow-y-auto scrollbar-thin space-y-2">
+            <template x-for="t in (status?.todos || []).slice(0, 50)" :key="t.file + t.line">
+              <div class="text-xs p-2 rounded bg-slate-900/40 border border-slate-800/40">
+                <div class="flex items-center gap-2 mb-1">
+                  <span
+                    class="pill"
+                    :class="{
+                      'bg-amber-950/60 text-amber-300': t.kind === 'TODO',
+                      'bg-rose-950/60 text-rose-300': t.kind === 'FIXME' || t.kind === 'XXX' || t.kind === 'HACK',
+                    }"
+                    x-text="t.kind"
+                  ></span>
+                  <span class="font-mono text-slate-400" x-text="`${t.file}:${t.line}`"></span>
+                </div>
+                <div class="text-slate-300" x-text="t.text || '(sans texte)'"></div>
+              </div>
+            </template>
+            <div
+              class="text-center text-xs text-slate-500 py-4"
+              x-show="(status?.todos?.length || 0) === 0"
+            >
+              Aucun TODO/FIXME — propre 🎉
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BACKEND MODULES + INTEGRATEUR SCREENS + CRM PAGES -->
+      <section class="grid md:grid-cols-3 gap-4">
+        <div class="card p-5">
+          <h3 class="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            🛠️ Modules backend
+            <span class="text-violet-300" x-text="status?.backendModules?.length || 0"></span>
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <template x-for="m in status?.backendModules || []" :key="m">
+              <span class="pill bg-slate-900/60 border border-slate-700/50 text-slate-300 font-mono" x-text="m"></span>
+            </template>
+          </div>
+        </div>
+        <div class="card p-5">
+          <h3 class="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            📱 Écrans intégrateur
+            <span class="text-violet-300" x-text="status?.integrateurScreens?.length || 0"></span>
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <template x-for="s in status?.integrateurScreens || []" :key="s">
+              <span class="pill bg-slate-900/60 border border-slate-700/50 text-slate-300 font-mono" x-text="s"></span>
+            </template>
+          </div>
+        </div>
+        <div class="card p-5">
+          <h3 class="text-sm uppercase tracking-wider text-slate-400 mb-3">
+            📞 Pages CRM
+            <span class="text-violet-300" x-text="status?.crmPages?.length || 0"></span>
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <template x-for="p in status?.crmPages || []" :key="p">
+              <span class="pill bg-slate-900/60 border border-slate-700/50 text-slate-300 font-mono" x-text="p"></span>
+            </template>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMMITS -->
+      <section class="card p-5">
+        <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+          📜 Derniers commits
+          <span class="text-violet-300" x-text="`(${status?.recentCommits?.length || 0})`"></span>
+        </h2>
+        <div class="max-h-80 overflow-y-auto scrollbar-thin">
+          <table class="w-full text-sm">
+            <tbody>
+              <template x-for="c in status?.recentCommits || []" :key="c.sha">
+                <tr class="border-t border-slate-800/40 hover:bg-slate-900/30">
+                  <td class="py-2 pr-3 font-mono text-violet-300 text-xs" x-text="c.sha"></td>
+                  <td class="py-2 pr-3 truncate max-w-xl" x-text="c.message"></td>
+                  <td class="py-2 pr-3 text-xs text-slate-400" x-text="c.author"></td>
+                  <td class="py-2 text-xs text-slate-500 whitespace-nowrap" x-text="c.date.slice(0, 16).replace('T', ' ')"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="text-center text-xs text-slate-500 py-6">
+        Généré localement par
+        <code class="text-violet-400">bun run _status/server.ts</code> · Aucune
+        donnée n'est envoyée à l'extérieur.
+      </footer>
+    </main>
+
+    <script>
+      function dashboard() {
+        return {
+          status: null,
+          loading: false,
+          error: null,
+          autoRefresh: false,
+          refreshTimer: null,
+          locChart: null,
+
+          async load() {
+            this.loading = true;
+            this.error = null;
+            try {
+              const res = await fetch("/api/status");
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              this.status = await res.json();
+              this.renderLocChart();
+            } catch (e) {
+              this.error = e.message ?? String(e);
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          async regenerateMarkdown() {
+            this.loading = true;
+            try {
+              const res = await fetch("/api/markdown", { method: "POST" });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const { path } = await res.json();
+              alert(`STATUS.md regénéré → ${path}`);
+            } catch (e) {
+              this.error = e.message ?? String(e);
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          formatDate(iso) {
+            if (!iso) return "";
+            const d = new Date(iso);
+            return d.toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
+          },
+
+          renderLocChart() {
+            const ctx = document.getElementById("locChart");
+            if (!ctx || !this.status?.projects) return;
+            const labels = this.status.projects.map((p) => `${p.emoji} ${p.name}`);
+            const data = this.status.projects.map((p) => p.loc);
+            const tests = this.status.projects.map((p) => p.testCount);
+
+            if (this.locChart) {
+              this.locChart.data.labels = labels;
+              this.locChart.data.datasets[0].data = data;
+              this.locChart.data.datasets[1].data = tests;
+              this.locChart.update();
+              return;
+            }
+
+            // eslint-disable-next-line no-undef
+            this.locChart = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels,
+                datasets: [
+                  {
+                    label: "Lignes de code",
+                    data,
+                    backgroundColor: "rgba(139, 92, 246, 0.6)",
+                    borderColor: "rgba(167, 139, 250, 1)",
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    yAxisID: "y",
+                  },
+                  {
+                    label: "Tests",
+                    data: tests,
+                    backgroundColor: "rgba(52, 211, 153, 0.6)",
+                    borderColor: "rgba(110, 231, 183, 1)",
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    yAxisID: "y1",
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "top",
+                    labels: { color: "#94a3b8", font: { size: 11 } },
+                  },
+                },
+                scales: {
+                  y: {
+                    type: "linear",
+                    position: "left",
+                    ticks: { color: "#64748b" },
+                    grid: { color: "rgba(148, 163, 184, 0.08)" },
+                    title: {
+                      display: true,
+                      text: "LOC",
+                      color: "#94a3b8",
+                    },
+                  },
+                  y1: {
+                    type: "linear",
+                    position: "right",
+                    ticks: { color: "#64748b" },
+                    grid: { display: false },
+                    title: {
+                      display: true,
+                      text: "Tests",
+                      color: "#94a3b8",
+                    },
+                  },
+                  x: {
+                    ticks: { color: "#94a3b8", font: { size: 10 } },
+                    grid: { display: false },
+                  },
+                },
+              },
+            });
+          },
+
+          init() {},
+        };
+      }
+
+      // Auto-refresh polling (watches Alpine state via global)
+      let alpineInstance;
+      document.addEventListener("alpine:init", () => {
+        // re-create timer when checkbox flips
+        const obs = new MutationObserver(() => {});
+        obs.observe(document.body, { attributes: true, subtree: true });
+      });
+
+      setInterval(() => {
+        const el = document.querySelector("[x-data]");
+        if (!el || !el._x_dataStack) return;
+        const data = el._x_dataStack[0];
+        if (data?.autoRefresh && !data.loading) {
+          data.load();
+        }
+      }, 30000);
+    </script>
+  </body>
+</html>
