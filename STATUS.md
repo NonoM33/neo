@@ -1,6 +1,6 @@
 # 📊 Neo Domotique — État de l'ERP
 
-> Snapshot généré le **jeudi 21 mai 2026 à 15:53** — branche `main`
+> Snapshot généré le **jeudi 21 mai 2026 à 16:10** — branche `main`
 
 > 🔄 Pour le dashboard temps réel : `bun run _status/server.ts` puis http://localhost:4321
 
@@ -16,7 +16,7 @@
 | Pages CRM | 10 |
 | Fichiers > 300L | 106 (cible: 0) |
 | TODOs / FIXMEs | 20 |
-| Commits 30 derniers jours | 8 |
+| Commits 30 derniers jours | 9 |
 
 ## 🩺 Santé du projet
 
@@ -126,7 +126,12 @@ Le CLAUDE.md global impose une cible de **200-300 lignes max par fichier**. 106 
 | 783 | `integrateur-app/lib/presentation/screens/tickets/tickets_list_screen.dart` |
 | 757 | `backend/src/backoffice/pages/products/form.tsx` |
 | 757 | `crm-commercial/src/pages/dashboard/DashboardPage.tsx` |
-| … | _… 86 autres_ |
+| 742 | `crm-commercial/src/pages/prospection/QualificationWizardPage.tsx` |
+| 716 | `backend/src/modules/cloud-instances/cloud-instances.service.ts` |
+| 701 | `backend/src/modules/tracking/tracking.public.ts` |
+| 696 | `backend/src/modules/kpis/kpis.service.ts` |
+| 673 | `integrateur-app/lib/presentation/blocs/floor_plan/floor_plan_bloc.dart` |
+| … | _… 81 autres_ |
 
 ## 📝 TODOs / FIXMEs
 
@@ -197,6 +202,7 @@ Le CLAUDE.md global impose une cible de **200-300 lignes max par fichier**. 106 
 
 | SHA | Message | Auteur | Date |
 |---|---|---|---|
+| `8e68da3` | feat(_status): real-time ERP dashboard + STATUS.md snapshot | cosson renaud | 2026-05-21 15:53 |
 | `2e9cf5d` | fix(crm): re-enable noUnusedLocals/Params, remove dead formatter helpers | cosson renaud | 2026-05-21 15:41 |
 | `b4d8a3f` | refactor(integrateur-app): extract audit_screen helpers + sheets/dialogs | cosson renaud | 2026-05-21 15:33 |
 | `d27de7d` | chore: add versioned pre-commit hook running flutter test | cosson renaud | 2026-05-21 15:22 |
@@ -211,4 +217,3 @@ Le CLAUDE.md global impose une cible de **200-300 lignes max par fichier**. 106 
 | `0de3f28` | feat: upload fichiers USDZ 3D vers S3 après scan LiDAR | cosson renaud | 2026-03-18 11:26 |
 | `1e6d38e` | fix: use db:migrate instead of push (non-interactive) | cosson renaud | 2026-03-18 11:25 |
 | `975f7ed` | fix: install all deps for drizzle-kit, run push+seed at startup | cosson renaud | 2026-03-18 11:22 |
-| `efc666b` | fix: run db:push and db:seed before start in Dockerfile | cosson renaud | 2026-03-18 11:20 |
