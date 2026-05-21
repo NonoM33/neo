@@ -119,8 +119,16 @@ class SendQuoteUseCase {
 
   SendQuoteUseCase(this._repository);
 
-  Future<Result<void>> call(String quoteId) async {
-    return _repository.sendToClient(quoteId);
+  Future<Result<void>> call(
+    String quoteId, {
+    String? customMessage,
+    String? salesPersonName,
+  }) async {
+    return _repository.sendToClient(
+      quoteId,
+      customMessage: customMessage,
+      salesPersonName: salesPersonName,
+    );
   }
 }
 

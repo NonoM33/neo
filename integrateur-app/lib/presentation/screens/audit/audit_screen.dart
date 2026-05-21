@@ -18,6 +18,7 @@ import '../../blocs/audit/audit_event.dart';
 import '../../blocs/audit/audit_state.dart';
 import 'widgets/audit_sheets.dart';
 import 'widgets/audit_visuals.dart';
+import 'widgets/generate_quote_button.dart';
 import 'widgets/qty_button.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,6 +347,15 @@ class _LeftPanel extends StatelessWidget {
         Expanded(
           child: _buildRoomList(context, cs),
         ),
+
+        // ── Quote generation CTA (visible when at least one room is loaded) ──
+        if (state is AuditLoaded && (state as AuditLoaded).rooms.isNotEmpty) ...[
+          const Divider(height: 1, thickness: 1),
+          GenerateQuoteButton(
+            projectId: projectId,
+            rooms: (state as AuditLoaded).rooms,
+          ),
+        ],
       ],
     );
   }

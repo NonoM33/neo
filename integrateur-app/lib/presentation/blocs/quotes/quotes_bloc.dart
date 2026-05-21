@@ -94,7 +94,13 @@ final class QuoteApplyDiscountRequested extends QuotesEvent {
 }
 
 final class QuoteSendRequested extends QuotesEvent {
-  const QuoteSendRequested();
+  final String? customMessage;
+  final String? salesPersonName;
+
+  const QuoteSendRequested({this.customMessage, this.salesPersonName});
+
+  @override
+  List<Object?> get props => [customMessage, salesPersonName];
 }
 
 final class QuoteGeneratePdfRequested extends QuotesEvent {
@@ -449,7 +455,11 @@ class QuotesBloc extends Bloc<QuotesEvent, QuotesState> {
 
     emit(currentState.copyWith(isSending: true));
 
-    final result = await _sendQuoteUseCase(currentState.currentQuote!.id);
+    final result = await _sendQuoteUseCase(
+      currentState.currentQuote!.id,
+      customMessage: event.customMessage,
+      salesPersonName: event.salesPersonName,
+    );
 
     switch (result) {
       case Success():

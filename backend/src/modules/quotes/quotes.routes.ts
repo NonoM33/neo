@@ -1,11 +1,20 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { createQuoteSchema, updateQuoteSchema } from './quotes.schema';
 import * as quotesService from './quotes.service';
 import * as productsService from '../products/products.service';
 import { generateQuotePdf, type QuotePdfInput } from './quote-pdf.service';
+import { createQuoteFromChecklist } from './quote-from-checklist.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+
+const fromChecklistSchema = z.object({
+  roomIds: z.array(z.string().uuid()).optional(),
+  discount: z.coerce.number().min(0).optional(),
+  notes: z.string().optional(),
+  validityDays: z.coerce.number().int().positive().optional(),
+});
 
 /** Build the pdf-service input from a quote-with-project-details payload. */
 function toPdfInput(quote: Awaited<ReturnType<typeof quotesService.getQuoteWithProjectDetails>>): QuotePdfInput {
@@ -80,6 +89,24 @@ quotesRouter.post(
     const quote = await quotesService.createQuote(projectId, input, user.userId, user.role);
     return c.json(stripQuoteCostFields(quote), 201);
   }
+);
+
+// Create a draft quote from the project's checklist (fuzzy product matching).
+// One-shot endpoint used by the app's "Générer devis depuis l'audit" button.
+quotesRouter.post(
+  '/projets/:projectId/devis/from-checklist',
+  zValidator('json', fromChecklistSchema),
+  async (c) => {
+    const projectId = c.req.param('projectId');
+    const input = c.req.valid('json');
+    const user = c.get('user');
+    const result = await createQuoteFromChecklist(
+      { projectId, ...input },
+      user.userId,
+      user.role,
+    );
+    return c.json(result, 201);
+  },
 );
 
 // Get quote by ID

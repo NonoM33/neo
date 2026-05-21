@@ -182,11 +182,62 @@ class QuoteRepositoryImpl implements QuoteRepository {
   }
 
   @override
-  Future<Result<void>> sendToClient(String quoteId) async {
+  Future<Result<void>> sendToClient(
+    String quoteId, {
+    String? customMessage,
+    String? salesPersonName,
+  }) async {
     try {
-      await _remoteDataSource.sendQuote(quoteId);
+      await _remoteDataSource.sendQuote(
+        quoteId,
+        customMessage: customMessage,
+        salesPersonName: salesPersonName,
+      );
       return const Success(null);
     } catch (e) {
+      return Error(UnknownFailure(message: 'Erreur: $e', originalError: e));
+    }
+  }
+
+  @override
+  Future<Result<QuoteFromChecklist>> createFromChecklist(
+    String projectId, {
+    List<String>? roomIds,
+    double? discount,
+    String? notes,
+    int? validityDays,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (roomIds != null && roomIds.isNotEmpty) body['roomIds'] = roomIds;
+      if (discount != null) body['discount'] = discount;
+      if (notes != null && notes.isNotEmpty) body['notes'] = notes;
+      if (validityDays != null) body['validityDays'] = validityDays;
+
+      final result =
+          await _remoteDataSource.createQuoteFromChecklist(projectId, body);
+
+      return Success(
+        QuoteFromChecklist(
+          quoteId: result.quoteId,
+          matches: result.matches
+              .map((m) => QuoteChecklistMatch(
+                    checklistItemId: m.checklistItemId,
+                    label: m.label,
+                    category: m.category,
+                    matchedProductId: m.matchedProductId,
+                    matchedProductName: m.matchedProductName,
+                  ))
+              .toList(),
+        ),
+      );
+    } on ValidationException catch (e) {
+      return Error(ValidationFailure(message: e.message));
+    } on NotFoundException catch (e) {
+      return Error(NotFoundFailure(message: e.message));
+    } catch (e, st) {
+      developer.log('createFromChecklist error: $e',
+          name: 'QuoteRepo', error: e, stackTrace: st);
       return Error(UnknownFailure(message: 'Erreur: $e', originalError: e));
     }
   }

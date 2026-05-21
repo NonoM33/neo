@@ -47,6 +47,8 @@ class ApiEndpoints {
 
   // Quotes (Devis)
   static String projectQuotes(String projectId) => '/projets/$projectId/devis';
+  static String projectQuoteFromChecklist(String projectId) =>
+      '/projets/$projectId/devis/from-checklist';
   static String quote(String id) => '/devis/$id';
   static String quotePdf(String id) => '/devis/$id/pdf';
   static String sendQuote(String id) => '/devis/$id/envoyer';

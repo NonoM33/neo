@@ -13,6 +13,7 @@ import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/catalogue_repository.dart' show CatalogueRepository, ProductFilter;
 import '../../blocs/quotes/quotes_bloc.dart';
 import 'signature_screen.dart';
+import 'widgets/send_quote_dialog.dart';
 
 class QuoteScreen extends ConsumerStatefulWidget {
   final String projectId;
@@ -30,6 +31,23 @@ class _QuoteScreenState extends ConsumerState<QuoteScreen> {
     ref.read(quotesBlocProvider).add(QuotesLoadRequested(widget.projectId));
   }
 
+  Future<void> _onTapSend(
+    BuildContext context,
+    QuotesBloc bloc,
+    Quote quote,
+  ) async {
+    HapticFeedback.lightImpact();
+    final result = await SendQuoteDialog.show(
+      context,
+      quoteNumber: quote.number,
+    );
+    if (result == null) return;
+    bloc.add(QuoteSendRequested(
+      customMessage: result.customMessage,
+      salesPersonName: result.salesPersonName,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final quotesBloc = ref.watch(quotesBlocProvider);
@@ -44,6 +62,8 @@ class _QuoteScreenState extends ConsumerState<QuoteScreen> {
             builder: (context, state) {
               if (state is QuotesLoaded && state.currentQuote != null) {
                 final quote = state.currentQuote!;
+                final canSend = quote.status == QuoteStatus.brouillon &&
+                    quote.lines.isNotEmpty;
                 return Row(
                   children: [
                     IconButton(
@@ -52,6 +72,23 @@ class _QuoteScreenState extends ConsumerState<QuoteScreen> {
                           ? null
                           : () => quotesBloc.add(const QuoteGeneratePdfRequested()),
                       tooltip: 'Apercu PDF',
+                    ),
+                    IconButton(
+                      icon: state.isSending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send_outlined),
+                      tooltip: canSend
+                          ? 'Envoyer le devis au client'
+                          : (quote.status != QuoteStatus.brouillon
+                              ? 'Devis deja envoye'
+                              : 'Ajoutez au moins une ligne'),
+                      onPressed: (canSend && !state.isSending)
+                          ? () => _onTapSend(context, quotesBloc, quote)
+                          : null,
                     ),
                     IconButton(
                       icon: const Icon(Icons.draw_outlined),
@@ -76,8 +113,26 @@ class _QuoteScreenState extends ConsumerState<QuoteScreen> {
           ),
         ],
       ),
-      body: BlocBuilder<QuotesBloc, QuotesState>(
+      body: BlocConsumer<QuotesBloc, QuotesState>(
         bloc: quotesBloc,
+        listenWhen: (prev, next) => next is QuoteOperationSuccess || next is QuotesError,
+        listener: (context, state) {
+          if (state is QuoteOperationSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          } else if (state is QuotesError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        },
         builder: (context, state) {
           if (state is QuotesLoading) {
             return const Center(child: CircularProgressIndicator());
