@@ -18,7 +18,16 @@ class MockAuthLocalDataSource extends Mock implements AuthLocalDataSource {}
 
 class MockApiClient extends Mock implements ApiClient {}
 
+class _FakeAuthTokensModel extends Fake implements AuthTokensModel {}
+
+class _FakeUserModel extends Fake implements UserModel {}
+
 void main() {
+  setUpAll(() {
+    registerFallbackValue(_FakeAuthTokensModel());
+    registerFallbackValue(_FakeUserModel());
+  });
+
   late AuthRepositoryImpl repository;
   late MockAuthRemoteDataSource mockRemoteDataSource;
   late MockAuthLocalDataSource mockLocalDataSource;
@@ -89,7 +98,10 @@ void main() {
             )).called(1);
         verify(() => mockLocalDataSource.saveTokens(testTokensModel)).called(1);
         verify(() => mockLocalDataSource.saveUser(testUserModel)).called(1);
-        verify(() => mockApiClient.setAuthToken('test-access-token')).called(1);
+        verify(() => mockApiClient.setAuthToken(
+              'test-access-token',
+              refreshToken: 'test-refresh-token',
+            )).called(1);
       });
 
       test('returns InvalidCredentialsFailure on invalid credentials', () async {
@@ -177,6 +189,8 @@ void main() {
         // Arrange
         when(() => mockLocalDataSource.isAuthenticated())
             .thenAnswer((_) async => true);
+        when(() => mockLocalDataSource.getTokens())
+            .thenAnswer((_) async => null);
         when(() => mockRemoteDataSource.getCurrentUser())
             .thenAnswer((_) async => testUserModel);
         when(() => mockLocalDataSource.saveUser(any()))
@@ -210,6 +224,8 @@ void main() {
         // Arrange
         when(() => mockLocalDataSource.isAuthenticated())
             .thenAnswer((_) async => true);
+        when(() => mockLocalDataSource.getTokens())
+            .thenAnswer((_) async => null);
         when(() => mockRemoteDataSource.getCurrentUser())
             .thenThrow(const NetworkException(message: 'Offline'));
         when(() => mockLocalDataSource.getUser())
