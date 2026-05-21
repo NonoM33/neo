@@ -2,6 +2,8 @@ import { eq, and, desc, SQL, inArray } from 'drizzle-orm';
 import { db } from '../../config/database';
 import { quotes, quoteLines, projects, clients, products } from '../../db/schema';
 import { NotFoundError } from '../../lib/errors';
+import { sendEmail, renderQuoteSentEmail } from '../email';
+import { generateQuotePdf } from './quote-pdf.service';
 import type { CreateQuoteInput, UpdateQuoteInput, QuoteLineInput } from './quotes.schema';
 
 async function verifyProjectAccess(projectId: string, userId: string, userRole: string) {
@@ -312,34 +314,91 @@ export async function deleteQuote(id: string, userId: string, userRole: string) 
   await db.delete(quotes).where(eq(quotes.id, id));
 }
 
-export async function sendQuote(id: string, userId: string, userRole: string) {
-  const quote = await verifyQuoteAccess(id, userId, userRole);
+export interface SendQuoteOptions {
+  customMessage?: string;
+  salesPersonName?: string;
+}
 
-  // Get project and client info
-  const [project] = await db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      client: {
-        firstName: clients.firstName,
-        lastName: clients.lastName,
-        email: clients.email,
+export async function sendQuote(
+  id: string,
+  userId: string,
+  userRole: string,
+  options: SendQuoteOptions = {},
+) {
+  // Fetch the full quote (project + client + lines) so we can render the PDF
+  // and the email in one DB roundtrip.
+  const fullQuote = await getQuoteWithProjectDetails(id, userId, userRole);
+
+  if (!fullQuote.client?.email) {
+    throw new Error("Le client n'a pas d'adresse email");
+  }
+
+  // Render the PDF
+  const pdfBytes = await generateQuotePdf({
+    quote: {
+      number: fullQuote.number,
+      createdAt: fullQuote.createdAt,
+      validUntil: fullQuote.validUntil,
+      totalHT: fullQuote.totalHT,
+      totalTVA: fullQuote.totalTVA,
+      totalTTC: fullQuote.totalTTC,
+      discount: fullQuote.discount,
+      notes: fullQuote.notes,
+    },
+    client: {
+      firstName: fullQuote.client.firstName ?? '',
+      lastName: fullQuote.client.lastName ?? '',
+      email: fullQuote.client.email,
+      address: fullQuote.client.address ?? null,
+      postalCode: fullQuote.client.postalCode ?? null,
+      city: fullQuote.client.city ?? null,
+    },
+    project: {
+      name: fullQuote.project?.name ?? '',
+      address: fullQuote.project?.address ?? null,
+      city: fullQuote.project?.city ?? null,
+      postalCode: fullQuote.project?.postalCode ?? null,
+    },
+    lines: fullQuote.lines.map((line) => ({
+      description: line.description,
+      quantity: line.quantity ?? 1,
+      unitPriceHT: line.unitPriceHT ?? '0',
+      tvaRate: line.tvaRate ?? '0',
+      totalHT: line.totalHT ?? '0',
+      clientOwned: line.clientOwned ?? false,
+    })),
+  });
+
+  // Render the email body
+  const { subject, html, text } = renderQuoteSentEmail({
+    clientFirstName: fullQuote.client.firstName ?? '',
+    clientLastName: fullQuote.client.lastName ?? '',
+    quoteNumber: fullQuote.number ?? '',
+    totalTTC: parseFloat(fullQuote.totalTTC ?? '0'),
+    validUntil: fullQuote.validUntil ?? null,
+    customMessage: options.customMessage,
+    salesPersonName: options.salesPersonName,
+  });
+
+  // Convert PDF to base64 for Resend attachment
+  const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+
+  const emailResult = await sendEmail({
+    to: fullQuote.client.email,
+    subject,
+    html,
+    text,
+    tag: 'quote-sent',
+    attachments: [
+      {
+        filename: `devis-${fullQuote.number}.pdf`,
+        content: pdfBase64,
+        contentType: 'application/pdf',
       },
-    })
-    .from(projects)
-    .innerJoin(clients, eq(projects.clientId, clients.id))
-    .where(eq(projects.id, quote.projectId))
-    .limit(1);
+    ],
+  });
 
-  if (!project) {
-    throw new NotFoundError('Projet');
-  }
-
-  if (!project.client?.email) {
-    throw new Error('Le client n\'a pas d\'adresse email');
-  }
-
-  // Update quote status
+  // Mark the quote as sent only after a successful delivery handoff
   await db
     .update(quotes)
     .set({
@@ -349,11 +408,11 @@ export async function sendQuote(id: string, userId: string, userRole: string) {
     })
     .where(eq(quotes.id, id));
 
-  // TODO: Actually send email with PDF
-  // For now, just return success
   return {
-    message: `Devis envoyé à ${project.client.email}`,
-    sentTo: project.client.email,
+    message: `Devis envoyé à ${fullQuote.client.email}`,
+    sentTo: fullQuote.client.email,
+    emailId: emailResult.id,
+    provider: emailResult.provider,
   };
 }
 

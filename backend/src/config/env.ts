@@ -57,6 +57,15 @@ const envSchema = z.object({
   // Documenso (signature electronique)
   DOCUMENSO_API_KEY: z.string().default('api_14g3cmhffs4hk6ry'),
   DOCUMENSO_BASE_URL: z.string().default('https://app.documenso.com'),
+
+  // Email (Resend by default)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('Neo Domotique <devis@neo-domotique.fr>'),
+  EMAIL_REPLY_TO: z.string().optional(),
+  COMPANY_NAME: z.string().default('Neo Domotique'),
+  COMPANY_ADDRESS: z.string().default(''),
+  COMPANY_SIRET: z.string().optional(),
+  COMPANY_TVA: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
