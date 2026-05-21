@@ -186,21 +186,6 @@ export function DashboardPage() {
     });
   };
 
-  const _formatFullDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  };
-
-  const _formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   // The next appointment (most important one)
   const nextAppointment = upcomingAppointments[0] || null;
   // Other upcoming appointments (next 3)
