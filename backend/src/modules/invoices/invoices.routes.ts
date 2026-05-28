@@ -119,7 +119,41 @@ invoicesRouter.delete(
   }
 );
 
-// TODO: Endpoint pour générer le PDF
-// invoicesRouter.get('/:id/pdf', ...)
+// Générer le PDF de la facture (binary application/pdf)
+invoicesRouter.get(
+  '/:id/pdf',
+  authMiddleware,
+  requireAdmin(),
+  async (c) => {
+    const id = c.req.param('id')!;
+    const pdfBytes = await invoicesService.previewInvoicePdf(id);
+    return new Response(pdfBytes, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="facture-${id}.pdf"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+);
+
+// Envoyer la facture par email
+invoicesRouter.post(
+  '/:id/send',
+  authMiddleware,
+  requireAdmin(),
+  async (c) => {
+    const id = c.req.param('id')!;
+    const body = await c.req.json().catch(() => ({})) as {
+      customMessage?: string;
+      salesPersonName?: string;
+    };
+    const result = await invoicesService.sendInvoice(id, {
+      customMessage: body.customMessage,
+      salesPersonName: body.salesPersonName,
+    });
+    return c.json(result);
+  }
+);
 
 export default invoicesRouter;

@@ -19,6 +19,38 @@ import {
   mapDocusealStatus,
   type DocusealStatus,
 } from './docuseal.service';
+import { convertQuoteToOrder } from '../orders/orders.service';
+
+/**
+ * Mark a quote as accepted and best-effort create the customer order.
+ *
+ * Called from every code path that flips a signature to "signed":
+ * direct signing, periodic status refresh, DocuSeal webhook. The order
+ * creation is wrapped in try/catch because we never want to fail the
+ * signature flow if order creation hiccups (idempotency: if an order
+ * already exists, convertQuoteToOrder throws ConflictError — that's
+ * fine, just log).
+ */
+async function markQuoteAcceptedAndCreateOrder(quoteId: string): Promise<void> {
+  await db
+    .update(quotes)
+    .set({ status: 'accepte', updatedAt: new Date() })
+    .where(eq(quotes.id, quoteId));
+
+  try {
+    const order = await convertQuoteToOrder(quoteId);
+    console.log(
+      `[signatures] order auto-created for quote ${quoteId}: ${order.number ?? order.id}`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // ConflictError = order already exists for this quote (e.g. webhook
+    // arriving after manual refresh) — that's the expected idempotent path.
+    if (!msg.toLowerCase().includes('existe déjà')) {
+      console.error(`[signatures] auto order creation failed for quote ${quoteId}: ${msg}`);
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -152,11 +184,8 @@ export async function submitDirectSignature(
     })
     .where(eq(signatureRequests.id, signatureRequestId));
 
-  // Update quote to accepted
-  await db
-    .update(quotes)
-    .set({ status: 'accepte', updatedAt: new Date() })
-    .where(eq(quotes.id, request.quoteId));
+  // Update quote to accepted and best-effort create the customer order
+  await markQuoteAcceptedAndCreateOrder(request.quoteId);
 }
 
 // ---------------------------------------------------------------------------
@@ -278,10 +307,7 @@ export async function refreshSignatureStatus(quoteId: string) {
       updates.status = newStatus;
       if (newStatus === 'signed') {
         updates.completedAt = status.completedAt ?? new Date();
-        await db
-          .update(quotes)
-          .set({ status: 'accepte', updatedAt: new Date() })
-          .where(eq(quotes.id, quoteId));
+        await markQuoteAcceptedAndCreateOrder(quoteId);
       }
     }
     if (status.signingUrl && status.signingUrl !== request.signingUrl) {
@@ -352,10 +378,7 @@ export async function handleDocusealWebhook(
     updates.completedAt = payload.data?.completed_at
       ? new Date(payload.data.completed_at)
       : new Date();
-    await db
-      .update(quotes)
-      .set({ status: 'accepte', updatedAt: new Date() })
-      .where(eq(quotes.id, request.quoteId));
+    await markQuoteAcceptedAndCreateOrder(request.quoteId);
   } else if (
     event === 'form.declined' ||
     event === 'submission.declined' ||

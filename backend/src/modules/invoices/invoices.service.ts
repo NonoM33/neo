@@ -10,6 +10,8 @@ import {
 } from '../../db/schema';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
 import { paginate, getOffset, type PaginationParams } from '../../lib/pagination';
+import { generateInvoicePdf, type InvoicePdfInput } from './invoice-pdf.service';
+import { sendEmail, renderInvoiceSentEmail } from '../email';
 import type {
   CreateInvoiceInput,
   CreateInvoiceFromOrderInput,
@@ -466,5 +468,122 @@ export async function getInvoiceStats() {
     byStatus,
     totals: totals[0],
     overdue: overdueResult[0],
+  };
+}
+
+// ─── PDF generation ────────────────────────────────────────────────────
+
+/** Build the PDF service input from a hydrated invoice (with project/client/lines). */
+function toPdfInput(
+  invoice: Awaited<ReturnType<typeof getInvoiceById>>,
+): InvoicePdfInput {
+  return {
+    invoice: {
+      number: invoice.number,
+      createdAt: invoice.createdAt,
+      dueDate: invoice.dueDate,
+      totalHT: invoice.totalHT,
+      totalTVA: invoice.totalTVA,
+      totalTTC: invoice.totalTTC,
+      paymentTerms: invoice.paymentTerms,
+      legalMentions: invoice.legalMentions,
+      notes: invoice.notes,
+    },
+    client: {
+      firstName: invoice.client?.firstName ?? '',
+      lastName: invoice.client?.lastName ?? '',
+      email: invoice.client?.email ?? null,
+      address: invoice.client?.address ?? null,
+      postalCode: invoice.client?.postalCode ?? null,
+      city: invoice.client?.city ?? null,
+    },
+    project: {
+      name: invoice.project?.name ?? '',
+      address: invoice.project?.address ?? null,
+      city: invoice.project?.city ?? null,
+      postalCode: invoice.project?.postalCode ?? null,
+    },
+    lines: invoice.lines.map((line) => ({
+      description: line.description,
+      quantity: line.quantity,
+      unitPriceHT: line.unitPriceHT,
+      tvaRate: line.tvaRate,
+      totalHT: line.totalHT,
+      reference: line.reference,
+    })),
+    // TODO: load these from env (COMPANY_IBAN, etc.) once configured
+    payment: undefined,
+  };
+}
+
+/** Render the PDF for an invoice. Used by GET /:id/pdf and sendInvoice. */
+export async function previewInvoicePdf(id: string): Promise<Uint8Array> {
+  const invoice = await getInvoiceById(id);
+  return generateInvoicePdf(toPdfInput(invoice));
+}
+
+// ─── Email ─────────────────────────────────────────────────────────────
+
+export interface SendInvoiceOptions {
+  customMessage?: string;
+  salesPersonName?: string;
+}
+
+/**
+ * Send the invoice PDF to the client by email. Marks the invoice as
+ * 'envoyee' on successful handoff to the email provider.
+ */
+export async function sendInvoice(
+  id: string,
+  options: SendInvoiceOptions = {},
+) {
+  const invoice = await getInvoiceById(id);
+
+  if (!invoice.client?.email) {
+    throw new ValidationError("Le client n'a pas d'adresse email");
+  }
+
+  const pdfBytes = await generateInvoicePdf(toPdfInput(invoice));
+
+  const { subject, html, text } = renderInvoiceSentEmail({
+    clientFirstName: invoice.client.firstName ?? '',
+    clientLastName: invoice.client.lastName ?? '',
+    invoiceNumber: invoice.number,
+    totalTTC: parseFloat(invoice.totalTTC ?? '0'),
+    dueDate: invoice.dueDate ?? null,
+    customMessage: options.customMessage,
+    salesPersonName: options.salesPersonName,
+  });
+
+  const result = await sendEmail({
+    to: invoice.client.email,
+    subject,
+    html,
+    text,
+    tag: 'invoice-sent',
+    attachments: [
+      {
+        filename: `facture-${invoice.number}.pdf`,
+        content: Buffer.from(pdfBytes).toString('base64'),
+        contentType: 'application/pdf',
+      },
+    ],
+  });
+
+  // Mark as sent after a successful provider handoff
+  await db
+    .update(invoices)
+    .set({
+      status: 'envoyee',
+      sentAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(invoices.id, id));
+
+  return {
+    message: `Facture envoyée à ${invoice.client.email}`,
+    sentTo: invoice.client.email,
+    emailId: result.id,
+    provider: result.provider,
   };
 }

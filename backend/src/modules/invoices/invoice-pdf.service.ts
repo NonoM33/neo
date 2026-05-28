@@ -1,16 +1,16 @@
 /**
- * Quote PDF generator using pdf-lib.
+ * Invoice PDF generator using pdf-lib.
  *
- * Produces a clean, professional A4 PDF with:
- *  - Company branded header (purple accent matching the dashboard)
- *  - Client / quote metadata block
- *  - Line items table with HT / TVA / Total
- *  - Totals breakdown (HT, discount, TVA, TTC)
- *  - Optional notes
- *  - Legal footer (SIRET, TVA intracom, etc.)
+ * Same visual language as quote-pdf.service.ts (brand purple accent,
+ * Helvetica, soft slate palette) but tailored for an invoice:
+ *   - "FACTURE" badge instead of "DEVIS"
+ *   - "À payer" total in accent color, prominent
+ *   - Due date + payment terms + payment instructions block
+ *   - Legal mentions footer (penalty rate, recovery fee, etc.)
  *
- * No external assets required — standard PDF fonts only. Returns a raw
- * Uint8Array ready to be served or attached to an email.
+ * Inputs are intentionally permissive (string | null | undefined) because
+ * the Drizzle joined query types are. See the analogous pdfSafe() trick
+ * to keep WinAnsi encoding happy with French Intl currency output.
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
@@ -18,18 +18,16 @@ import { env } from '../../config/env';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
-/** All fields here accept `null` and `undefined` to keep callers free of
- * coercion noise — Drizzle returns `string | undefined` on joined columns
- * even when the column is NOT NULL in the schema. */
-export interface QuotePdfInput {
-  quote: {
+export interface InvoicePdfInput {
+  invoice: {
     number: string | undefined;
     createdAt: Date | null | undefined;
-    validUntil: Date | null | undefined;
+    dueDate: Date | null | undefined;
     totalHT: string | null | undefined;
     totalTVA: string | null | undefined;
     totalTTC: string | null | undefined;
-    discount: string | null | undefined;
+    paymentTerms: string | null | undefined;
+    legalMentions: string | null | undefined;
     notes: string | null | undefined;
   };
   client: {
@@ -52,56 +50,61 @@ export interface QuotePdfInput {
     unitPriceHT: string;
     tvaRate: string;
     totalHT: string;
-    clientOwned?: boolean | null;
+    reference?: string | null;
   }>;
+  /** Optional IBAN/BIC block for wire transfer instructions. */
+  payment?: {
+    iban?: string;
+    bic?: string;
+    bankName?: string;
+  };
 }
 
-// ─── Layout constants ───────────────────────────────────────────────────
+// ─── Layout constants (mirror quote-pdf for visual consistency) ─────────
 
-const PAGE_W = 595.28; // A4 width in points
-const PAGE_H = 841.89; // A4 height in points
+const PAGE_W = 595.28;
+const PAGE_H = 841.89;
 const MARGIN_X = 40;
-const MARGIN_TOP = 40;
 const MARGIN_BOTTOM = 60;
-const ACCENT = rgb(99 / 255, 102 / 255, 241 / 255); // #6366f1 (brand purple)
-const TEXT = rgb(0.118, 0.137, 0.196); // slate-800
-const MUTED = rgb(0.392, 0.455, 0.545); // slate-500
-const SOFT_BG = rgb(0.973, 0.980, 0.988); // slate-50
-const ROW_BORDER = rgb(0.886, 0.910, 0.941); // slate-200
+const ACCENT = rgb(99 / 255, 102 / 255, 241 / 255);
+const ACCENT_WARN = rgb(220 / 255, 38 / 255, 38 / 255); // red for "À payer"
+const TEXT = rgb(0.118, 0.137, 0.196);
+const MUTED = rgb(0.392, 0.455, 0.545);
+const SOFT_BG = rgb(0.973, 0.980, 0.988);
+const ROW_BORDER = rgb(0.886, 0.910, 0.941);
 
 const COLS = {
-  description: { x: MARGIN_X, w: 270 },
-  quantity: { x: MARGIN_X + 270, w: 50 },
-  unitPriceHT: { x: MARGIN_X + 320, w: 70 },
-  tvaRate: { x: MARGIN_X + 390, w: 40 },
-  totalHT: { x: MARGIN_X + 430, w: 85 },
+  description: { x: MARGIN_X, w: 240 },
+  reference: { x: MARGIN_X + 240, w: 70 },
+  quantity: { x: MARGIN_X + 310, w: 40 },
+  unitPriceHT: { x: MARGIN_X + 350, w: 65 },
+  tvaRate: { x: MARGIN_X + 415, w: 35 },
+  totalHT: { x: MARGIN_X + 450, w: 65 },
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-/** Replace unicode characters that the standard PDF fonts (WinAnsi) can't
- * encode. Intl.NumberFormat in particular slips in narrow no-break spaces
- * around the currency symbol — those would crash pdf-lib otherwise. */
 function pdfSafe(s: string): string {
   return s
-    // Non-breaking, thin and narrow no-break spaces (incl. U+202F, U+00A0)
-    // that Intl.NumberFormat slips into currency output.
+    // Non-breaking, thin and narrow no-break spaces (incl. U+202F, U+00A0,
+    // U+2009, U+2007) that Intl.NumberFormat slips into currency output.
     .replace(/[\u00A0\u2007\u2008\u2009\u200A\u202F\u205F]/g, ' ')
-    .replace(/[\u2013\u2014]/g, '-')
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-') // en/em dashes
+    .replace(/[\u2018\u2019]/g, "'") // smart single quotes
+    .replace(/[\u201C\u201D]/g, '"') // smart double quotes
     .replace(/\u2026/g, '...')
-    .replace(/\u2022/g, '*')
-    .replace(/\u00B7/g, '-');
+    .replace(/\u2022/g, '*') // bullet
+    .replace(/\u00B7/g, '-'); // middle dot
 }
 
 function fmtEUR(value: number | string | null | undefined): string {
   const n = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
-  const raw = new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(isFinite(n) ? n : 0);
-  return pdfSafe(raw);
+  return pdfSafe(
+    new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(isFinite(n) ? n : 0),
+  );
 }
 
 function fmtDate(d: Date | null | undefined): string {
@@ -137,7 +140,12 @@ function drawText(
   });
 }
 
-function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+function wrapText(
+  text: string,
+  font: PDFFont,
+  size: number,
+  maxWidth: number,
+): string[] {
   const safe = pdfSafe(text);
   const words = safe.split(/\s+/);
   const lines: string[] = [];
@@ -181,9 +189,8 @@ function drawHeader(page: PDFPage, fonts: { regular: PDFFont; bold: PDFFont }) {
     });
   }
 
-  // Right side : "DEVIS" badge
-  const badgeY = PAGE_H - 50;
-  drawText(page, 'DEVIS', PAGE_W - MARGIN_X - 80, badgeY, {
+  // "FACTURE" badge top-right
+  drawText(page, 'FACTURE', PAGE_W - MARGIN_X - 100, PAGE_H - 50, {
     font: fonts.bold,
     size: 24,
     color: TEXT,
@@ -193,14 +200,13 @@ function drawHeader(page: PDFPage, fonts: { regular: PDFFont; bold: PDFFont }) {
 function drawMetadata(
   page: PDFPage,
   fonts: { regular: PDFFont; bold: PDFFont },
-  input: QuotePdfInput,
+  input: InvoicePdfInput,
   topY: number,
 ): number {
   let y = topY;
 
-  // Two columns: left = client, right = quote info
-  // Client block
-  drawText(page, 'CLIENT', MARGIN_X, y, {
+  // Left column: client
+  drawText(page, 'FACTURE À', MARGIN_X, y, {
     font: fonts.bold,
     size: 9,
     color: MUTED,
@@ -208,7 +214,7 @@ function drawMetadata(
   y -= 14;
   drawText(
     page,
-    `${input.client.firstName} ${input.client.lastName}`.trim(),
+    `${input.client.firstName ?? ''} ${input.client.lastName ?? ''}`.trim() || '-',
     MARGIN_X,
     y,
     { font: fonts.bold, size: 11 },
@@ -218,7 +224,6 @@ function drawMetadata(
     drawText(page, input.client.address, MARGIN_X, y, {
       font: fonts.regular,
       size: 10,
-      color: TEXT,
     });
     y -= 12;
   }
@@ -229,7 +234,6 @@ function drawMetadata(
     drawText(page, cityLine, MARGIN_X, y, {
       font: fonts.regular,
       size: 10,
-      color: TEXT,
     });
     y -= 12;
   }
@@ -242,29 +246,39 @@ function drawMetadata(
     y -= 12;
   }
 
-  // Right block: quote metadata
+  // Right column: invoice metadata
   let rightY = topY;
   const rightX = MARGIN_X + 300;
-  drawText(page, `Devis N° ${input.quote.number}`, rightX, rightY, {
+  drawText(page, `Facture N° ${input.invoice.number ?? '-'}`, rightX, rightY, {
     font: fonts.bold,
     size: 12,
   });
   rightY -= 16;
   drawText(
     page,
-    `Date : ${fmtDate(input.quote.createdAt)}`,
+    `Émise le : ${fmtDate(input.invoice.createdAt)}`,
     rightX,
     rightY,
-    { font: fonts.regular, size: 10, color: TEXT },
+    { font: fonts.regular, size: 10 },
   );
   rightY -= 14;
-  if (input.quote.validUntil) {
+  if (input.invoice.dueDate) {
     drawText(
       page,
-      `Validité : ${fmtDate(input.quote.validUntil)}`,
+      `Échéance : ${fmtDate(input.invoice.dueDate)}`,
       rightX,
       rightY,
-      { font: fonts.regular, size: 10, color: TEXT },
+      { font: fonts.bold, size: 10, color: ACCENT_WARN },
+    );
+    rightY -= 14;
+  }
+  if (input.invoice.paymentTerms) {
+    drawText(
+      page,
+      `Conditions : ${input.invoice.paymentTerms}`,
+      rightX,
+      rightY,
+      { font: fonts.regular, size: 10 },
     );
     rightY -= 14;
   }
@@ -272,7 +286,6 @@ function drawMetadata(
     drawText(page, `Chantier : ${input.project.name}`, rightX, rightY, {
       font: fonts.regular,
       size: 10,
-      color: TEXT,
       maxWidth: 220,
     });
     rightY -= 14;
@@ -281,11 +294,7 @@ function drawMetadata(
   return Math.min(y, rightY) - 16;
 }
 
-function drawTableHeader(
-  page: PDFPage,
-  font: PDFFont,
-  y: number,
-): number {
+function drawTableHeader(page: PDFPage, font: PDFFont, y: number): number {
   page.drawRectangle({
     x: MARGIN_X,
     y: y - 18,
@@ -294,37 +303,30 @@ function drawTableHeader(
     color: SOFT_BG,
   });
   drawText(page, 'Désignation', COLS.description.x + 6, y - 13, {
-    font,
-    size: 9,
-    color: MUTED,
+    font, size: 9, color: MUTED,
+  });
+  drawText(page, 'Réf.', COLS.reference.x + 6, y - 13, {
+    font, size: 9, color: MUTED,
   });
   drawText(page, 'Qté', COLS.quantity.x + 6, y - 13, {
-    font,
-    size: 9,
-    color: MUTED,
+    font, size: 9, color: MUTED,
   });
   drawText(page, 'PU HT', COLS.unitPriceHT.x + 6, y - 13, {
-    font,
-    size: 9,
-    color: MUTED,
+    font, size: 9, color: MUTED,
   });
   drawText(page, 'TVA', COLS.tvaRate.x + 6, y - 13, {
-    font,
-    size: 9,
-    color: MUTED,
+    font, size: 9, color: MUTED,
   });
   drawText(page, 'Total HT', COLS.totalHT.x + 6, y - 13, {
-    font,
-    size: 9,
-    color: MUTED,
+    font, size: 9, color: MUTED,
   });
   return y - 22;
 }
 
 function drawLineRow(
   page: PDFPage,
-  fonts: { regular: PDFFont; bold: PDFFont; italic: PDFFont },
-  line: QuotePdfInput['lines'][number],
+  fonts: { regular: PDFFont; bold: PDFFont },
+  line: InvoicePdfInput['lines'][number],
   y: number,
 ): number {
   const descLines = wrapText(
@@ -333,12 +335,9 @@ function drawLineRow(
     10,
     COLS.description.w - 12,
   );
-  // Reserve an extra line for the "(fourni par le client)" tag if any.
-  const tagLines = line.clientOwned ? 1 : 0;
-  const rowHeight = Math.max(20, (descLines.length + tagLines) * 12 + 8);
+  const rowHeight = Math.max(20, descLines.length * 12 + 8);
   const baseY = y - rowHeight + 6;
 
-  // Description (possibly wrapped)
   let descY = y - 12;
   for (const l of descLines) {
     drawText(page, l, COLS.description.x + 6, descY, {
@@ -348,15 +347,13 @@ function drawLineRow(
     descY -= 12;
   }
 
-  // "Fourni par le client" tag for clientOwned lines
-  if (line.clientOwned) {
-    drawText(page, '(fourni par le client)', COLS.description.x + 6, descY, {
-      font: fonts.italic,
-      size: 8,
+  if (line.reference) {
+    drawText(page, line.reference, COLS.reference.x + 6, y - 12, {
+      font: fonts.regular,
+      size: 9,
       color: MUTED,
     });
   }
-
   drawText(page, `${line.quantity}`, COLS.quantity.x + 6, y - 12, {
     font: fonts.regular,
     size: 10,
@@ -365,20 +362,18 @@ function drawLineRow(
     font: fonts.regular,
     size: 10,
   });
-  const tvaStr = line.clientOwned
-    ? '-'
-    : `${parseFloat(line.tvaRate).toFixed(0)} %`;
-  drawText(page, tvaStr, COLS.tvaRate.x + 6, y - 12, {
-    font: fonts.regular,
-    size: 10,
-  });
-  const totalHTStr = line.clientOwned ? '-' : fmtEUR(line.totalHT);
-  drawText(page, totalHTStr, COLS.totalHT.x + 6, y - 12, {
+  drawText(
+    page,
+    `${parseFloat(line.tvaRate).toFixed(0)} %`,
+    COLS.tvaRate.x + 6,
+    y - 12,
+    { font: fonts.regular, size: 10 },
+  );
+  drawText(page, fmtEUR(line.totalHT), COLS.totalHT.x + 6, y - 12, {
     font: fonts.bold,
     size: 10,
   });
 
-  // Bottom border
   page.drawLine({
     start: { x: MARGIN_X, y: baseY },
     end: { x: PAGE_W - MARGIN_X, y: baseY },
@@ -392,33 +387,33 @@ function drawLineRow(
 function drawTotals(
   page: PDFPage,
   fonts: { regular: PDFFont; bold: PDFFont },
-  input: QuotePdfInput,
+  input: InvoicePdfInput,
   y: number,
 ): number {
   const labelX = MARGIN_X + 300;
   const valueX = PAGE_W - MARGIN_X;
   let currentY = y - 20;
-  const writeLine = (label: string, value: string, opts?: { bold?: boolean; accent?: boolean }) => {
+  const writeLine = (
+    label: string,
+    value: string,
+    opts?: { bold?: boolean; warn?: boolean },
+  ) => {
     const font = opts?.bold ? fonts.bold : fonts.regular;
-    const color = opts?.accent ? ACCENT : TEXT;
-    drawText(page, label, labelX, currentY, { font, size: opts?.bold ? 12 : 10, color });
-    const valWidth = font.widthOfTextAtSize(value, opts?.bold ? 12 : 10);
+    const color = opts?.warn ? ACCENT_WARN : TEXT;
+    const size = opts?.bold ? 13 : 10;
+    drawText(page, label, labelX, currentY, { font, size, color });
+    const valWidth = font.widthOfTextAtSize(pdfSafe(value), size);
     drawText(page, value, valueX - valWidth, currentY, {
       font,
-      size: opts?.bold ? 12 : 10,
+      size,
       color,
     });
-    currentY -= opts?.bold ? 18 : 14;
+    currentY -= opts?.bold ? 20 : 14;
   };
 
-  const discount = parseFloat(input.quote.discount ?? '0');
-  writeLine('Sous-total HT', fmtEUR(input.quote.totalHT));
-  if (discount > 0) {
-    writeLine('Remise HT', `- ${fmtEUR(discount)}`);
-  }
-  writeLine('TVA', fmtEUR(input.quote.totalTVA));
+  writeLine('Sous-total HT', fmtEUR(input.invoice.totalHT));
+  writeLine('TVA', fmtEUR(input.invoice.totalTVA));
 
-  // Separator
   page.drawLine({
     start: { x: labelX, y: currentY + 6 },
     end: { x: valueX, y: currentY + 6 },
@@ -427,38 +422,96 @@ function drawTotals(
   });
   currentY -= 4;
 
-  writeLine('Total TTC', fmtEUR(input.quote.totalTTC), {
+  writeLine('À PAYER (TTC)', fmtEUR(input.invoice.totalTTC), {
     bold: true,
-    accent: true,
+    warn: true,
   });
   return currentY;
+}
+
+function drawPaymentBlock(
+  page: PDFPage,
+  fonts: { regular: PDFFont; bold: PDFFont },
+  input: InvoicePdfInput,
+  y: number,
+): number {
+  if (!input.payment?.iban) return y;
+  let currentY = y - 8;
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: currentY - 60,
+    width: PAGE_W - 2 * MARGIN_X,
+    height: 60,
+    color: SOFT_BG,
+  });
+
+  drawText(page, 'COORDONNÉES BANCAIRES', MARGIN_X + 10, currentY - 14, {
+    font: fonts.bold,
+    size: 9,
+    color: ACCENT,
+  });
+  currentY -= 28;
+  if (input.payment.bankName) {
+    drawText(page, input.payment.bankName, MARGIN_X + 10, currentY, {
+      font: fonts.regular,
+      size: 9,
+    });
+    currentY -= 12;
+  }
+  drawText(page, `IBAN : ${input.payment.iban}`, MARGIN_X + 10, currentY, {
+    font: fonts.bold,
+    size: 9,
+  });
+  currentY -= 12;
+  if (input.payment.bic) {
+    drawText(page, `BIC : ${input.payment.bic}`, MARGIN_X + 10, currentY, {
+      font: fonts.regular,
+      size: 9,
+    });
+    currentY -= 12;
+  }
+  return currentY - 16;
 }
 
 function drawNotesAndFooter(
   page: PDFPage,
   fonts: { regular: PDFFont; bold: PDFFont },
-  notes: string | null | undefined,
+  input: InvoicePdfInput,
   y: number,
 ) {
   let currentY = y - 8;
-  if (notes && notes.trim()) {
-    drawText(page, 'Notes', MARGIN_X, currentY, {
-      font: fonts.bold,
-      size: 10,
-    });
+
+  if (input.invoice.notes && input.invoice.notes.trim()) {
+    drawText(page, 'Notes', MARGIN_X, currentY, { font: fonts.bold, size: 10 });
     currentY -= 14;
-    const lines = wrapText(notes, fonts.regular, 9, PAGE_W - 2 * MARGIN_X);
+    const lines = wrapText(
+      input.invoice.notes,
+      fonts.regular,
+      9,
+      PAGE_W - 2 * MARGIN_X,
+    );
     for (const l of lines) {
-      drawText(page, l, MARGIN_X, currentY, {
-        font: fonts.regular,
-        size: 9,
-        color: TEXT,
-      });
+      drawText(page, l, MARGIN_X, currentY, { font: fonts.regular, size: 9 });
       currentY -= 11;
     }
   }
 
-  // Footer (always at the bottom)
+  // Legal block: mandatory mentions + custom legal mentions
+  const legalMentions = input.invoice.legalMentions ??
+    'Conformément à la loi, tout retard de paiement entraîne des pénalités au taux de 3 fois le taux d\'intérêt légal et une indemnité forfaitaire pour frais de recouvrement de 40 € (art. L441-10 du Code de commerce).';
+
+  currentY -= 8;
+  const legalLines = wrapText(legalMentions, fonts.regular, 7.5, PAGE_W - 2 * MARGIN_X);
+  for (const l of legalLines) {
+    drawText(page, l, MARGIN_X, currentY, {
+      font: fonts.regular,
+      size: 7.5,
+      color: MUTED,
+    });
+    currentY -= 10;
+  }
+
+  // Company footer
   const footerParts = [
     env.COMPANY_NAME,
     env.COMPANY_ADDRESS,
@@ -477,16 +530,17 @@ function drawNotesAndFooter(
 
 // ─── Public API ─────────────────────────────────────────────────────────
 
-export async function generateQuotePdf(input: QuotePdfInput): Promise<Uint8Array> {
+export async function generateInvoicePdf(
+  input: InvoicePdfInput,
+): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.setTitle(`Devis ${input.quote.number}`);
-  doc.setSubject(`Devis ${env.COMPANY_NAME}`);
+  doc.setTitle(`Facture ${input.invoice.number ?? ''}`);
+  doc.setSubject(`Facture ${env.COMPANY_NAME}`);
   doc.setCreator(env.COMPANY_NAME);
   doc.setProducer(env.COMPANY_NAME);
 
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
 
   let page = doc.addPage([PAGE_W, PAGE_H]);
 
@@ -496,18 +550,18 @@ export async function generateQuotePdf(input: QuotePdfInput): Promise<Uint8Array
   cursorY = drawTableHeader(page, bold, cursorY);
 
   for (const line of input.lines) {
-    // Page break if line won't fit
-    if (cursorY < MARGIN_BOTTOM + 120) {
+    if (cursorY < MARGIN_BOTTOM + 140) {
       page = doc.addPage([PAGE_W, PAGE_H]);
       drawHeader(page, { regular, bold });
       cursorY = PAGE_H - 80;
       cursorY = drawTableHeader(page, bold, cursorY);
     }
-    cursorY = drawLineRow(page, { regular, bold, italic }, line, cursorY);
+    cursorY = drawLineRow(page, { regular, bold }, line, cursorY);
   }
 
   cursorY = drawTotals(page, { regular, bold }, input, cursorY);
-  drawNotesAndFooter(page, { regular, bold }, input.quote.notes, cursorY);
+  cursorY = drawPaymentBlock(page, { regular, bold }, input, cursorY);
+  drawNotesAndFooter(page, { regular, bold }, input, cursorY);
 
   return await doc.save();
 }
