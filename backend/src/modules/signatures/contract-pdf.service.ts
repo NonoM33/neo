@@ -1,8 +1,14 @@
-import { PDFDocument, StandardFonts, rgb, PDFPage } from 'pdf-lib';
-import { env } from '../../config/env';
+/**
+ * Contract PDF generator — produces a 2-page A4 contract from quote data:
+ *   - Page 1: header + client/project block + line items + totals + notes
+ *   - Page 2: CGV (full), CGU (summary), signature block
+ *
+ * This module is provider-agnostic: it is consumed by signature flows
+ * (DocuSeal remote signing, direct in-person signing) and by the
+ * /contrat.pdf preview endpoint. No external dependencies beyond pdf-lib.
+ */
 
-const BASE_URL = env.DOCUMENSO_BASE_URL;
-const API_KEY = env.DOCUMENSO_API_KEY;
+import { PDFDocument, StandardFonts, rgb, PDFPage } from 'pdf-lib';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,11 +48,6 @@ export interface QuoteDataForPdf {
   }>;
 }
 
-export interface DocumensoCreateResult {
-  documentId: number;
-  signingUrl: string | null;
-}
-
 // ---------------------------------------------------------------------------
 // CGV / CGU text
 // ---------------------------------------------------------------------------
@@ -83,34 +84,8 @@ Les schémas, plans, études et configurations livrés au Client restent la prop
 Article 10 — Litiges
 En cas de litige, les parties s'engagent à rechercher une solution amiable avant toute action judiciaire. À défaut, le Tribunal de Commerce compétent sera seul compétent.`;
 
-const CGU_TEXT = `CONDITIONS GÉNÉRALES D'UTILISATION — NEO DOMOTIQUE
-
-Article 1 — Application mobile et portail client
-L'Entreprise met à disposition du Client une application mobile et/ou un portail web pour piloter l'installation domotique (ci-après « le Service »). L'utilisation du Service implique l'acceptation des présentes CGU.
-
-Article 2 — Accès au Service
-L'accès est réservé au Client et aux personnes qu'il autorise. Les identifiants sont personnels et confidentiels. Le Client est responsable de toute utilisation faite depuis son compte.
-
-Article 3 — Disponibilité
-L'Entreprise s'efforce d'assurer la disponibilité du Service 24h/24, 7j/7. Des interruptions peuvent survenir pour maintenance. L'Entreprise ne saurait être tenue pour responsable en cas d'indisponibilité.
-
-Article 4 — Données personnelles
-Conformément au RGPD, l'Entreprise collecte et traite les données personnelles du Client dans le seul cadre de l'exécution du contrat et de l'exploitation du Service. Le Client dispose d'un droit d'accès, de rectification et de suppression de ses données (contact : privacy@neo-domotique.fr).
-
-Article 5 — Cookies et traçabilité
-Le Service utilise des cookies techniques nécessaires à son fonctionnement. Aucune donnée de navigation n'est transmise à des tiers à des fins commerciales.
-
-Article 6 — Comportement utilisateur
-L'utilisation du Service à des fins illégales, frauduleuses ou préjudiciables est strictement interdite. Tout manquement pourra entraîner la suspension de l'accès.
-
-Article 7 — Mises à jour
-L'Entreprise se réserve le droit de modifier les fonctionnalités du Service et de mettre à jour les présentes CGU. Les modifications entrent en vigueur à leur publication. L'utilisation continue du Service vaut acceptation.
-
-Article 8 — Droit applicable
-Les présentes CGU sont soumises au droit français. Tout litige relèvera des juridictions françaises compétentes.`;
-
 // ---------------------------------------------------------------------------
-// PDF generation
+// Format helpers
 // ---------------------------------------------------------------------------
 
 function formatEur(value: string | null): string {
@@ -131,7 +106,7 @@ async function writeParagraph(
   y: number,
   fontSize: number,
   maxWidth: number,
-  lineHeight: number
+  lineHeight: number,
 ): Promise<number> {
   const words = text.split(' ');
   let line = '';
@@ -154,6 +129,10 @@ async function writeParagraph(
   }
   return currentY;
 }
+
+// ---------------------------------------------------------------------------
+// PDF generation
+// ---------------------------------------------------------------------------
 
 export async function generateContractPdf(quoteData: QuoteDataForPdf): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
@@ -251,7 +230,6 @@ export async function generateContractPdf(quoteData: QuoteDataForPdf): Promise<U
   y = boxTop - 100;
 
   // ---- Table header ----
-  const colWidths = [240, 50, 70, 50, 70];
   const colX = [margin, margin + 240, margin + 290, margin + 360, margin + 410];
   const headers = ['Description', 'Qté', 'P.U. HT', 'TVA', 'Total HT'];
 
@@ -397,140 +375,4 @@ export async function generateContractPdf(quoteData: QuoteDataForPdf): Promise<U
   page2.drawText(`Devis ${quoteData.number} — NEO Domotique`, { x: pageWidth / 2 - 60, y: 30, size: 8, font: fontRegular, color: rgb(0.6, 0.6, 0.6) });
 
   return pdfDoc.save();
-}
-
-// ---------------------------------------------------------------------------
-// Documenso API client
-// ---------------------------------------------------------------------------
-
-async function documensoFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const url = `${BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      ...options.headers,
-    },
-  });
-  return response;
-}
-
-export async function createDocumensoDocument(
-  pdfBytes: Uint8Array,
-  title: string,
-): Promise<{ documentId: number }> {
-  const formData = new FormData();
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  formData.append('file', blob, `${title.replace(/\s+/g, '_')}.pdf`);
-  formData.append('title', title);
-
-  const response = await documensoFetch('/api/v1/documents', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Documenso create document failed (${response.status}): ${text}`);
-  }
-
-  const data = await response.json() as any;
-  const documentId = data.documentId ?? data.id ?? data.document?.id;
-  if (!documentId) {
-    throw new Error(`Documenso: missing documentId in response: ${JSON.stringify(data)}`);
-  }
-  return { documentId };
-}
-
-export async function addDocumensoRecipient(
-  documentId: number,
-  name: string,
-  email: string,
-): Promise<{ recipientId: number; signingUrl: string | null }> {
-  const response = await documensoFetch(`/api/v1/documents/${documentId}/recipients`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([
-      { name, email, role: 'SIGNER' },
-    ]),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Documenso add recipient failed (${response.status}): ${text}`);
-  }
-
-  const data = await response.json() as any;
-  const recipients = Array.isArray(data) ? data : [data];
-  const recipient = recipients[0];
-  return {
-    recipientId: recipient?.id ?? recipient?.recipientId,
-    signingUrl: recipient?.signingUrl ?? null,
-  };
-}
-
-export async function addDocumensoSignatureField(
-  documentId: number,
-  recipientId: number,
-): Promise<void> {
-  const response = await documensoFetch(`/api/v1/documents/${documentId}/fields`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([
-      {
-        recipientId,
-        type: 'SIGNATURE',
-        pageNumber: 2,
-        pageX: 8,    // ~8% from left
-        pageY: 69,   // ~69% from top (bottom area of page 2)
-        pageWidth: 37,
-        pageHeight: 10,
-      },
-    ]),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Documenso add field failed (${response.status}): ${text}`);
-  }
-}
-
-export async function sendDocumensoDocument(
-  documentId: number,
-  sendEmail: boolean,
-  subject?: string,
-  message?: string,
-): Promise<void> {
-  const body: Record<string, any> = { sendEmail };
-  if (subject) body.subject = subject;
-  if (message) body.message = message;
-
-  const response = await documensoFetch(`/api/v1/documents/${documentId}/send`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Documenso send failed (${response.status}): ${text}`);
-  }
-}
-
-export async function getDocumensoDocument(documentId: number): Promise<{
-  status: string;
-  signingUrl: string | null;
-}> {
-  const response = await documensoFetch(`/api/v1/documents/${documentId}`);
-
-  if (!response.ok) {
-    throw new Error(`Documenso get document failed (${response.status})`);
-  }
-
-  const data = await response.json() as any;
-  const recipient = (data.recipients ?? [])[0];
-  return {
-    status: data.status ?? 'PENDING',
-    signingUrl: recipient?.signingUrl ?? null,
-  };
 }

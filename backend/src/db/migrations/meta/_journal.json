@@ -29,6 +29,13 @@
       "when": 1773755886542,
       "tag": "0003_kind_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779624000000,
+      "tag": "0004_docuseal_migration",
+      "breakpoints": true
     }
   ]
 }

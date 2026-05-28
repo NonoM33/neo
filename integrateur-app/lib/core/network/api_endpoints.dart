@@ -53,7 +53,7 @@ class ApiEndpoints {
   static String quotePdf(String id) => '/devis/$id/pdf';
   static String sendQuote(String id) => '/devis/$id/envoyer';
 
-  // Signature (Documenso)
+  // Signature (DocuSeal pour le distanciel, direct pour la tablette)
   static String quoteSignature(String id) => '/devis/$id/signature';
   static String quoteSignatureRefresh(String id) => '/devis/$id/signature/refresh';
   static String quoteContractPdf(String id) => '/devis/$id/contrat.pdf';

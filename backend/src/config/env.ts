@@ -54,9 +54,10 @@ const envSchema = z.object({
   TRACKING_EXPIRY_HOURS: z.coerce.number().default(4),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
 
-  // Documenso (signature electronique)
-  DOCUMENSO_API_KEY: z.string().default('api_14g3cmhffs4hk6ry'),
-  DOCUMENSO_BASE_URL: z.string().default('https://app.documenso.com'),
+  // DocuSeal (signature electronique)
+  DOCUSEAL_API_KEY: z.string().optional(),
+  DOCUSEAL_BASE_URL: z.string().default('https://api.docuseal.com'),
+  DOCUSEAL_WEBHOOK_SECRET: z.string().optional(),
 
   // Email (Resend by default)
   RESEND_API_KEY: z.string().optional(),

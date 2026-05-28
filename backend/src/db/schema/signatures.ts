@@ -2,7 +2,7 @@ import { pgTable, uuid, varchar, text, timestamp, pgEnum, integer } from 'drizzl
 import { quotes } from './quotes';
 
 export const signatureStatusEnum = pgEnum('signature_status', [
-  'draft',      // document created in Documenso, not yet sent
+  'draft',      // submission created with DocuSeal, not yet sent
   'pending',    // sent, awaiting signer
   'signed',     // signed by client
   'declined',   // client declined
@@ -15,7 +15,9 @@ export const signatureRequests = pgTable('signature_requests', {
   quoteId: uuid('quote_id')
     .notNull()
     .references(() => quotes.id, { onDelete: 'cascade' }),
-  documensoDocumentId: integer('documenso_document_id'),
+  // DocuSeal submission identifiers (null for in-person/direct signing).
+  docusealSubmissionId: integer('docuseal_submission_id'),
+  docusealSlug: varchar('docuseal_slug', { length: 64 }),
   status: signatureStatusEnum('status').notNull().default('draft'),
   mode: varchar('mode', { length: 20 }).notNull().default('remote'), // 'remote' | 'direct'
   signerName: varchar('signer_name', { length: 200 }).notNull(),

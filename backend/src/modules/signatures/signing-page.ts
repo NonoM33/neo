@@ -1,4 +1,4 @@
-import type { QuoteDataForPdf } from './documenso.service';
+import type { QuoteDataForPdf } from './contract-pdf.service';
 
 function eur(v: string | null) {
   if (!v) return '0,00 €';

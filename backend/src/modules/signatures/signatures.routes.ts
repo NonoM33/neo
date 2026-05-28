@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { env } from '../../config/env';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
 import * as svc from './signatures.service';
@@ -21,7 +22,6 @@ signaturesRouter.get('/devis/:id/signature', async (c) => {
 // body: { mode: 'remote' | 'direct' }
 signaturesRouter.post('/devis/:id/signature', async (c) => {
   const id = c.req.param('id');
-  const user = c.get('user');
   const body = await c.req.json().catch(() => ({})) as { mode?: string };
   const mode = body.mode === 'direct' ? 'direct' : 'remote';
 
@@ -36,13 +36,25 @@ signaturesRouter.post('/devis/:id/signature', async (c) => {
 
     return c.json({ id: requestId, signingUrl, status: 'pending', mode: 'direct' }, 201);
   } else {
-    // Remote: send via Documenso email
+    // Remote: send via DocuSeal email
     try {
       const result = await svc.createRemoteSigningRequest(id);
-      return c.json({ id: result.id, signingUrl: null, status: 'pending', mode: 'remote', sentTo: result.sentTo }, 201);
-    } catch (err: any) {
-      console.error('[signatures] remote signing error:', err?.message ?? err);
-      return c.json({ error: { message: err?.message ?? 'Erreur lors de la création de la signature', code: 'SIGNATURE_ERROR' } }, 500);
+      return c.json({
+        id: result.id,
+        signingUrl: result.signingUrl,
+        status: 'pending',
+        mode: 'remote',
+        sentTo: result.sentTo,
+      }, 201);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[signatures] remote signing error:', message);
+      return c.json({
+        error: {
+          message: message || 'Erreur lors de la création de la signature',
+          code: 'SIGNATURE_ERROR',
+        },
+      }, 500);
     }
   }
 });
@@ -132,18 +144,30 @@ signingPageRouter.get('/signer/:id/success', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// Documenso webhook (public)
+// DocuSeal webhook (public, HMAC-verified when DOCUSEAL_WEBHOOK_SECRET is set)
 // ---------------------------------------------------------------------------
 
 const webhookRouter = new Hono();
 
-webhookRouter.post('/webhook/documenso', async (c) => {
+webhookRouter.post('/webhook/docuseal', async (c) => {
   try {
-    const payload = await c.req.json();
-    await svc.handleDocumensoWebhook(payload);
+    const rawBody = await c.req.text();
+    const signature = c.req.header('x-docuseal-signature');
+    const ok = await svc.verifyDocusealWebhook(
+      rawBody,
+      signature,
+      env.DOCUSEAL_WEBHOOK_SECRET,
+    );
+    if (!ok) {
+      console.warn('[docuseal] webhook signature verification failed');
+      return c.json({ error: 'invalid signature' }, 401);
+    }
+    const payload = JSON.parse(rawBody);
+    await svc.handleDocusealWebhook(payload);
     return c.json({ ok: true });
   } catch (e) {
-    console.error('Documenso webhook error:', e);
+    console.error('DocuSeal webhook error:', e);
+    // Return 200 to prevent DocuSeal from retrying on malformed payloads
     return c.json({ ok: false }, 200);
   }
 });

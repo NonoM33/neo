@@ -70,7 +70,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
           setState(() { _error = 'Impossible d\'obtenir l\'ID de signature. Réessayez.'; });
         }
       } else {
-        // Remote: Documenso email sent
+        // Remote: DocuSeal email sent
         final sentTo = result['sentTo'] as String?;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

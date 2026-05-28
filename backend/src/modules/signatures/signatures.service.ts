@@ -1,23 +1,34 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../config/database';
-import { signatureRequests, quotes, projects, clients, quoteLines } from '../../db/schema';
+import {
+  signatureRequests,
+  quotes,
+  projects,
+  clients,
+  quoteLines,
+} from '../../db/schema';
 import { NotFoundError } from '../../lib/errors';
 import { buildSigningPage } from './signing-page';
 import {
   generateContractPdf,
-  createDocumensoDocument,
-  addDocumensoRecipient,
-  addDocumensoSignatureField,
-  sendDocumensoDocument,
-  getDocumensoDocument,
   type QuoteDataForPdf,
-} from './documenso.service';
+} from './contract-pdf.service';
+import {
+  createSubmissionFromPdf,
+  getSubmissionStatus,
+  mapDocusealStatus,
+  type DocusealStatus,
+} from './docuseal.service';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function getQuoteWithDetails(quoteId: string): Promise<QuoteDataForPdf & { id: string; projectId: string; status: string }> {
+async function getQuoteWithDetails(
+  quoteId: string,
+): Promise<
+  QuoteDataForPdf & { id: string; projectId: string; status: string }
+> {
   const [row] = await db
     .select({
       id: quotes.id,
@@ -64,17 +75,24 @@ async function getQuoteWithDetails(quoteId: string): Promise<QuoteDataForPdf & {
 }
 
 // ---------------------------------------------------------------------------
-// Direct signing (in-person, no Documenso)
+// Direct signing (in-person on the tablet, no provider)
 // ---------------------------------------------------------------------------
 
-export async function createDirectSigningRequest(quoteId: string): Promise<{ id: string }> {
+export async function createDirectSigningRequest(
+  quoteId: string,
+): Promise<{ id: string }> {
   const quoteData = await getQuoteWithDetails(quoteId);
 
   // Cancel any existing pending request first
   await db
     .update(signatureRequests)
     .set({ status: 'cancelled', updatedAt: new Date() })
-    .where(and(eq(signatureRequests.quoteId, quoteId), eq(signatureRequests.status, 'pending')));
+    .where(
+      and(
+        eq(signatureRequests.quoteId, quoteId),
+        eq(signatureRequests.status, 'pending'),
+      ),
+    );
 
   const clientName = quoteData.client
     ? `${quoteData.client.firstName} ${quoteData.client.lastName}`
@@ -95,7 +113,9 @@ export async function createDirectSigningRequest(quoteId: string): Promise<{ id:
   return { id: request!.id };
 }
 
-export async function getSigningPage(signatureRequestId: string): Promise<string> {
+export async function getSigningPage(
+  signatureRequestId: string,
+): Promise<string> {
   const [request] = await db
     .select()
     .from(signatureRequests)
@@ -140,49 +160,60 @@ export async function submitDirectSignature(
 }
 
 // ---------------------------------------------------------------------------
-// Remote signing (Documenso via email)
+// Remote signing (DocuSeal via email)
 // ---------------------------------------------------------------------------
 
 export async function createRemoteSigningRequest(quoteId: string): Promise<{
   id: string;
   sentTo: string;
+  signingUrl: string | null;
 }> {
   const quoteData = await getQuoteWithDetails(quoteId);
 
   if (!quoteData.client?.email) {
-    throw new Error('Le client doit avoir une adresse email pour la signature à distance');
+    throw new Error(
+      "Le client doit avoir une adresse email pour la signature à distance",
+    );
   }
 
   const clientName = `${quoteData.client.firstName} ${quoteData.client.lastName}`;
   const clientEmail = quoteData.client.email;
 
-  // Cancel existing pending
+  // Cancel any existing pending request
   await db
     .update(signatureRequests)
     .set({ status: 'cancelled', updatedAt: new Date() })
-    .where(and(eq(signatureRequests.quoteId, quoteId), eq(signatureRequests.status, 'pending')));
+    .where(
+      and(
+        eq(signatureRequests.quoteId, quoteId),
+        eq(signatureRequests.status, 'pending'),
+      ),
+    );
 
-  // Generate PDF
+  // Generate the contract PDF (provider-agnostic)
   const pdfBytes = await generateContractPdf(quoteData);
 
-  // Create Documenso document
-  const { documentId } = await createDocumensoDocument(
-    pdfBytes,
-    `Devis ${quoteData.number} — ${clientName}`,
-  );
-
-  const { recipientId } = await addDocumensoRecipient(documentId, clientName, clientEmail);
-  await addDocumensoSignatureField(documentId, recipientId);
-
+  // Open a DocuSeal submission (DocuSeal emails the signer)
   const subject = `Devis N° ${quoteData.number} — NEO Domotique`;
   const message = `Bonjour ${quoteData.client.firstName},\n\nVeuillez trouver ci-joint le devis N° ${quoteData.number} d'un montant de ${quoteData.totalTTC} € TTC pour le projet "${quoteData.project?.name}".\n\nMerci de le signer électroniquement.\n\nCordialement,\nNEO Domotique`;
-  await sendDocumensoDocument(documentId, true, subject, message);
+
+  const submission = await createSubmissionFromPdf({
+    pdfBytes,
+    title: `Devis ${quoteData.number} — ${clientName}`,
+    signerName: clientName,
+    signerEmail: clientEmail,
+    subject,
+    message,
+    sendEmail: true,
+  });
 
   const [request] = await db
     .insert(signatureRequests)
     .values({
       quoteId,
-      documensoDocumentId: documentId,
+      docusealSubmissionId: submission.submissionId,
+      docusealSlug: submission.slug,
+      signingUrl: submission.signingUrl,
       status: 'pending',
       mode: 'remote',
       signerName: clientName,
@@ -191,10 +222,17 @@ export async function createRemoteSigningRequest(quoteId: string): Promise<{
     .returning();
 
   if (quoteData.status === 'brouillon') {
-    await db.update(quotes).set({ status: 'envoye', sentAt: new Date(), updatedAt: new Date() }).where(eq(quotes.id, quoteId));
+    await db
+      .update(quotes)
+      .set({ status: 'envoye', sentAt: new Date(), updatedAt: new Date() })
+      .where(eq(quotes.id, quoteId));
   }
 
-  return { id: request!.id, sentTo: clientEmail };
+  return {
+    id: request!.id,
+    sentTo: clientEmail,
+    signingUrl: submission.signingUrl,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -230,22 +268,33 @@ export async function refreshSignatureStatus(quoteId: string) {
     .orderBy(signatureRequests.createdAt)
     .limit(1);
 
-  if (!request || !request.documensoDocumentId) return null;
+  if (!request || !request.docusealSubmissionId) return null;
 
   try {
-    const doc = await getDocumensoDocument(request.documensoDocumentId);
-    const statusMap: Record<string, string> = { COMPLETED: 'signed', PENDING: 'pending', DRAFT: 'draft', DECLINED: 'declined', EXPIRED: 'expired' };
-    const newStatus = statusMap[doc.status.toUpperCase()] ?? request.status;
-    const updates: Record<string, any> = { updatedAt: new Date() };
+    const status = await getSubmissionStatus(request.docusealSubmissionId);
+    const newStatus = mapDocusealStatus(status.status);
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (newStatus !== request.status) {
       updates.status = newStatus;
       if (newStatus === 'signed') {
-        updates.completedAt = new Date();
-        await db.update(quotes).set({ status: 'accepte', updatedAt: new Date() }).where(eq(quotes.id, quoteId));
+        updates.completedAt = status.completedAt ?? new Date();
+        await db
+          .update(quotes)
+          .set({ status: 'accepte', updatedAt: new Date() })
+          .where(eq(quotes.id, quoteId));
       }
     }
-    await db.update(signatureRequests).set(updates).where(eq(signatureRequests.id, request.id));
-    return { status: newStatus, signingUrl: doc.signingUrl ?? request.signingUrl };
+    if (status.signingUrl && status.signingUrl !== request.signingUrl) {
+      updates.signingUrl = status.signingUrl;
+    }
+    await db
+      .update(signatureRequests)
+      .set(updates)
+      .where(eq(signatureRequests.id, request.id));
+    return {
+      status: newStatus,
+      signingUrl: status.signingUrl ?? request.signingUrl,
+    };
   } catch {
     return { status: request.status, signingUrl: request.signingUrl };
   }
@@ -255,29 +304,132 @@ export async function cancelSignatureRequest(quoteId: string): Promise<void> {
   await db
     .update(signatureRequests)
     .set({ status: 'cancelled', updatedAt: new Date() })
-    .where(and(eq(signatureRequests.quoteId, quoteId), eq(signatureRequests.status, 'pending')));
+    .where(
+      and(
+        eq(signatureRequests.quoteId, quoteId),
+        eq(signatureRequests.status, 'pending'),
+      ),
+    );
 }
 
-export async function handleDocumensoWebhook(payload: any): Promise<void> {
-  const event = payload.event ?? payload.type;
-  const documentId = payload.documentId ?? payload.document?.id;
-  if (!documentId) return;
+// ---------------------------------------------------------------------------
+// DocuSeal webhook
+// ---------------------------------------------------------------------------
 
-  const [request] = await db.select().from(signatureRequests).where(eq(signatureRequests.documensoDocumentId, documentId)).limit(1);
+interface DocusealWebhookPayload {
+  event_type?: string;
+  data?: {
+    id?: number;
+    submission_id?: number;
+    slug?: string;
+    status?: string;
+    completed_at?: string;
+  };
+}
+
+export async function handleDocusealWebhook(
+  payload: DocusealWebhookPayload,
+): Promise<void> {
+  const event = (payload.event_type ?? '').toLowerCase();
+  const submissionId = payload.data?.submission_id ?? payload.data?.id;
+  if (!submissionId) return;
+
+  const [request] = await db
+    .select()
+    .from(signatureRequests)
+    .where(eq(signatureRequests.docusealSubmissionId, submissionId))
+    .limit(1);
   if (!request) return;
 
-  const updates: Record<string, any> = { updatedAt: new Date() };
-  if (event === 'document.completed' || event === 'DOCUMENT_COMPLETED') {
-    updates.status = 'signed'; updates.completedAt = new Date();
-    await db.update(quotes).set({ status: 'accepte', updatedAt: new Date() }).where(eq(quotes.id, request.quoteId));
-  } else if (event === 'document.declined' || event === 'DOCUMENT_DECLINED') {
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (
+    event === 'form.completed' ||
+    event === 'submission.completed' ||
+    payload.data?.status === 'completed'
+  ) {
+    updates.status = 'signed';
+    updates.completedAt = payload.data?.completed_at
+      ? new Date(payload.data.completed_at)
+      : new Date();
+    await db
+      .update(quotes)
+      .set({ status: 'accepte', updatedAt: new Date() })
+      .where(eq(quotes.id, request.quoteId));
+  } else if (
+    event === 'form.declined' ||
+    event === 'submission.declined' ||
+    payload.data?.status === 'declined'
+  ) {
     updates.status = 'declined';
-    await db.update(quotes).set({ status: 'refuse', updatedAt: new Date() }).where(eq(quotes.id, request.quoteId));
+    await db
+      .update(quotes)
+      .set({ status: 'refuse', updatedAt: new Date() })
+      .where(eq(quotes.id, request.quoteId));
+  } else if (event === 'form.opened' || event === 'submission.opened') {
+    // Just touch updatedAt; status stays pending.
+  } else if (
+    event === 'form.expired' ||
+    payload.data?.status === 'expired'
+  ) {
+    updates.status = 'expired';
   }
-  await db.update(signatureRequests).set(updates).where(eq(signatureRequests.id, request.id));
+
+  await db
+    .update(signatureRequests)
+    .set(updates)
+    .where(eq(signatureRequests.id, request.id));
+}
+
+/**
+ * Verify a DocuSeal webhook signature.
+ *
+ * DocuSeal sends an HMAC of the raw body in the `X-Docuseal-Signature`
+ * header. When DOCUSEAL_WEBHOOK_SECRET is not configured (dev), we accept
+ * everything (and log it).
+ */
+export async function verifyDocusealWebhook(
+  rawBody: string,
+  signature: string | undefined,
+  secret: string | undefined,
+): Promise<boolean> {
+  if (!secret) {
+    console.log('[docuseal] webhook accepted (no DOCUSEAL_WEBHOOK_SECRET set)');
+    return true;
+  }
+  if (!signature) return false;
+  const expected = await hmacSha256Hex(secret, rawBody);
+  return timingSafeEqual(expected, signature);
+}
+
+async function hmacSha256Hex(secret: string, body: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 export async function previewContractPdf(quoteId: string): Promise<Uint8Array> {
   const quoteData = await getQuoteWithDetails(quoteId);
   return generateContractPdf(quoteData);
 }
+
+// Re-export DocuSeal status type for the routes layer
+export type { DocusealStatus };
