@@ -29,6 +29,10 @@ import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
 import { cloudInstancesRoutes } from './modules/cloud-instances';
 import { floorPlansRoutes } from './modules/floor-plans';
 import { signaturesRouter, signingPageRouter, webhookRouter } from './modules/signatures';
+import {
+  publicOrderTrackingRouter,
+  orderTrackingMintRouter,
+} from './modules/order-tracking';
 import { clientAuthRoutes, ticketsRoutes, kbRoutes, chatRoutes } from './support';
 
 import { scanSessionsRoutes } from './modules/scan-sessions';
@@ -112,6 +116,12 @@ app.route('/', webhookRouter);
 
 // Public tracking page (no auth, token-based)
 app.route('/tracking', publicTrackingRoutes);
+
+// Public order tracking page (no auth, HMAC-signed token)
+app.route('/suivi-commande', publicOrderTrackingRouter);
+
+// Authenticated endpoint to mint a tracking URL for a given order
+app.route('/api/commandes', orderTrackingMintRouter);
 
 // Swagger
 app.route('/swagger', swaggerRoutes);

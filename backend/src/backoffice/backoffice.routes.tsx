@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { count, eq, desc, and, ilike, or, sql, SQL, gte, lte } from 'drizzle-orm';
 import { db } from '../config/database';
-import { users, clients, projects, suppliers, products, productDependencies, quotes, quoteLines, rooms, photos, devices, checklistItems, leads, activities, salesObjectives, leadStageHistory, userRoles, roles, tickets, ticketComments, ticketHistory, ticketCategories, slaDefinitions, cannedResponses, kbArticles, kbCategories, faqItems, chatMessages, chatSessions, orders, orderLines, orderStatusHistory, stockMovements, supplierOrders, supplierOrderLines, invoices, invoiceLines } from '../db/schema';
+import { users, clients, projects, suppliers, products, productDependencies, quotes, quoteLines, rooms, photos, devices, checklistItems, leads, activities, salesObjectives, leadStageHistory, userRoles, roles, tickets, ticketComments, ticketHistory, ticketCategories, slaDefinitions, cannedResponses, kbArticles, kbCategories, faqItems, chatMessages, chatSessions, orders, orderLines, orderStatusHistory, stockMovements, supplierOrders, supplierOrderLines, invoices, invoiceLines, signatureRequests } from '../db/schema';
 import { hashPassword, verifyPasswordHash } from '../modules/auth/auth.service';
 import * as productsService from '../modules/products/products.service';
 import * as ordersService from '../modules/orders/orders.service';
@@ -46,6 +46,9 @@ import { OrdersListPage, OrderDetailPage, OrderFormPage } from './pages/orders';
 import { StockDashboardPage, StockMovementsPage } from './pages/stock';
 import { SupplierOrdersListPage, SupplierOrderDetailPage, SupplierOrderFormPage } from './pages/supplier-orders';
 import { InvoicesListPage, InvoiceDetailPage } from './pages/invoices';
+import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
+import { SignaturesListPage } from './pages/signatures';
+import * as quotesService from '../modules/quotes/quotes.service';
 
 type Env = {
   Variables: {
@@ -3015,6 +3018,215 @@ backofficeRouter.post('/invoices/:id/status', async (c) => {
   } catch (error: any) {
     return c.redirect(`/backoffice/invoices/${id}?error=${encodeURIComponent(error.message)}`);
   }
+});
+
+// ============ Quotes (backoffice — admin view) ============
+
+backofficeRouter.get('/quotes', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const search = c.req.query('search')?.trim() || undefined;
+  const status = c.req.query('status')?.trim() || undefined;
+  const success = c.req.query('success');
+  const error = c.req.query('error');
+
+  const conditions: SQL[] = [];
+  if (status) conditions.push(eq(quotes.status, status as any));
+  if (search) {
+    conditions.push(
+      or(
+        ilike(quotes.number, `%${search}%`),
+        ilike(clients.firstName, `%${search}%`),
+        ilike(clients.lastName, `%${search}%`),
+        ilike(clients.email, `%${search}%`),
+      )!,
+    );
+  }
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  const [quotesList, countResult] = await Promise.all([
+    db
+      .select({
+        id: quotes.id,
+        number: quotes.number,
+        status: quotes.status,
+        totalTTC: quotes.totalTTC,
+        createdAt: quotes.createdAt,
+        sentAt: quotes.sentAt,
+        validUntil: quotes.validUntil,
+        project: { id: projects.id, name: projects.name },
+        client: {
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          email: clients.email,
+        },
+      })
+      .from(quotes)
+      .innerJoin(projects, eq(quotes.projectId, projects.id))
+      .innerJoin(clients, eq(projects.clientId, clients.id))
+      .where(whereClause)
+      .orderBy(desc(quotes.createdAt))
+      .limit(PAGE_SIZE)
+      .offset((page - 1) * PAGE_SIZE),
+    db
+      .select({ count: count() })
+      .from(quotes)
+      .innerJoin(projects, eq(quotes.projectId, projects.id))
+      .innerJoin(clients, eq(projects.clientId, clients.id))
+      .where(whereClause),
+  ]);
+
+  const total = countResult[0]?.count ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  return c.html(
+    <QuotesListPage
+      quotes={quotesList as any}
+      currentPage={page}
+      totalPages={totalPages}
+      totalItems={total}
+      pageSize={PAGE_SIZE}
+      search={search}
+      status={status}
+      success={success}
+      error={error}
+      user={adminUser}
+    />,
+  );
+});
+
+backofficeRouter.get('/quotes/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  const success = c.req.query('success');
+  const error = c.req.query('error');
+
+  try {
+    // Admin bypass: verifyQuoteAccess inside getQuoteWithProjectDetails
+    // skips the owner check when userRole === 'admin'.
+    const quote = await quotesService.getQuoteWithProjectDetails(
+      id,
+      adminUser.id,
+      'admin',
+    );
+
+    // Load any signature request attached to this quote (most recent).
+    const sigRows = await db
+      .select()
+      .from(signatureRequests)
+      .where(eq(signatureRequests.quoteId, id))
+      .orderBy(desc(signatureRequests.createdAt))
+      .limit(1);
+    const signature = sigRows[0] ?? null;
+
+    return c.html(
+      <QuoteDetailPage
+        quote={{ ...quote, signature } as any}
+        success={success}
+        error={error}
+        user={adminUser}
+      />,
+    );
+  } catch {
+    return c.redirect('/backoffice/quotes');
+  }
+});
+
+backofficeRouter.post('/quotes/:id/send', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  try {
+    await quotesService.sendQuote(id, adminUser.id, 'admin');
+    return c.redirect(`/backoffice/quotes/${id}?success=Devis envoyé au client`);
+  } catch (error: any) {
+    return c.redirect(
+      `/backoffice/quotes/${id}?error=${encodeURIComponent(error.message)}`,
+    );
+  }
+});
+
+// ============ Signatures (backoffice — admin view) ============
+
+backofficeRouter.get('/signatures', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const status = c.req.query('status')?.trim() || undefined;
+  const mode = c.req.query('mode')?.trim() || undefined;
+  const success = c.req.query('success');
+  const error = c.req.query('error');
+
+  const conditions: SQL[] = [];
+  if (status) conditions.push(eq(signatureRequests.status, status as any));
+  if (mode) conditions.push(eq(signatureRequests.mode, mode));
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  const [signaturesList, countResult] = await Promise.all([
+    db
+      .select({
+        id: signatureRequests.id,
+        quoteId: signatureRequests.quoteId,
+        quoteNumber: quotes.number,
+        status: signatureRequests.status,
+        mode: signatureRequests.mode,
+        signerName: signatureRequests.signerName,
+        signerEmail: signatureRequests.signerEmail,
+        signingUrl: signatureRequests.signingUrl,
+        completedAt: signatureRequests.completedAt,
+        createdAt: signatureRequests.createdAt,
+        totalTTC: quotes.totalTTC,
+        clientFirstName: clients.firstName,
+        clientLastName: clients.lastName,
+      })
+      .from(signatureRequests)
+      .leftJoin(quotes, eq(signatureRequests.quoteId, quotes.id))
+      .leftJoin(projects, eq(quotes.projectId, projects.id))
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(whereClause)
+      .orderBy(desc(signatureRequests.createdAt))
+      .limit(PAGE_SIZE)
+      .offset((page - 1) * PAGE_SIZE),
+    db
+      .select({ count: count() })
+      .from(signatureRequests)
+      .where(whereClause),
+  ]);
+
+  const total = countResult[0]?.count ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  // Reshape for the page component
+  const rows = signaturesList.map((s) => ({
+    id: s.id,
+    quoteId: s.quoteId,
+    quoteNumber: s.quoteNumber,
+    status: s.status,
+    mode: s.mode,
+    signerName: s.signerName,
+    signerEmail: s.signerEmail,
+    signingUrl: s.signingUrl,
+    completedAt: s.completedAt,
+    createdAt: s.createdAt,
+    clientName:
+      s.clientFirstName || s.clientLastName
+        ? `${s.clientFirstName ?? ''} ${s.clientLastName ?? ''}`.trim()
+        : null,
+    totalTTC: s.totalTTC,
+  }));
+
+  return c.html(
+    <SignaturesListPage
+      signatures={rows as any}
+      currentPage={page}
+      totalPages={totalPages}
+      totalItems={total}
+      pageSize={PAGE_SIZE}
+      status={status}
+      mode={mode}
+      success={success}
+      error={error}
+      user={adminUser}
+    />,
+  );
 });
 
 export default backofficeRouter;

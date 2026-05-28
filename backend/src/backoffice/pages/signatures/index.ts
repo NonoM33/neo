@@ -1,0 +1,1 @@
+export { SignaturesListPage } from './list';
