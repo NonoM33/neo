@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Card, CardHeader, CardBody, Spinner, Button } from '../../components';
 import { leadsService } from '../../services';
 import type { LeadWithDetails, LeadStatus } from '../../types';
@@ -70,11 +71,26 @@ export function LeadDetailPage() {
     if (!lead) return;
     setConverting(true);
     try {
-      await leadsService.convertLead(lead.id, { createClient: true });
-      navigate(`/leads/${lead.id}`);
+      const result = await leadsService.convertLead(lead.id, { createClient: true });
+      // Projects are managed in the integrateur app (Flutter), not in the
+      // CRM, so we stay on the lead detail (now status=gagne) and surface
+      // the new project id in the toast. The salesperson copies it or
+      // opens the integrator app where the project is now visible.
+      toast.success(`Lead converti — projet créé`, {
+        description: `Identifiant du projet : ${result.projectId.slice(0, 8)}…`,
+        action: {
+          label: 'Copier l\'ID',
+          onClick: () => {
+            void navigator.clipboard?.writeText(result.projectId);
+            toast.message('ID copié dans le presse-papiers');
+          },
+        },
+        duration: 8000,
+      });
       loadLead();
     } catch (error) {
       console.error('Failed to convert lead:', error);
+      toast.error('La conversion a échoué');
     } finally {
       setConverting(false);
     }

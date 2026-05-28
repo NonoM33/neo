@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { router } from './router';
 import { useAuthStore } from './stores';
 import { ToastContainer, Spinner } from './components';
@@ -25,6 +26,8 @@ function App() {
     <>
       <RouterProvider router={router} />
       <ToastContainer />
+      {/* Sonner toaster for the newer parts of the app (kanban, lead conversion) */}
+      <Toaster position="top-right" richColors closeButton />
     </>
   );
 }
