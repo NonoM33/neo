@@ -33,6 +33,13 @@ export const recetteStatusEnum = pgEnum('recette_status', [
   'a_revoir',
 ]);
 
+// Statut de validation (recettage) d'une feature
+export const recetteValidationEnum = pgEnum('recette_validation', [
+  'a_tester',
+  'valide',
+  'a_corriger',
+]);
+
 // Catalogue des features a recetter (seede depuis recette.catalogue.ts)
 export const recetteFeatures = pgTable(
   'recette_features',
@@ -45,12 +52,18 @@ export const recetteFeatures = pgTable(
     description: text('description'),
     route: varchar('route', { length: 200 }),
     sortOrder: integer('sort_order').notNull().default(0),
+    validationStatus: recetteValidationEnum('validation_status')
+      .notNull()
+      .default('a_tester'),
+    validatedBy: varchar('validated_by', { length: 120 }),
+    validatedAt: timestamp('validated_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
     index('recette_features_app_idx').on(table.app),
     index('recette_features_module_idx').on(table.module),
+    index('recette_features_validation_idx').on(table.validationStatus),
   ]
 );
 
@@ -127,4 +140,13 @@ export const recetteStatusLabels: Record<
   corrige: { label: 'Corrige', color: 'info' },
   valide: { label: 'Valide', color: 'success' },
   a_revoir: { label: 'A revoir', color: 'warning' },
+};
+
+export const recetteValidationLabels: Record<
+  RecetteFeature['validationStatus'],
+  { label: string; color: string; icon: string }
+> = {
+  a_tester: { label: 'A tester', color: 'secondary', icon: 'bi-hourglass-split' },
+  valide: { label: 'Valide', color: 'success', icon: 'bi-check2-circle' },
+  a_corriger: { label: 'A corriger', color: 'danger', icon: 'bi-x-circle' },
 };

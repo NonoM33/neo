@@ -2,6 +2,7 @@ import type { FC } from 'hono/jsx';
 import {
   recetteSeverityLabels,
   recetteStatusLabels,
+  recetteValidationLabels,
 } from '../../../db/schema';
 import type {
   FeatureWithFeedback,
@@ -192,6 +193,7 @@ export const FeatureCard: FC<{
     (f) => f.status === 'ouvert' || f.status === 'a_revoir'
   ).length;
   const collapseId = `feature-body-${feature.id}`;
+  const validation = recetteValidationLabels[feature.validationStatus];
 
   return (
     <div class="card mb-2" id={`feature-${feature.id}`}>
@@ -209,6 +211,9 @@ export const FeatureCard: FC<{
           <div class="text-muted small">{feature.description}</div>
         </div>
         <div class="d-flex align-items-center gap-2">
+          <span class={`badge bg-${validation.color}`} title="Statut de recette">
+            <i class={`bi ${validation.icon} me-1`}></i>{validation.label}
+          </span>
           {openCount > 0 && (
             <span class="badge bg-danger rounded-pill" title="Retours ouverts">
               {openCount}
@@ -241,6 +246,57 @@ export const FeatureCard: FC<{
                 <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir la page
               </a>
             )}
+          </div>
+
+          <div class="border rounded p-3 mb-3" style="background:#f8f9fa;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div>
+                <span class="small text-muted fw-600 me-2">Recettage</span>
+                <span class={`badge bg-${validation.color}`}>
+                  <i class={`bi ${validation.icon} me-1`}></i>{validation.label}
+                </span>
+                {feature.validatedBy && feature.validatedAt && (
+                  <span class="text-muted small ms-2">
+                    par {feature.validatedBy} le {formatDate(feature.validatedAt)}
+                  </span>
+                )}
+              </div>
+              <div class="d-flex gap-2">
+                {feature.validationStatus !== 'valide' && (
+                  <form
+                    method="post"
+                    action={`/backoffice/recette/feature/${feature.id}/validation`}
+                  >
+                    <input type="hidden" name="status" value="valide" />
+                    <button type="submit" class="btn btn-sm btn-success">
+                      <i class="bi bi-check2-circle me-1"></i>Valider
+                    </button>
+                  </form>
+                )}
+                {feature.validationStatus !== 'a_corriger' && (
+                  <form
+                    method="post"
+                    action={`/backoffice/recette/feature/${feature.id}/validation`}
+                  >
+                    <input type="hidden" name="status" value="a_corriger" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="bi bi-x-circle me-1"></i>A corriger
+                    </button>
+                  </form>
+                )}
+                {feature.validationStatus !== 'a_tester' && (
+                  <form
+                    method="post"
+                    action={`/backoffice/recette/feature/${feature.id}/validation`}
+                  >
+                    <input type="hidden" name="status" value="a_tester" />
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Reinitialiser">
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
           </div>
 
           <AddFeedbackForm featureId={feature.id} currentUserName={currentUserName} />

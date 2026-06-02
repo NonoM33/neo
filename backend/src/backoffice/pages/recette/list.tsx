@@ -5,6 +5,7 @@ import {
   recetteAppLabels,
   recetteSeverityLabels,
   recetteStatusLabels,
+  recetteValidationLabels,
   type RecetteFeature,
 } from '../../../db/schema';
 import type {
@@ -17,7 +18,7 @@ import { FeatureCard } from './feature-card';
 interface RecettePageProps {
   features: FeatureWithFeedback[];
   summary: RecetteSummary;
-  filters: { app?: string; status?: string; severity?: string };
+  filters: { app?: string; status?: string; severity?: string; validation?: string };
   user: AdminUser;
   success?: string;
   error?: string;
@@ -49,7 +50,8 @@ export const RecettePage: FC<RecettePageProps> = ({
     modules.get(feature.module)!.push(feature);
   }
 
-  const hasFilters = filters.app || filters.status || filters.severity;
+  const hasFilters =
+    filters.app || filters.status || filters.severity || filters.validation;
 
   return (
     <Layout title="Centre de recette" currentPath="/backoffice/recette" user={user}>
@@ -83,7 +85,16 @@ export const RecettePage: FC<RecettePageProps> = ({
                 ))}
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+              <label class="form-label small text-muted">Recettage</label>
+              <select name="validation" class="form-select">
+                <option value="">Tous</option>
+                {Object.entries(recetteValidationLabels).map(([key, { label }]) => (
+                  <option value={key} selected={key === filters.validation}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div class="col-md-2">
               <label class="form-label small text-muted">Statut</label>
               <select name="status" class="form-select">
                 <option value="">Tous</option>
@@ -92,7 +103,7 @@ export const RecettePage: FC<RecettePageProps> = ({
                 ))}
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label class="form-label small text-muted">Severite</label>
               <select name="severity" class="form-select">
                 <option value="">Toutes</option>

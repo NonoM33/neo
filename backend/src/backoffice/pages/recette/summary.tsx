@@ -2,6 +2,7 @@ import type { FC } from 'hono/jsx';
 import {
   recetteSeverityLabels,
   recetteStatusLabels,
+  recetteValidationLabels,
 } from '../../../db/schema';
 import type { RecetteSummary } from '../../../modules/recette/recette.service';
 
@@ -16,6 +17,10 @@ export const SummaryBar: FC<SummaryBarProps> = ({ summary }) => {
     valide: '#198754',
     a_revoir: '#ffc107',
   };
+
+  const validatedPct = summary.totalFeatures
+    ? Math.round((summary.byValidation.valide / summary.totalFeatures) * 100)
+    : 0;
 
   return (
     <div class="row g-3 mb-4">
@@ -56,10 +61,17 @@ export const SummaryBar: FC<SummaryBarProps> = ({ summary }) => {
         <div class="stat-card" style="background: linear-gradient(135deg, #198754 0%, #146c43 100%);">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <div class="stat-value">{summary.byStatus.valide}</div>
-              <div class="stat-label">Retours valides</div>
+              <div class="stat-value">
+                {summary.byValidation.valide}/{summary.totalFeatures}
+              </div>
+              <div class="stat-label">Features recettees</div>
             </div>
             <i class="bi bi-check2-circle stat-icon"></i>
+          </div>
+          <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.25);overflow:hidden;margin-top:10px;">
+            <div
+              style={`height:100%;border-radius:3px;background:#fff;width:${validatedPct}%;`}
+            ></div>
           </div>
         </div>
       </div>
@@ -84,6 +96,16 @@ export const SummaryBar: FC<SummaryBarProps> = ({ summary }) => {
               <span class="small">
                 <span class={`badge bg-${color}`}>{label}</span>{' '}
                 <strong>{summary.bySeverity[key as keyof typeof summary.bySeverity]}</strong>
+              </span>
+            ))}
+            <span class="vr"></span>
+            <span class="text-muted small fw-600 text-uppercase">Recettage</span>
+            {Object.entries(recetteValidationLabels).map(([key, { label, color, icon }]) => (
+              <span class="small">
+                <span class={`badge bg-${color}`}>
+                  <i class={`bi ${icon} me-1`}></i>{label}
+                </span>{' '}
+                <strong>{summary.byValidation[key as keyof typeof summary.byValidation]}</strong>
               </span>
             ))}
           </div>

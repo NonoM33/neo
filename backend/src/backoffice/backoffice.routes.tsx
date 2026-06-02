@@ -3242,6 +3242,7 @@ backofficeRouter.get('/signatures', async (c) => {
 
 const RECETTE_SEVERITIES: RecetteFeedback['severity'][] = ['bloquant', 'majeur', 'mineur', 'cosmetique'];
 const RECETTE_STATUSES: RecetteFeedback['status'][] = ['ouvert', 'corrige', 'valide', 'a_revoir'];
+const RECETTE_VALIDATIONS: RecetteFeature['validationStatus'][] = ['a_tester', 'valide', 'a_corriger'];
 
 const recetteGuard = async (c: any, next: any) => {
   if (!isRecetteEnabled) return c.notFound();
@@ -3255,6 +3256,8 @@ backofficeRouter.get('/recette', async (c) => {
   const appParam = c.req.query('app') as RecetteFeature['app'] | undefined;
   const statusParam = c.req.query('status') as RecetteFeedback['status'] | undefined;
   const severityParam = c.req.query('severity') as RecetteFeedback['severity'] | undefined;
+  const validationRaw = c.req.query('validation') as RecetteFeature['validationStatus'] | undefined;
+  const validationParam = validationRaw && RECETTE_VALIDATIONS.includes(validationRaw) ? validationRaw : undefined;
 
   let summary = await recetteService.getSummary();
   if (summary.totalFeatures === 0) {
@@ -3266,18 +3269,35 @@ backofficeRouter.get('/recette', async (c) => {
     app: appParam || undefined,
     status: statusParam || undefined,
     severity: severityParam || undefined,
+    validation: validationParam,
   });
 
   return c.html(
     <RecettePage
       features={features}
       summary={summary}
-      filters={{ app: appParam, status: statusParam, severity: severityParam }}
+      filters={{ app: appParam, status: statusParam, severity: severityParam, validation: validationParam }}
       user={adminUser}
       success={c.req.query('success')}
       error={c.req.query('error')}
     />,
   );
+});
+
+backofficeRouter.post('/recette/feature/:id/validation', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+  const statusRaw = body.status as RecetteFeature['validationStatus'];
+  if (!RECETTE_VALIDATIONS.includes(statusRaw)) {
+    return c.redirect('/backoffice/recette?error=Statut+de+validation+invalide');
+  }
+  await recetteService.updateFeatureValidation(
+    id,
+    statusRaw,
+    `${adminUser.firstName} ${adminUser.lastName}`,
+  );
+  return c.redirect(`/backoffice/recette?success=Recettage+mis+a+jour#feature-${id}`);
 });
 
 backofficeRouter.post('/recette/seed', async (c) => {

@@ -54,16 +54,24 @@ export interface RecetteFilters {
   app?: RecetteFeature['app'];
   status?: RecetteFeedback['status'];
   severity?: RecetteFeedback['severity'];
+  validation?: RecetteFeature['validationStatus'];
 }
 
 // Toutes les features avec leurs retours + commentaires, ordonnees.
 export async function getCatalogueWithFeedback(
   filters: RecetteFilters = {}
 ): Promise<FeatureWithFeedback[]> {
+  const featureConditions = [
+    filters.app ? eq(recetteFeatures.app, filters.app) : undefined,
+    filters.validation
+      ? eq(recetteFeatures.validationStatus, filters.validation)
+      : undefined,
+  ].filter(Boolean);
+
   const features = await db
     .select()
     .from(recetteFeatures)
-    .where(filters.app ? eq(recetteFeatures.app, filters.app) : undefined)
+    .where(featureConditions.length ? and(...featureConditions) : undefined)
     .orderBy(asc(recetteFeatures.sortOrder));
 
   const allFeedback = await db
@@ -107,12 +115,18 @@ export interface RecetteSummary {
   featuresWithOpenIssues: number;
   byStatus: Record<RecetteFeedback['status'], number>;
   bySeverity: Record<RecetteFeedback['severity'], number>;
+  byValidation: Record<RecetteFeature['validationStatus'], number>;
   totalFeedback: number;
 }
 
 export async function getSummary(): Promise<RecetteSummary> {
   const [features, feedback] = await Promise.all([
-    db.select({ id: recetteFeatures.id }).from(recetteFeatures),
+    db
+      .select({
+        id: recetteFeatures.id,
+        validationStatus: recetteFeatures.validationStatus,
+      })
+      .from(recetteFeatures),
     db
       .select({
         id: recetteFeedback.id,
@@ -135,7 +149,16 @@ export async function getSummary(): Promise<RecetteSummary> {
     mineur: 0,
     cosmetique: 0,
   };
+  const byValidation: RecetteSummary['byValidation'] = {
+    a_tester: 0,
+    valide: 0,
+    a_corriger: 0,
+  };
   const featuresWithOpen = new Set<string>();
+
+  for (const feature of features) {
+    byValidation[feature.validationStatus] += 1;
+  }
 
   for (const fb of feedback) {
     byStatus[fb.status] += 1;
@@ -150,8 +173,43 @@ export async function getSummary(): Promise<RecetteSummary> {
     featuresWithOpenIssues: featuresWithOpen.size,
     byStatus,
     bySeverity,
+    byValidation,
     totalFeedback: feedback.length,
   };
+}
+
+export interface FeatureValidationUpdate {
+  validationStatus: RecetteFeature['validationStatus'];
+  validatedBy: string | null;
+  validatedAt: Date | null;
+  updatedAt: Date;
+}
+
+// Logique pure : seules les validations "actives" conservent l'auteur/date,
+// un retour a "a_tester" efface l'empreinte de recettage.
+export function buildFeatureValidationUpdate(
+  status: RecetteFeature['validationStatus'],
+  validatedBy: string,
+  now: Date = new Date()
+): FeatureValidationUpdate {
+  const isValidated = status !== 'a_tester';
+  return {
+    validationStatus: status,
+    validatedBy: isValidated ? validatedBy : null,
+    validatedAt: isValidated ? now : null,
+    updatedAt: now,
+  };
+}
+
+export async function updateFeatureValidation(
+  featureId: string,
+  status: RecetteFeature['validationStatus'],
+  validatedBy: string
+): Promise<void> {
+  await db
+    .update(recetteFeatures)
+    .set(buildFeatureValidationUpdate(status, validatedBy))
+    .where(eq(recetteFeatures.id, featureId));
 }
 
 export interface CreateFeedbackInput {
