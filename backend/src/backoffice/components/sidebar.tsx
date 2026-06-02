@@ -1,4 +1,5 @@
 import type { FC } from 'hono/jsx';
+import { isRecetteEnabled } from '../../config/env';
 
 interface SidebarProps {
   currentPath?: string;
@@ -15,6 +16,9 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'General',
     items: [
       { path: '/backoffice', label: 'Dashboard', icon: 'bi-grid-1x2' },
+      ...(isRecetteEnabled
+        ? [{ path: '/backoffice/recette', label: 'Recette (STG)', icon: 'bi-bug' }]
+        : []),
     ],
   },
   {

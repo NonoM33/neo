@@ -49,6 +49,12 @@ import { InvoicesListPage, InvoiceDetailPage } from './pages/invoices';
 import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
 import { SignaturesListPage } from './pages/signatures';
 import * as quotesService from '../modules/quotes/quotes.service';
+import { RecettePage } from './pages/recette';
+import * as recetteService from '../modules/recette/recette.service';
+import { env, isRecetteEnabled } from '../config/env';
+import { uploadFile, getFile } from '../config/s3';
+import { randomUUID } from 'crypto';
+import type { RecetteFeedback, RecetteFeature } from '../db/schema';
 
 type Env = {
   Variables: {
@@ -3227,6 +3233,132 @@ backofficeRouter.get('/signatures', async (c) => {
       user={adminUser}
     />,
   );
+});
+
+// ============ Centre de recette (STG/dev uniquement) ============
+
+const RECETTE_SEVERITIES: RecetteFeedback['severity'][] = ['bloquant', 'majeur', 'mineur', 'cosmetique'];
+const RECETTE_STATUSES: RecetteFeedback['status'][] = ['ouvert', 'corrige', 'valide', 'a_revoir'];
+
+const recetteGuard = async (c: any, next: any) => {
+  if (!isRecetteEnabled) return c.notFound();
+  return next();
+};
+backofficeRouter.use('/recette', recetteGuard);
+backofficeRouter.use('/recette/*', recetteGuard);
+
+backofficeRouter.get('/recette', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const appParam = c.req.query('app') as RecetteFeature['app'] | undefined;
+  const statusParam = c.req.query('status') as RecetteFeedback['status'] | undefined;
+  const severityParam = c.req.query('severity') as RecetteFeedback['severity'] | undefined;
+
+  let summary = await recetteService.getSummary();
+  if (summary.totalFeatures === 0) {
+    await recetteService.seedCatalogue();
+    summary = await recetteService.getSummary();
+  }
+
+  const features = await recetteService.getCatalogueWithFeedback({
+    app: appParam || undefined,
+    status: statusParam || undefined,
+    severity: severityParam || undefined,
+  });
+
+  return c.html(
+    <RecettePage
+      features={features}
+      summary={summary}
+      filters={{ app: appParam, status: statusParam, severity: severityParam }}
+      user={adminUser}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+    />,
+  );
+});
+
+backofficeRouter.post('/recette/seed', async (c) => {
+  const { count } = await recetteService.seedCatalogue();
+  return c.redirect(`/backoffice/recette?success=Catalogue+resynchronise+(${count}+features)`);
+});
+
+backofficeRouter.post('/recette/feedback', async (c) => {
+  const body = await c.req.parseBody();
+  const featureId = body.featureId as string;
+  const title = (body.title as string)?.trim();
+  const severityRaw = body.severity as RecetteFeedback['severity'];
+  const author = (body.author as string)?.trim() || 'Anonyme';
+  const stepsToReproduce = (body.stepsToReproduce as string)?.trim() || undefined;
+
+  if (!featureId || !title) {
+    return c.redirect('/backoffice/recette?error=Champs+obligatoires+manquants');
+  }
+  const severity = RECETTE_SEVERITIES.includes(severityRaw) ? severityRaw : 'majeur';
+
+  let screenshotKey: string | undefined;
+  const file = body.screenshot;
+  if (file instanceof File && file.size > 0) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `feedback/${randomUUID()}-${safeName}`;
+    await uploadFile(env.S3_BUCKET_RECETTE, key, buffer, file.type || 'image/png');
+    screenshotKey = key;
+  }
+
+  await recetteService.createFeedback({
+    featureId,
+    title,
+    severity,
+    stepsToReproduce,
+    screenshotKey,
+    author,
+  });
+
+  return c.redirect(`/backoffice/recette?success=Bug+remonte#feature-${featureId}`);
+});
+
+backofficeRouter.post('/recette/feedback/:id/status', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+  const statusRaw = body.status as RecetteFeedback['status'];
+  if (!RECETTE_STATUSES.includes(statusRaw)) {
+    return c.redirect('/backoffice/recette?error=Statut+invalide');
+  }
+  await recetteService.updateFeedbackStatus(id, statusRaw);
+  return c.redirect('/backoffice/recette?success=Statut+mis+a+jour');
+});
+
+backofficeRouter.post('/recette/feedback/:id/comment', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+  const author = (body.author as string)?.trim() || 'Anonyme';
+  const commentBody = (body.body as string)?.trim();
+  if (!commentBody) {
+    return c.redirect('/backoffice/recette?error=Commentaire+vide');
+  }
+  await recetteService.addComment(id, author, commentBody);
+  return c.redirect('/backoffice/recette?success=Commentaire+ajoute');
+});
+
+backofficeRouter.post('/recette/feedback/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  await recetteService.deleteFeedback(id);
+  return c.redirect('/backoffice/recette?success=Retour+supprime');
+});
+
+backofficeRouter.get('/recette/screenshot/:id', async (c) => {
+  const id = c.req.param('id');
+  const feedback = await recetteService.getFeedbackById(id);
+  if (!feedback?.screenshotKey) return c.notFound();
+  const data = await getFile(env.S3_BUCKET_RECETTE, feedback.screenshotKey);
+  if (!data) return c.notFound();
+  const ext = feedback.screenshotKey.split('.').pop()?.toLowerCase();
+  const contentType =
+    ext === 'png' ? 'image/png'
+    : ext === 'webp' ? 'image/webp'
+    : ext === 'gif' ? 'image/gif'
+    : 'image/jpeg';
+  return new Response(data, { headers: { 'Content-Type': contentType } });
 });
 
 export default backofficeRouter;

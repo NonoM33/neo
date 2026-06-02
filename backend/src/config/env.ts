@@ -4,6 +4,7 @@ const envSchema = z.object({
   // Server
   PORT: z.string().default('3000').transform(Number),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
 
   // Database
   DATABASE_URL: z.string().url(),
@@ -39,6 +40,10 @@ const envSchema = z.object({
 
   // Support S3
   S3_BUCKET_SUPPORT: z.string().default('neo-support'),
+
+  // Recette (centre de recette / acceptance testing)
+  S3_BUCKET_RECETTE: z.string().default('neo-recette'),
+  RECETTE_EXPORT_TOKEN: z.string().optional(),
 
   // SMS Gateway
   SMS_API_URL: z.string().default('https://api.sms-gate.app/3rdparty/v1/messages'),
@@ -84,3 +89,6 @@ function loadEnv(): Env {
 }
 
 export const env = loadEnv();
+
+// Le centre de recette est visible hors production (staging + dev).
+export const isRecetteEnabled = env.APP_ENV !== 'production';

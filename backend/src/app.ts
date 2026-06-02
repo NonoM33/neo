@@ -38,6 +38,7 @@ import { clientAuthRoutes, ticketsRoutes, kbRoutes, chatRoutes } from './support
 import { scanSessionsRoutes } from './modules/scan-sessions';
 import adminRoutes from './admin/admin.routes';
 import backofficeRoutes from './backoffice/backoffice.routes';
+import { recetteExportRoutes } from './modules/recette';
 import swaggerRoutes from './swagger/swagger.routes';
 
 const app = new Hono();
@@ -131,6 +132,7 @@ app.route('/admin', adminRoutes);
 
 // Backoffice routes
 app.route('/backoffice', backofficeRoutes);
+app.route('/recette-api', recetteExportRoutes);
 
 // 404
 app.notFound((c) => {
