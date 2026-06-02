@@ -74,7 +74,10 @@ backofficeRouter.get('/login', async (c) => {
     return c.redirect('/backoffice');
   }
   const error = c.req.query('error');
-  return c.html(<LoginPage error={error} />);
+  const quickLogins = isRecetteEnabled
+    ? [{ label: 'Admin', email: 'admin@neo-domotique.fr', password: 'password123', icon: 'bi-shield-lock' }]
+    : undefined;
+  return c.html(<LoginPage error={error} quickLogins={quickLogins} />);
 });
 
 backofficeRouter.post('/login', async (c) => {

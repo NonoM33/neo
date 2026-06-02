@@ -20,6 +20,24 @@ export function LoginPage() {
     }
   };
 
+  const showQuickLogin = import.meta.env.VITE_APP_ENV !== 'production';
+
+  const quickLogin = async (quickEmail: string, quickPassword: string) => {
+    clearError();
+    try {
+      await login(quickEmail, quickPassword);
+      navigate('/');
+    } catch {
+      // Error is handled by the store
+    }
+  };
+
+  const quickAccounts = [
+    { label: 'Admin', email: 'admin@neo-domotique.fr', icon: 'bi-shield-lock' },
+    { label: 'Intégrateur', email: 'jean.dupont@neo-domotique.fr', icon: 'bi-tools' },
+    { label: 'Auditeur', email: 'pierre.durand@neo-domotique.fr', icon: 'bi-clipboard-check' },
+  ];
+
   return (
     <div
       className="min-vh-100 d-flex align-items-center justify-content-center"
@@ -132,6 +150,32 @@ export function LoginPage() {
             )}
           </button>
         </form>
+
+        {showQuickLogin && (
+          <div className="mt-4">
+            <div
+              className="text-center mb-2"
+              style={{ color: 'var(--neo-text-secondary)', fontSize: '0.8rem' }}
+            >
+              <i className="bi bi-lightning-charge me-1"></i>
+              Connexion rapide (staging)
+            </div>
+            <div className="d-grid gap-2">
+              {quickAccounts.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  disabled={isLoading}
+                  onClick={() => quickLogin(account.email, 'password123')}
+                >
+                  <i className={`bi ${account.icon} me-2`}></i>
+                  {account.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

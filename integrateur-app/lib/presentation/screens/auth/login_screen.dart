@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/validators.dart';
@@ -372,7 +373,62 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
           ),
         ),
+
+        if (EnvironmentConfig.current != Environment.production) ...[
+          AppSpacing.vGapLg,
+          _buildQuickLogin(context, authBloc),
+        ],
       ],
+    );
+  }
+
+  Widget _buildQuickLogin(BuildContext context, AuthBloc authBloc) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    const accounts = <({String label, String email, IconData icon})>[
+      (label: 'Admin', email: 'admin@neo-domotique.fr', icon: Icons.shield_outlined),
+      (label: 'Intégrateur', email: 'jean.dupont@neo-domotique.fr', icon: Icons.build_outlined),
+      (label: 'Auditeur', email: 'pierre.durand@neo-domotique.fr', icon: Icons.fact_check_outlined),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.bolt_outlined, size: 18, color: colorScheme.primary),
+            AppSpacing.hGapXs,
+            Text(
+              'Connexion rapide (staging)',
+              style: textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        AppSpacing.vGapSm,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final account in accounts)
+              OutlinedButton.icon(
+                onPressed: () => _quickLogin(authBloc, account.email),
+                icon: Icon(account.icon, size: 18),
+                label: Text(account.label),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _quickLogin(AuthBloc authBloc, String email) {
+    _emailController.text = email;
+    _passwordController.text = 'password123';
+    authBloc.add(
+      AuthLoginRequested(email: email, password: 'password123'),
     );
   }
 

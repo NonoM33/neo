@@ -1,10 +1,18 @@
 import type { FC } from 'hono/jsx';
 
-interface LoginPageProps {
-  error?: string;
+export interface QuickLoginAccount {
+  label: string;
+  email: string;
+  password: string;
+  icon: string;
 }
 
-export const LoginPage: FC<LoginPageProps> = ({ error }) => {
+interface LoginPageProps {
+  error?: string;
+  quickLogins?: QuickLoginAccount[];
+}
+
+export const LoginPage: FC<LoginPageProps> = ({ error, quickLogins }) => {
   return (
     <html lang="fr">
       <head>
@@ -142,6 +150,27 @@ export const LoginPage: FC<LoginPageProps> = ({ error }) => {
               Se connecter
             </button>
           </form>
+
+          {quickLogins && quickLogins.length > 0 && (
+            <div class="mt-4">
+              <div class="text-center text-muted small mb-2">
+                <i class="bi bi-lightning-charge me-1"></i>
+                Connexion rapide (staging)
+              </div>
+              <div class="d-grid gap-2">
+                {quickLogins.map((account) => (
+                  <form method="post" action="/backoffice/login">
+                    <input type="hidden" name="email" value={account.email} />
+                    <input type="hidden" name="password" value={account.password} />
+                    <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                      <i class={`bi ${account.icon} me-2`}></i>
+                      {account.label}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </body>
     </html>
