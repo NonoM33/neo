@@ -115,7 +115,7 @@ CREATE TABLE "floor_plans" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "signature_requests" (
+CREATE TABLE IF NOT EXISTS "signature_requests" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"quote_id" uuid NOT NULL,
 	"docuseal_submission_id" integer,
