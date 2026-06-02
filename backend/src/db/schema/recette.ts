@@ -83,6 +83,8 @@ export const recetteFeedback = pgTable(
     actualResult: text('actual_result'),
     screenshotKey: varchar('screenshot_key', { length: 300 }),
     author: varchar('author', { length: 120 }).notNull(),
+    gitlabIssueIid: integer('gitlab_issue_iid'),
+    gitlabIssueUrl: varchar('gitlab_issue_url', { length: 500 }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },

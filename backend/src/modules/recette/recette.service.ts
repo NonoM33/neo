@@ -260,6 +260,17 @@ export async function getFeedbackById(
   return fb;
 }
 
+export async function setFeedbackGitlabIssue(
+  id: string,
+  iid: number,
+  url: string
+): Promise<void> {
+  await db
+    .update(recetteFeedback)
+    .set({ gitlabIssueIid: iid, gitlabIssueUrl: url, updatedAt: new Date() })
+    .where(eq(recetteFeedback.id, id));
+}
+
 export async function updateFeedbackStatus(
   id: string,
   status: RecetteFeedback['status']

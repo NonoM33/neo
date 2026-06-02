@@ -52,6 +52,7 @@ import * as quotesService from '../modules/quotes/quotes.service';
 import { RecettePage } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
 import * as recetteService from '../modules/recette/recette.service';
+import * as gitlabService from '../modules/gitlab/gitlab.service';
 import { env, isRecetteEnabled } from '../config/env';
 import { uploadFile, getFile } from '../config/s3';
 import { randomUUID } from 'crypto';
@@ -3348,7 +3349,7 @@ backofficeRouter.post('/recette/feedback', async (c) => {
     screenshotKey = key;
   }
 
-  await recetteService.createFeedback({
+  const created = await recetteService.createFeedback({
     featureId,
     title,
     severity,
@@ -3358,6 +3359,22 @@ backofficeRouter.post('/recette/feedback', async (c) => {
     screenshotKey,
     author,
   });
+
+  // Creation best-effort d'un ticket GitLab (no-op si l'integration est desactivee).
+  const feature = await recetteService.getFeatureWithFeedback(featureId);
+  if (feature) {
+    const issue = await gitlabService.createIssue({
+      feature,
+      feedback: created,
+    });
+    if (issue) {
+      await recetteService.setFeedbackGitlabIssue(
+        created.id,
+        issue.iid,
+        issue.webUrl
+      );
+    }
+  }
 
   if (c.req.header('HX-Request')) return renderRecetteFeatureFragment(c, featureId);
   return c.redirect(`/backoffice/recette?success=Bug+remonte#feature-${featureId}`);

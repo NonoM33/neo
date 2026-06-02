@@ -47,6 +47,19 @@ const FeedbackItem: FC<{ fb: FeedbackWithComments; currentUserName: string }> = 
             <i class="bi bi-person me-1"></i>{fb.author}
             <span class="mx-2">&middot;</span>
             <i class="bi bi-clock me-1"></i>{formatDate(fb.createdAt)}
+            {fb.gitlabIssueUrl && (
+              <>
+                <span class="mx-2">&middot;</span>
+                <a
+                  href={fb.gitlabIssueUrl}
+                  target="_blank"
+                  class="text-decoration-none"
+                  title="Voir le ticket GitLab"
+                >
+                  <i class="bi bi-gitlab text-danger me-1"></i>#{fb.gitlabIssueIid}
+                </a>
+              </>
+            )}
           </div>
         </div>
         <form

@@ -45,6 +45,11 @@ const envSchema = z.object({
   S3_BUCKET_RECETTE: z.string().default('neo-recette'),
   RECETTE_EXPORT_TOKEN: z.string().optional(),
 
+  // GitLab (creation auto de tickets depuis les retours de recette)
+  GITLAB_URL: z.string().url().default('https://gitlab.com'),
+  GITLAB_TOKEN: z.string().optional(),
+  GITLAB_PROJECT_ID: z.string().optional(),
+
   // SMS Gateway
   SMS_API_URL: z.string().default('https://api.sms-gate.app/3rdparty/v1/messages'),
   SMS_API_USER: z.string().default('EZMOAP'),
@@ -92,3 +97,6 @@ export const env = loadEnv();
 
 // Le centre de recette est visible hors production (staging + dev).
 export const isRecetteEnabled = env.APP_ENV !== 'production';
+
+// L'integration GitLab n'est active que si un token ET un projet cible sont fournis.
+export const isGitlabEnabled = Boolean(env.GITLAB_TOKEN && env.GITLAB_PROJECT_ID);
