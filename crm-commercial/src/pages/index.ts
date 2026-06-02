@@ -8,3 +8,4 @@ export * from './profile';
 export * from './prospection';
 export * from './calendar';
 export * from './cloud';
+export * from './products';

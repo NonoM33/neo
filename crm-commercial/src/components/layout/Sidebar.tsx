@@ -46,6 +46,12 @@ export function Sidebar() {
           KPIs
         </NavLink>
 
+        <div className="nav-section">Catalogue</div>
+        <NavLink to="/produits" className="nav-link">
+          <i className="bi bi-box-seam"></i>
+          Produits
+        </NavLink>
+
         <div className="nav-section">Mon espace</div>
         <NavLink to="/calendar/availability" className="nav-link">
           <i className="bi bi-clock"></i>
