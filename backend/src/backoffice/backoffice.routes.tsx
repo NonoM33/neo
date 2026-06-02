@@ -50,6 +50,7 @@ import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
 import { SignaturesListPage } from './pages/signatures';
 import * as quotesService from '../modules/quotes/quotes.service';
 import { RecettePage } from './pages/recette';
+import { FeatureCard } from './pages/recette/feature-card';
 import * as recetteService from '../modules/recette/recette.service';
 import { env, isRecetteEnabled } from '../config/env';
 import { uploadFile, getFile } from '../config/s3';
@@ -3248,6 +3249,22 @@ const recetteGuard = async (c: any, next: any) => {
   if (!isRecetteEnabled) return c.notFound();
   return next();
 };
+
+// Re-rend une seule carte de feature (depliee) pour un swap HTMX en place,
+// afin de ne pas recharger toute la page et refermer les accordeons.
+const renderRecetteFeatureFragment = async (c: any, featureId: string) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const feature = await recetteService.getFeatureWithFeedback(featureId);
+  if (!feature) return c.body(null, 204);
+  return c.html(
+    <FeatureCard
+      feature={feature}
+      currentUserName={`${adminUser.firstName} ${adminUser.lastName}`}
+      isAdminRoute={feature.app === 'admin'}
+      expanded
+    />,
+  );
+};
 backofficeRouter.use('/recette', recetteGuard);
 backofficeRouter.use('/recette/*', recetteGuard);
 
@@ -3297,6 +3314,7 @@ backofficeRouter.post('/recette/feature/:id/validation', async (c) => {
     statusRaw,
     `${adminUser.firstName} ${adminUser.lastName}`,
   );
+  if (c.req.header('HX-Request')) return renderRecetteFeatureFragment(c, id);
   return c.redirect(`/backoffice/recette?success=Recettage+mis+a+jour#feature-${id}`);
 });
 
@@ -3337,6 +3355,7 @@ backofficeRouter.post('/recette/feedback', async (c) => {
     author,
   });
 
+  if (c.req.header('HX-Request')) return renderRecetteFeatureFragment(c, featureId);
   return c.redirect(`/backoffice/recette?success=Bug+remonte#feature-${featureId}`);
 });
 
@@ -3348,6 +3367,10 @@ backofficeRouter.post('/recette/feedback/:id/status', async (c) => {
     return c.redirect('/backoffice/recette?error=Statut+invalide');
   }
   await recetteService.updateFeedbackStatus(id, statusRaw);
+  if (c.req.header('HX-Request')) {
+    const fb = await recetteService.getFeedbackById(id);
+    if (fb) return renderRecetteFeatureFragment(c, fb.featureId);
+  }
   return c.redirect('/backoffice/recette?success=Statut+mis+a+jour');
 });
 
@@ -3360,12 +3383,20 @@ backofficeRouter.post('/recette/feedback/:id/comment', async (c) => {
     return c.redirect('/backoffice/recette?error=Commentaire+vide');
   }
   await recetteService.addComment(id, author, commentBody);
+  if (c.req.header('HX-Request')) {
+    const fb = await recetteService.getFeedbackById(id);
+    if (fb) return renderRecetteFeatureFragment(c, fb.featureId);
+  }
   return c.redirect('/backoffice/recette?success=Commentaire+ajoute');
 });
 
 backofficeRouter.post('/recette/feedback/:id/delete', async (c) => {
   const id = c.req.param('id');
+  const fb = await recetteService.getFeedbackById(id);
   await recetteService.deleteFeedback(id);
+  if (c.req.header('HX-Request') && fb) {
+    return renderRecetteFeatureFragment(c, fb.featureId);
+  }
   return c.redirect('/backoffice/recette?success=Retour+supprime');
 });
 

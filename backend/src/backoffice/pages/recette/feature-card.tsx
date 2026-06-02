@@ -42,9 +42,10 @@ const FeedbackItem: FC<{ fb: FeedbackWithComments; currentUserName: string }> = 
           </div>
         </div>
         <form
-          method="post"
-          action={`/backoffice/recette/feedback/${fb.id}/delete`}
-          onsubmit="return confirm('Supprimer ce retour ?')"
+          hx-post={`/backoffice/recette/feedback/${fb.id}/delete`}
+          hx-target={`#feature-${fb.featureId}`}
+          hx-swap="outerHTML"
+          hx-confirm="Supprimer ce retour ?"
         >
           <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
             <i class="bi bi-trash"></i>
@@ -87,8 +88,9 @@ const FeedbackItem: FC<{ fb: FeedbackWithComments; currentUserName: string }> = 
 
       <div class="d-flex flex-wrap gap-2 mt-3 align-items-end">
         <form
-          method="post"
-          action={`/backoffice/recette/feedback/${fb.id}/status`}
+          hx-post={`/backoffice/recette/feedback/${fb.id}/status`}
+          hx-target={`#feature-${fb.featureId}`}
+          hx-swap="outerHTML"
           class="d-flex gap-2 align-items-end"
         >
           <div>
@@ -103,8 +105,9 @@ const FeedbackItem: FC<{ fb: FeedbackWithComments; currentUserName: string }> = 
         </form>
 
         <form
-          method="post"
-          action={`/backoffice/recette/feedback/${fb.id}/comment`}
+          hx-post={`/backoffice/recette/feedback/${fb.id}/comment`}
+          hx-target={`#feature-${fb.featureId}`}
+          hx-swap="outerHTML"
           class="d-flex gap-2 align-items-end flex-grow-1"
         >
           <input type="hidden" name="author" value={currentUserName} />
@@ -135,9 +138,10 @@ const AddFeedbackForm: FC<{ featureId: string; currentUserName: string }> = ({
   return (
     <div class="collapse" id={formId}>
       <form
-        method="post"
-        action="/backoffice/recette/feedback"
-        enctype="multipart/form-data"
+        hx-post="/backoffice/recette/feedback"
+        hx-target={`#feature-${featureId}`}
+        hx-swap="outerHTML"
+        hx-encoding="multipart/form-data"
         class="border rounded p-3 mb-3"
         style="background:#f8f9fa;"
       >
@@ -188,7 +192,8 @@ export const FeatureCard: FC<{
   feature: FeatureWithFeedback;
   currentUserName: string;
   isAdminRoute: boolean;
-}> = ({ feature, currentUserName, isAdminRoute }) => {
+  expanded?: boolean;
+}> = ({ feature, currentUserName, isAdminRoute, expanded = false }) => {
   const openCount = feature.feedback.filter(
     (f) => f.status === 'ouvert' || f.status === 'a_revoir'
   ).length;
@@ -227,7 +232,7 @@ export const FeatureCard: FC<{
           <i class="bi bi-chevron-down"></i>
         </div>
       </div>
-      <div class="collapse" id={collapseId}>
+      <div class={`collapse${expanded ? ' show' : ''}`} id={collapseId}>
         <div class="card-body">
           <div class="d-flex gap-2 mb-3">
             <button
@@ -264,8 +269,9 @@ export const FeatureCard: FC<{
               <div class="d-flex gap-2">
                 {feature.validationStatus !== 'valide' && (
                   <form
-                    method="post"
-                    action={`/backoffice/recette/feature/${feature.id}/validation`}
+                    hx-post={`/backoffice/recette/feature/${feature.id}/validation`}
+                    hx-target={`#feature-${feature.id}`}
+                    hx-swap="outerHTML"
                   >
                     <input type="hidden" name="status" value="valide" />
                     <button type="submit" class="btn btn-sm btn-success">
@@ -275,8 +281,9 @@ export const FeatureCard: FC<{
                 )}
                 {feature.validationStatus !== 'a_corriger' && (
                   <form
-                    method="post"
-                    action={`/backoffice/recette/feature/${feature.id}/validation`}
+                    hx-post={`/backoffice/recette/feature/${feature.id}/validation`}
+                    hx-target={`#feature-${feature.id}`}
+                    hx-swap="outerHTML"
                   >
                     <input type="hidden" name="status" value="a_corriger" />
                     <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -286,8 +293,9 @@ export const FeatureCard: FC<{
                 )}
                 {feature.validationStatus !== 'a_tester' && (
                   <form
-                    method="post"
-                    action={`/backoffice/recette/feature/${feature.id}/validation`}
+                    hx-post={`/backoffice/recette/feature/${feature.id}/validation`}
+                    hx-target={`#feature-${feature.id}`}
+                    hx-swap="outerHTML"
                   >
                     <input type="hidden" name="status" value="a_tester" />
                     <button type="submit" class="btn btn-sm btn-outline-secondary" title="Reinitialiser">

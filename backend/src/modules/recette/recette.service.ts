@@ -110,6 +110,13 @@ export async function getCatalogueWithFeedback(
   }));
 }
 
+export async function getFeatureWithFeedback(
+  featureId: string
+): Promise<FeatureWithFeedback | undefined> {
+  const all = await getCatalogueWithFeedback();
+  return all.find((f) => f.id === featureId);
+}
+
 export interface RecetteSummary {
   totalFeatures: number;
   featuresWithOpenIssues: number;
