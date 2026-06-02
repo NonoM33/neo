@@ -47,4 +47,13 @@ describe('FeatureCard', () => {
     expect(html).toContain('hx-target="#feature-feat-1"');
     expect(html).toContain('hx-swap="outerHTML"');
   });
+
+  it('guide le testeur avec les champs structures attendu/obtenu', async () => {
+    const html = await render(true);
+    expect(html).toContain('name="stepsToReproduce"');
+    expect(html).toContain('name="expectedResult"');
+    expect(html).toContain('name="actualResult"');
+    expect(html).toContain('Que devait-il se passer ?');
+    expect(html).toContain('a la place ?');
+  });
 });

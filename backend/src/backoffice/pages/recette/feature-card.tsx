@@ -12,6 +12,14 @@ import type {
 const severityOptions = Object.entries(recetteSeverityLabels);
 const statusOptions = Object.entries(recetteStatusLabels);
 
+// Aide en langage simple pour un testeur non technique.
+const severityHelp: Record<string, string> = {
+  bloquant: 'Impossible de continuer, la fonction ne marche pas du tout.',
+  majeur: 'Gros souci, mais on peut contourner ou continuer autrement.',
+  mineur: 'Genant mais pas grave, on peut vivre avec pour l instant.',
+  cosmetique: 'Detail visuel : texte, couleur, alignement, faute d orthographe.',
+};
+
 function formatDate(d: Date): string {
   return new Date(d).toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -57,6 +65,27 @@ const FeedbackItem: FC<{ fb: FeedbackWithComments; currentUserName: string }> = 
         <div class="mt-2">
           <div class="small text-muted fw-600">Etapes de repro</div>
           <pre class="small mb-0" style="white-space:pre-wrap;font-family:inherit;background:#f8f9fa;padding:8px;border-radius:6px;">{fb.stepsToReproduce}</pre>
+        </div>
+      )}
+
+      {(fb.expectedResult || fb.actualResult) && (
+        <div class="row g-2 mt-1">
+          {fb.expectedResult && (
+            <div class="col-md-6">
+              <div class="small text-muted fw-600">
+                <i class="bi bi-check2 text-success me-1"></i>Resultat attendu
+              </div>
+              <div class="small" style="white-space:pre-wrap;">{fb.expectedResult}</div>
+            </div>
+          )}
+          {fb.actualResult && (
+            <div class="col-md-6">
+              <div class="small text-muted fw-600">
+                <i class="bi bi-x-lg text-danger me-1"></i>Resultat obtenu
+              </div>
+              <div class="small" style="white-space:pre-wrap;">{fb.actualResult}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -146,37 +175,123 @@ const AddFeedbackForm: FC<{ featureId: string; currentUserName: string }> = ({
         style="background:#f8f9fa;"
       >
         <input type="hidden" name="featureId" value={featureId} />
-        <div class="row g-2">
-          <div class="col-md-8">
-            <label class="form-label small text-muted mb-1">Resume du bug</label>
-            <input type="text" name="title" class="form-control form-control-sm" required />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small text-muted mb-1">Severite</label>
-            <select name="severity" class="form-select form-select-sm">
-              {severityOptions.map(([key, { label }]) => (
-                <option value={key} selected={key === 'majeur'}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label small text-muted mb-1">Etapes de reproduction</label>
-            <textarea name="stepsToReproduce" class="form-control form-control-sm" rows={3}></textarea>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small text-muted mb-1">Auteur</label>
-            <input type="text" name="author" class="form-control form-control-sm" value={currentUserName} required />
-            <label class="form-label small text-muted mb-1 mt-2">Capture d'ecran</label>
-            <input type="file" name="screenshot" accept="image/*" class="form-control form-control-sm" />
+
+        <div class="alert alert-primary d-flex gap-2 small mb-3">
+          <i class="bi bi-lightbulb-fill"></i>
+          <div>
+            Decrivez le probleme comme si vous l'expliquiez a quelqu'un par
+            telephone. Plus c'est precis, plus vite on peut corriger. Prenez le
+            temps de remplir chaque etape ci-dessous.
           </div>
         </div>
-        <div class="mt-3 d-flex gap-2">
-          <button type="submit" class="btn btn-sm btn-primary">
-            <i class="bi bi-bug me-1"></i>Remonter le bug
+
+        <div class="mb-3">
+          <label class="form-label fw-600 mb-1">
+            <span class="badge bg-primary me-1">1</span>
+            En une phrase, quel est le probleme ?
+          </label>
+          <input
+            type="text"
+            name="title"
+            class="form-control"
+            required
+            placeholder="Ex : Impossible d'enregistrer un nouvel utilisateur"
+          />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-600 mb-1">
+            <span class="badge bg-primary me-1">2</span>
+            Qu'avez-vous fait, etape par etape ?
+          </label>
+          <textarea
+            name="stepsToReproduce"
+            class="form-control"
+            rows={4}
+            required
+            placeholder={
+              '1. Je vais sur la page Utilisateurs\n2. Je clique sur "Nouveau"\n3. Je remplis le formulaire\n4. Je clique sur Enregistrer'
+            }
+          ></textarea>
+          <div class="form-text">
+            Numerotez chaque action. On doit pouvoir refaire exactement la meme chose.
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-600 mb-1">
+              <span class="badge bg-success me-1">3</span>
+              Que devait-il se passer ?
+            </label>
+            <textarea
+              name="expectedResult"
+              class="form-control"
+              rows={3}
+              required
+              placeholder="Ex : L'utilisateur devait etre cree et apparaitre dans la liste."
+            ></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600 mb-1">
+              <span class="badge bg-danger me-1">4</span>
+              Que s'est-il passe a la place ?
+            </label>
+            <textarea
+              name="actualResult"
+              class="form-control"
+              rows={3}
+              required
+              placeholder="Ex : Un message rouge 'Erreur 500' s'affiche et rien n'est enregistre."
+            ></textarea>
+            <div class="form-text">Recopiez le message d'erreur exact s'il y en a un.</div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-600 mb-1">
+            <span class="badge bg-primary me-1">5</span>
+            A quel point est-ce genant ?
+          </label>
+          <select name="severity" class="form-select">
+            {severityOptions.map(([key, { label }]) => (
+              <option value={key} selected={key === 'majeur'}>
+                {label} — {severityHelp[key]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-600 mb-1">
+              <span class="badge bg-primary me-1">6</span>
+              Ajoutez une capture d'ecran
+            </label>
+            <input type="file" name="screenshot" accept="image/*" class="form-control" />
+            <div class="form-text">
+              Une image vaut mille mots : capturez l'ecran ou le message d'erreur.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600 mb-1">Votre nom</label>
+            <input
+              type="text"
+              name="author"
+              class="form-control"
+              value={currentUserName}
+              required
+            />
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-send me-1"></i>Envoyer le retour
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline-secondary"
+            class="btn btn-outline-secondary"
             data-bs-toggle="collapse"
             data-bs-target={`#${formId}`}
           >

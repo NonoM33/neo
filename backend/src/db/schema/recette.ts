@@ -79,6 +79,8 @@ export const recetteFeedback = pgTable(
     severity: recetteSeverityEnum('severity').notNull().default('majeur'),
     status: recetteStatusEnum('status').notNull().default('ouvert'),
     stepsToReproduce: text('steps_to_reproduce'),
+    expectedResult: text('expected_result'),
+    actualResult: text('actual_result'),
     screenshotKey: varchar('screenshot_key', { length: 300 }),
     author: varchar('author', { length: 120 }).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

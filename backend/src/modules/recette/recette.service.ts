@@ -224,6 +224,8 @@ export interface CreateFeedbackInput {
   title: string;
   severity: RecetteFeedback['severity'];
   stepsToReproduce?: string;
+  expectedResult?: string;
+  actualResult?: string;
   screenshotKey?: string;
   author: string;
 }
@@ -238,6 +240,8 @@ export async function createFeedback(
       title: input.title,
       severity: input.severity,
       stepsToReproduce: input.stepsToReproduce ?? null,
+      expectedResult: input.expectedResult ?? null,
+      actualResult: input.actualResult ?? null,
       screenshotKey: input.screenshotKey ?? null,
       author: input.author,
     })
@@ -294,6 +298,8 @@ export interface ExportedFeedback {
   severity: RecetteFeedback['severity'];
   status: RecetteFeedback['status'];
   stepsToReproduce: string | null;
+  expectedResult: string | null;
+  actualResult: string | null;
   author: string;
   createdAt: Date;
   updatedAt: Date;
@@ -321,6 +327,8 @@ export async function exportFeedback(
         severity: fb.severity,
         status: fb.status,
         stepsToReproduce: fb.stepsToReproduce,
+        expectedResult: fb.expectedResult,
+        actualResult: fb.actualResult,
         author: fb.author,
         createdAt: fb.createdAt,
         updatedAt: fb.updatedAt,

@@ -3330,6 +3330,8 @@ backofficeRouter.post('/recette/feedback', async (c) => {
   const severityRaw = body.severity as RecetteFeedback['severity'];
   const author = (body.author as string)?.trim() || 'Anonyme';
   const stepsToReproduce = (body.stepsToReproduce as string)?.trim() || undefined;
+  const expectedResult = (body.expectedResult as string)?.trim() || undefined;
+  const actualResult = (body.actualResult as string)?.trim() || undefined;
 
   if (!featureId || !title) {
     return c.redirect('/backoffice/recette?error=Champs+obligatoires+manquants');
@@ -3351,6 +3353,8 @@ backofficeRouter.post('/recette/feedback', async (c) => {
     title,
     severity,
     stepsToReproduce,
+    expectedResult,
+    actualResult,
     screenshotKey,
     author,
   });
