@@ -1,1 +1,10 @@
-[]
+- id: neo_apply_default_theme
+  alias: "Neo - appliquer le thème de marque au démarrage"
+  trigger:
+    - platform: homeassistant
+      event: start
+  action:
+    - service: frontend.set_theme
+      data:
+        name: Neo
+  mode: single

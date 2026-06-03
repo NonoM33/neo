@@ -30,6 +30,9 @@ cp "${SCRIPT_DIR}/templates/scripts.yaml" "${CONFIG_DIR}/scripts.yaml"
 cp "${SCRIPT_DIR}/templates/scenes.yaml" "${CONFIG_DIR}/scenes.yaml"
 cp "${SCRIPT_DIR}/templates/customize.yaml" "${CONFIG_DIR}/customize.yaml"
 
+# Copy Neo brand theme
+cp "${SCRIPT_DIR}/templates/themes/"*.yaml "${CONFIG_DIR}/themes/"
+
 # 3. Copy Neo Cloud custom component
 cp -r "${SCRIPT_DIR}/custom_components/neo_cloud/"* "${CONFIG_DIR}/custom_components/neo_cloud/"
 

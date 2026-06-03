@@ -1,0 +1,29 @@
+# Neo Cloud - Thème de marque Neo (white-label)
+# Marque placeholder : "Neo" / bleu #0d6efd. Aligné sur le design system backoffice.
+Neo:
+  # Couleur de marque
+  primary-color: "#0d6efd"
+  dark-primary-color: "#0b5ed7"
+  light-primary-color: "#6ea8fe"
+  accent-color: "#0d6efd"
+
+  # En-tête d'application
+  app-header-background-color: "#0d6efd"
+  app-header-text-color: "#ffffff"
+
+  # Accents d'état
+  state-icon-active-color: "#0d6efd"
+  paper-item-icon-selected-color: "#0d6efd"
+  switch-checked-color: "#0d6efd"
+  slider-color: "#0d6efd"
+
+  # Texte
+  primary-text-color: "#212121"
+  secondary-text-color: "#5f6368"
+  text-primary-color: "#ffffff"
+
+  # Fonds (thème clair par défaut, cohérent avec le backoffice #f5f7fa)
+  primary-background-color: "#f5f7fa"
+  secondary-background-color: "#ffffff"
+  card-background-color: "#ffffff"
+  divider-color: "#e9ecef"
