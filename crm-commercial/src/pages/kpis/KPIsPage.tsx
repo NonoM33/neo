@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardBody, Spinner, StatCard } from '../../components';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardBody, Spinner, StatCard, Button } from '../../components';
 import { kpisService } from '../../services';
 import type { DashboardData, PipelineAnalysis, ConversionStats, ActivityMetrics, ObjectiveWithProgress } from '../../types';
 import { LEAD_STATUS_LABELS, ACTIVITY_TYPE_LABELS } from '../../types';
 
 export function KPIsPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [pipeline, setPipeline] = useState<PipelineAnalysis | null>(null);
@@ -57,6 +59,14 @@ export function KPIsPage() {
 
   return (
     <div className="kpis-page">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="page-title mb-0">Indicateurs de performance</h2>
+        <Button icon="bi-plus-lg" onClick={() => navigate('/leads/new')}>
+          Nouveau lead
+        </Button>
+      </div>
+
       {/* Main Stats */}
       <div className="row g-4 mb-4">
         <div className="col-md-6 col-xl-3">

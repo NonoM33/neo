@@ -21,6 +21,13 @@ interface Invoice {
   };
 }
 
+interface EligibleOrder {
+  id: string;
+  number: string;
+  totalTTC: string;
+  label: string;
+}
+
 interface InvoicesListPageProps {
   invoices: Invoice[];
   currentPage: number;
@@ -29,6 +36,7 @@ interface InvoicesListPageProps {
   pageSize: number;
   status?: string;
   overdue?: string;
+  eligibleOrders: EligibleOrder[];
   success?: string;
   error?: string;
   user: AdminUser;
@@ -49,6 +57,7 @@ export const InvoicesListPage: FC<InvoicesListPageProps> = ({
   pageSize,
   status,
   overdue,
+  eligibleOrders,
   success,
   error,
   user,
@@ -58,6 +67,12 @@ export const InvoicesListPage: FC<InvoicesListPageProps> = ({
   return (
     <Layout title="Factures" currentPath="/backoffice/invoices" user={user}>
       <FlashMessages success={success} error={error} />
+
+      <div class="d-flex justify-content-end mb-3">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#invoiceModal">
+          <i class="bi bi-plus-lg me-1"></i>Nouvelle facture
+        </button>
+      </div>
 
       {/* Filters */}
       <div class="card mb-4">
@@ -183,6 +198,42 @@ export const InvoicesListPage: FC<InvoicesListPageProps> = ({
             />
           </div>
         )}
+      </div>
+
+      {/* Nouvelle facture (depuis une commande facturable) */}
+      <div class="modal fade" id="invoiceModal" tabindex={-1} aria-hidden="true">
+        <div class="modal-dialog">
+          <form class="modal-content" method="post" action="/backoffice/invoices/depuis-commande">
+            <div class="modal-header">
+              <h5 class="modal-title">Nouvelle facture</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              {eligibleOrders.length === 0 ? (
+                <p class="text-muted mb-0">
+                  Aucune commande facturable. Une facture se cree depuis une commande payee
+                  qui n'a pas encore de facture.
+                </p>
+              ) : (
+                <div class="mb-0">
+                  <label class="form-label">Commande a facturer *</label>
+                  <select name="orderId" class="form-select" required>
+                    <option value="">Selectionner une commande</option>
+                    {eligibleOrders.map((o) => (
+                      <option value={o.id}>{o.label} — {parseFloat(o.totalTTC).toFixed(2)} EUR</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary" disabled={eligibleOrders.length === 0}>
+                Generer la facture
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </Layout>
   );

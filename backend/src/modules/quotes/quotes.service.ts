@@ -319,6 +319,52 @@ export interface SendQuoteOptions {
   salesPersonName?: string;
 }
 
+// Render a quote PDF from its id. Shared by the JWT API route and the
+// session-authenticated backoffice route so the admin preview works without
+// an Authorization header.
+export async function generateQuotePdfById(
+  id: string,
+  userId: string,
+  userRole: string,
+): Promise<{ pdfBytes: Uint8Array; number: string }> {
+  const fullQuote = await getQuoteWithProjectDetails(id, userId, userRole);
+  const pdfBytes = await generateQuotePdf({
+    quote: {
+      number: fullQuote.number,
+      createdAt: fullQuote.createdAt,
+      validUntil: fullQuote.validUntil,
+      totalHT: fullQuote.totalHT,
+      totalTVA: fullQuote.totalTVA,
+      totalTTC: fullQuote.totalTTC,
+      discount: fullQuote.discount,
+      notes: fullQuote.notes,
+    },
+    client: {
+      firstName: fullQuote.client?.firstName ?? '',
+      lastName: fullQuote.client?.lastName ?? '',
+      email: fullQuote.client?.email ?? null,
+      address: fullQuote.client?.address ?? null,
+      postalCode: fullQuote.client?.postalCode ?? null,
+      city: fullQuote.client?.city ?? null,
+    },
+    project: {
+      name: fullQuote.project?.name ?? '',
+      address: fullQuote.project?.address ?? null,
+      city: fullQuote.project?.city ?? null,
+      postalCode: fullQuote.project?.postalCode ?? null,
+    },
+    lines: fullQuote.lines.map((line) => ({
+      description: line.description,
+      quantity: line.quantity ?? 1,
+      unitPriceHT: line.unitPriceHT ?? '0',
+      tvaRate: line.tvaRate ?? '0',
+      totalHT: line.totalHT ?? '0',
+      clientOwned: line.clientOwned ?? false,
+    })),
+  });
+  return { pdfBytes, number: fullQuote.number ?? '' };
+}
+
 export async function sendQuote(
   id: string,
   userId: string,

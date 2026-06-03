@@ -1,5 +1,6 @@
 export { SupportDashboardPage } from './dashboard';
 export { TicketsListPage } from './tickets-list';
+export { TicketFormPage } from './ticket-form';
 export { TicketDetailPage } from './ticket-detail';
 export { KBListPage } from './kb-list';
 export { KBFormPage } from './kb-form';

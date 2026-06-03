@@ -79,9 +79,9 @@ export const SupportSettingsPage: FC<SupportSettingsProps> = ({
         <div class="collapse show" id="slaSection">
           <div class="card-body">
             <div class="mb-3">
-              <a href="/backoffice/support/settings/sla/new" class="btn btn-sm btn-primary">
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#slaModal">
                 <i class="bi bi-plus-lg me-2"></i>Nouvelle SLA
-              </a>
+              </button>
             </div>
             {slaDefinitions.length === 0 ? (
               <div class="text-center text-muted py-4">
@@ -166,9 +166,9 @@ export const SupportSettingsPage: FC<SupportSettingsProps> = ({
         <div class="collapse show" id="categoriesSection">
           <div class="card-body">
             <div class="mb-3">
-              <a href="/backoffice/support/settings/categories/new" class="btn btn-sm btn-primary">
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
                 <i class="bi bi-plus-lg me-2"></i>Nouvelle categorie
-              </a>
+              </button>
             </div>
             {ticketCategories.length === 0 ? (
               <div class="text-center text-muted py-4">
@@ -245,9 +245,9 @@ export const SupportSettingsPage: FC<SupportSettingsProps> = ({
         <div class="collapse show" id="cannedSection">
           <div class="card-body">
             <div class="mb-3">
-              <a href="/backoffice/support/settings/canned-responses/new" class="btn btn-sm btn-primary">
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#cannedModal">
                 <i class="bi bi-plus-lg me-2"></i>Nouvelle reponse type
-              </a>
+              </button>
             </div>
             {cannedResponses.length === 0 ? (
               <div class="text-center text-muted py-4">
@@ -309,6 +309,115 @@ export const SupportSettingsPage: FC<SupportSettingsProps> = ({
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* SLA Modal */}
+      <div class="modal fade" id="slaModal" tabindex={-1} aria-hidden="true">
+        <div class="modal-dialog">
+          <form class="modal-content" method="post" action="/backoffice/support/settings/sla">
+            <div class="modal-header">
+              <h5 class="modal-title">Nouvelle SLA</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Nom *</label>
+                <input type="text" name="name" class="form-control" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Priorite</label>
+                <select name="priority" class="form-select">
+                  <option value="">Toutes</option>
+                  {Object.entries(priorityLabels).map(([value, label]) => (
+                    <option value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label">Temps de reponse (min) *</label>
+                  <input type="number" name="firstResponseMinutes" class="form-control" min="1" required />
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label">Temps de resolution (min) *</label>
+                  <input type="number" name="resolutionMinutes" class="form-control" min="1" required />
+                </div>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="isDefault" id="slaIsDefault" />
+                <label class="form-check-label" for="slaIsDefault">SLA par defaut</label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary">Creer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Category Modal */}
+      <div class="modal fade" id="categoryModal" tabindex={-1} aria-hidden="true">
+        <div class="modal-dialog">
+          <form class="modal-content" method="post" action="/backoffice/support/settings/categories">
+            <div class="modal-header">
+              <h5 class="modal-title">Nouvelle categorie</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Nom *</label>
+                <input type="text" name="name" class="form-control" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Slug *</label>
+                <input type="text" name="slug" class="form-control" required placeholder="ex: installation" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows={2}></textarea>
+              </div>
+              <div class="mb-0">
+                <label class="form-label">Ordre</label>
+                <input type="number" name="sortOrder" class="form-control" value="0" />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary">Creer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Canned Response Modal */}
+      <div class="modal fade" id="cannedModal" tabindex={-1} aria-hidden="true">
+        <div class="modal-dialog">
+          <form class="modal-content" method="post" action="/backoffice/support/settings/canned-responses">
+            <div class="modal-header">
+              <h5 class="modal-title">Nouvelle reponse type</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Titre *</label>
+                <input type="text" name="title" class="form-control" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Raccourci</label>
+                <input type="text" name="shortcut" class="form-control" placeholder="ex: /merci" />
+              </div>
+              <div class="mb-0">
+                <label class="form-label">Contenu *</label>
+                <textarea name="content" class="form-control" rows={4} required></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary">Creer</button>
+            </div>
+          </form>
         </div>
       </div>
     </Layout>

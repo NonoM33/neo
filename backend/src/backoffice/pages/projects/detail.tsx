@@ -314,9 +314,20 @@ export const ProjectDetailPage: FC<ProjectDetailPageProps> = ({
               <span><i class="bi bi-calendar me-1"></i>{new Date(project.createdAt).toLocaleDateString('fr-FR')}</span>
             </div>
           </div>
-          <a href="/backoffice/projects" class="btn btn-outline-light btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Retour
-          </a>
+          <div class="d-flex gap-2">
+            <a href="/backoffice/projects" class="btn btn-outline-light btn-sm">
+              <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm"
+              hx-delete={`/backoffice/projects/${project.id}`}
+              hx-confirm={`Supprimer le projet "${project.name}" ? Cette action est irreversible (devis, commandes et pieces associes seront supprimes).`}
+              title="Supprimer le projet"
+            >
+              <i class="bi bi-trash me-1"></i>Supprimer
+            </button>
+          </div>
         </div>
       </div>
 

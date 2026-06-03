@@ -104,7 +104,7 @@ export const QuoteDetailPage: FC<QuoteDetailPageProps> = ({
         </div>
         <div class="btn-group">
           <a
-            href={`/api/devis/${quote.id}/pdf`}
+            href={`/backoffice/quotes/${quote.id}/pdf`}
             target="_blank"
             class="btn btn-outline-primary"
           >

@@ -63,7 +63,7 @@ export const ClientsListPage: FC<ClientsListPageProps> = ({
                 </div>
                 <div class="col-auto d-flex align-items-end">
                   <button type="submit" class="btn btn-outline-primary">
-                    <i class="bi bi-search me-1"></i>Filtrer
+                    <i class="bi bi-search me-1"></i>Rechercher
                   </button>
                   {search && (
                     <a href="/backoffice/clients" class="btn btn-outline-secondary ms-2">

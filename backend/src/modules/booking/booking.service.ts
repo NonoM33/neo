@@ -258,7 +258,6 @@ export async function createPublicBooking(input: PublicBookingInput) {
       scheduledAt,
       endAt,
       duration,
-      location: null,
       locationType: 'sur_site',
       organizerId: assigned.userId,
       leadId: lead.id,

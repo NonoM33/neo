@@ -122,6 +122,17 @@ const JS_DAY_TO_ENUM: Record<number, DayOfWeek> = {
   6: 'samedi',
 };
 
+// Used when a user has no configured availability slots, so the public booking
+// always proposes standard business hours instead of an empty (all-greyed) calendar.
+const DEFAULT_BUSINESS_HOURS: Partial<Record<DayOfWeek, Array<{ start: string; end: string }>>> = {
+  lundi: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }],
+  mardi: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }],
+  mercredi: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }],
+  jeudi: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }],
+  vendredi: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }],
+  samedi: [{ start: '09:00', end: '12:00' }],
+};
+
 // ─── Appointments CRUD ─────────────────────────────────────────────────────
 
 /**
@@ -1020,6 +1031,9 @@ export async function getAvailableSlots(
         daySlots = [{ start: override.startTime, end: override.endTime }];
       }
       // If override says not available, daySlots stays empty
+    } else if (slots.length === 0) {
+      // No configured availability for this user: fall back to default business hours
+      daySlots = (DEFAULT_BUSINESS_HOURS[dayOfWeek] || []).map((w) => ({ start: w.start, end: w.end }));
     } else {
       // Use regular availability
       const regularSlots = slotMap.get(dayOfWeek) || [];

@@ -91,6 +91,12 @@ export const TicketsListPage: FC<TicketsListProps> = ({
     <Layout title="Tickets" currentPath="/backoffice/support/tickets" user={user}>
       <FlashMessages success={success} error={error} />
 
+      <div class="d-flex justify-content-end mb-3">
+        <a href="/backoffice/support/tickets/new" class="btn btn-primary">
+          <i class="bi bi-plus-lg me-1"></i>Nouveau ticket
+        </a>
+      </div>
+
       {/* Actions & Filters */}
       <div class="card mb-4">
         <div class="card-body">

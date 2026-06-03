@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { count, eq, desc, and, ilike, or, sql, SQL, gte, lte } from 'drizzle-orm';
+import { count, eq, desc, asc, and, ilike, or, sql, SQL, gte, lte, isNotNull } from 'drizzle-orm';
 import { db } from '../config/database';
 import { users, clients, projects, suppliers, products, productDependencies, quotes, quoteLines, rooms, photos, devices, checklistItems, leads, activities, salesObjectives, leadStageHistory, userRoles, roles, tickets, ticketComments, ticketHistory, ticketCategories, slaDefinitions, cannedResponses, kbArticles, kbCategories, faqItems, chatMessages, chatSessions, orders, orderLines, orderStatusHistory, stockMovements, supplierOrders, supplierOrderLines, invoices, invoiceLines, signatureRequests } from '../db/schema';
 import { hashPassword, verifyPasswordHash } from '../modules/auth/auth.service';
@@ -35,6 +35,7 @@ import { ObjectivesListPage, ObjectiveFormPage } from './pages/objectives';
 import {
   SupportDashboardPage,
   TicketsListPage,
+  TicketFormPage,
   TicketDetailPage,
   KBListPage,
   KBFormPage,
@@ -43,7 +44,7 @@ import {
   SupportSettingsPage,
 } from '../support/backoffice';
 import { OrdersListPage, OrderDetailPage, OrderFormPage } from './pages/orders';
-import { StockDashboardPage, StockMovementsPage } from './pages/stock';
+import { StockDashboardPage, StockMovementsPage, StockSuggestionsPage, StockCorrectionPage } from './pages/stock';
 import { SupplierOrdersListPage, SupplierOrderDetailPage, SupplierOrderFormPage } from './pages/supplier-orders';
 import { InvoicesListPage, InvoiceDetailPage } from './pages/invoices';
 import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
@@ -1309,6 +1310,13 @@ function createAdminPayload(adminUser: AdminUser) {
   };
 }
 
+backofficeRouter.delete('/projects/:id', async (c) => {
+  const id = c.req.param('id');
+  await db.delete(projects).where(eq(projects.id, id));
+  c.header('HX-Redirect', '/backoffice/projects?success=Projet supprimé');
+  return c.body(null);
+});
+
 backofficeRouter.get('/crm/pipeline', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const search = c.req.query('search');
@@ -2065,6 +2073,73 @@ backofficeRouter.get('/support/tickets', async (c) => {
   );
 });
 
+backofficeRouter.get('/support/tickets/new', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const preselectedClientId = c.req.query('clientId');
+  const success = c.req.query('success');
+  const error = c.req.query('error');
+
+  const [clientsList, categoriesList, assigneesList] = await Promise.all([
+    db
+      .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+      .from(clients)
+      .orderBy(asc(clients.lastName), asc(clients.firstName)),
+    ticketsService.getTicketCategories(),
+    db
+      .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+      .from(users)
+      .where(eq(users.isActive, true)),
+  ]);
+
+  return c.html(
+    <TicketFormPage
+      clients={clientsList.map((cl) => ({ id: cl.id, name: `${cl.firstName} ${cl.lastName}` }))}
+      categories={categoriesList.map((cat: any) => ({ id: cat.id, name: cat.name }))}
+      assignees={assigneesList.map((a) => ({ id: a.id, name: `${a.firstName} ${a.lastName}` }))}
+      preselectedClientId={preselectedClientId}
+      success={success}
+      error={error}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.post('/support/tickets', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody();
+
+  const title = (body.title as string)?.trim();
+  const description = (body.description as string)?.trim();
+  const clientId = (body.clientId as string)?.trim();
+
+  if (!title || !description || !clientId) {
+    return c.redirect('/backoffice/support/tickets/new?error=' + encodeURIComponent('Titre, description et client sont requis'));
+  }
+
+  const priority = (body.priority as string) || 'normale';
+  const categoryId = (body.categoryId as string) || undefined;
+  const assignedToId = (body.assignedToId as string) || undefined;
+
+  try {
+    const ticket = await ticketsService.createTicket(
+      {
+        title,
+        description,
+        clientId,
+        priority: priority as any,
+        source: 'backoffice',
+        categoryId: categoryId || undefined,
+        assignedToId: assignedToId || undefined,
+      },
+      adminUser.id
+    );
+    return c.redirect(`/backoffice/support/tickets/${ticket!.id}?success=Ticket créé`);
+  } catch (e) {
+    const error = e as Error;
+    return c.redirect('/backoffice/support/tickets/new?error=' + encodeURIComponent(error.message));
+  }
+});
+
 backofficeRouter.get('/support/tickets/:id', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const id = c.req.param('id');
@@ -2628,7 +2703,12 @@ backofficeRouter.get('/orders', async (c) => {
       .orderBy(desc(orders.createdAt))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
-    db.select({ count: count() }).from(orders).where(where ? and(where) : undefined),
+    db
+      .select({ count: count() })
+      .from(orders)
+      .innerJoin(projects, eq(orders.projectId, projects.id))
+      .innerJoin(clients, eq(projects.clientId, clients.id))
+      .where(where),
   ]);
 
   const total = countResult[0]?.count ?? 0;
@@ -2774,6 +2854,71 @@ backofficeRouter.get('/stock/movements', async (c) => {
       user={adminUser}
     />
   );
+});
+
+backofficeRouter.get('/stock/suggestions', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const success = c.req.query('success');
+  const error = c.req.query('error');
+
+  const groups = await stockService.getReplenishmentSuggestions();
+
+  return c.html(
+    <StockSuggestionsPage groups={groups as any} success={success} error={error} user={adminUser} />
+  );
+});
+
+backofficeRouter.get('/stock/correction', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const success = c.req.query('success');
+  const error = c.req.query('error');
+
+  const productsList = await db
+    .select({
+      id: products.id,
+      reference: products.reference,
+      name: products.name,
+      stock: products.stock,
+    })
+    .from(products)
+    .where(and(isNotNull(products.stock), eq(products.isActive, true)))
+    .orderBy(products.name);
+
+  return c.html(
+    <StockCorrectionPage products={productsList} success={success} error={error} user={adminUser} />
+  );
+});
+
+backofficeRouter.post('/stock/correction', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody();
+
+  const productId = body.productId as string;
+  const newStock = parseInt(body.newStock as string, 10);
+  const reason = (body.reason as string)?.trim();
+
+  if (!productId || Number.isNaN(newStock) || !reason) {
+    return c.redirect('/backoffice/stock/correction?error=Champs%20obligatoires%20manquants');
+  }
+
+  try {
+    const stockInfo = await stockService.getProductStock(productId);
+    const currentStock = stockInfo.stock ?? 0;
+    const delta = newStock - currentStock;
+
+    if (delta === 0) {
+      return c.redirect('/backoffice/stock/correction?error=Le%20stock%20est%20deja%20a%20cette%20valeur');
+    }
+
+    await stockService.createStockMovement(
+      { productId, type: 'correction', quantity: delta, reason },
+      adminUser.id
+    );
+
+    return c.redirect('/backoffice/stock?success=Correction%20de%20stock%20enregistree');
+  } catch (error: any) {
+    return c.redirect(`/backoffice/stock/correction?error=${encodeURIComponent(error.message)}`);
+  }
 });
 
 // ============ Supplier Orders ============
@@ -2967,6 +3112,28 @@ backofficeRouter.get('/invoices', async (c) => {
     { status: status as any, overdue: overdue === 'true' }
   );
 
+  // Commandes facturables (statut payee/en_preparation/expediee/livree) sans facture existante
+  const eligibleOrders = await db
+    .select({
+      id: orders.id,
+      number: orders.number,
+      totalTTC: orders.totalTTC,
+      projectName: projects.name,
+      clientFirstName: clients.firstName,
+      clientLastName: clients.lastName,
+    })
+    .from(orders)
+    .innerJoin(projects, eq(orders.projectId, projects.id))
+    .innerJoin(clients, eq(projects.clientId, clients.id))
+    .leftJoin(invoices, eq(invoices.orderId, orders.id))
+    .where(
+      and(
+        sql`${orders.status} IN ('payee', 'en_preparation', 'expediee', 'livree')`,
+        sql`${invoices.id} IS NULL`
+      )
+    )
+    .orderBy(desc(orders.createdAt));
+
   return c.html(
     <InvoicesListPage
       invoices={result.data as any}
@@ -2976,6 +3143,12 @@ backofficeRouter.get('/invoices', async (c) => {
       pageSize={PAGE_SIZE}
       status={status}
       overdue={overdue}
+      eligibleOrders={eligibleOrders.map((o) => ({
+        id: o.id,
+        number: o.number,
+        totalTTC: o.totalTTC,
+        label: `${o.number} — ${o.clientFirstName} ${o.clientLastName} (${o.projectName})`,
+      }))}
       success={success}
       error={error}
       user={adminUser}
@@ -3140,6 +3313,29 @@ backofficeRouter.get('/quotes/:id', async (c) => {
     );
   } catch {
     return c.redirect('/backoffice/quotes');
+  }
+});
+
+// PDF preview served behind the backoffice session (the /api/devis/:id/pdf
+// endpoint requires a JWT the backoffice does not carry).
+backofficeRouter.get('/quotes/:id/pdf', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  try {
+    const { pdfBytes, number } = await quotesService.generateQuotePdfById(
+      id,
+      adminUser.id,
+      'admin',
+    );
+    return new Response(pdfBytes as any, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="devis-${number}.pdf"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch {
+    return c.redirect(`/backoffice/quotes/${id}?error=${encodeURIComponent('Impossible de générer le PDF')}`);
   }
 });
 

@@ -57,7 +57,13 @@ export const SupplierOrderFormPage: FC<SupplierOrderFormPageProps> = ({
                 <div class="row">
                   <div class="col-md-8">
                     <label class="form-label">Fournisseur *</label>
-                    <select name="supplierId" class="form-select" required id="supplierSelect">
+                    <select
+                      name="supplierId"
+                      class="form-select"
+                      required
+                      id="supplierSelect"
+                      onchange="if(this.value){window.location.href='/backoffice/supplier-orders/new?supplierId='+encodeURIComponent(this.value);}"
+                    >
                       <option value="">Selectionner un fournisseur</option>
                       {suppliers.map((s) => (
                         <option value={s.id} selected={s.id === preselectedSupplierId}>{s.name}</option>
