@@ -1,36 +1,559 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import Hero from '../components/sections/Hero.astro';
-import HomeTour from '../components/sections/HomeTour.astro';
-import ProblemSolution from '../components/sections/ProblemSolution.astro';
-import ServicesPreview from '../components/sections/ServicesPreview.astro';
-import SecurityHighlight from '../components/sections/SecurityHighlight.astro';
-import HowItWorks from '../components/sections/HowItWorks.astro';
-import Testimonials from '../components/sections/Testimonials.astro';
-import Partners from '../components/sections/Partners.astro';
-import CTA from '../components/sections/CTA.astro';
+import { SITE_CONFIG } from '../config/site';
 
-const schema = {
+const siteUrl = SITE_CONFIG.url;
+const title = "Neo Domotique — Votre maison s'éveille";
+const description = "Installation domotique clé en main à Paris. Éclairage, sécurité, simulation de présence. Votre maison, intelligente et vivante.";
+
+const webPageSchema = {
   "@context": "https://schema.org",
   "@type": "WebPage",
   "name": "Accueil - Neo Domotique",
-  "description": "Transformez votre logement en maison intelligente. Audit gratuit, installation clé en main, maintenance incluse. Paris et Île-de-France."
+  "description": description,
+};
+
+const localBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": SITE_CONFIG.name,
+  "description": "Installation et maintenance de solutions domotiques pour particuliers. Maison connectée, éclairage intelligent, sécurité, chauffage.",
+  "url": SITE_CONFIG.url,
+  "telephone": SITE_CONFIG.phoneHref.replace('tel:', ''),
+  "email": SITE_CONFIG.email,
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": SITE_CONFIG.address.street,
+    "postalCode": SITE_CONFIG.address.postalCode,
+    "addressLocality": SITE_CONFIG.address.city,
+    "addressRegion": SITE_CONFIG.address.region,
+    "addressCountry": "FR",
+  },
+  "areaServed": {
+    "@type": "GeoCircle",
+    "geoMidpoint": { "@type": "GeoCoordinates", "latitude": 48.8566, "longitude": 2.3522 },
+    "geoRadius": "50000",
+  },
+  "priceRange": "€€",
+  "openingHours": SITE_CONFIG.openingHours,
+  "sameAs": [SITE_CONFIG.social.linkedin, SITE_CONFIG.social.instagram, SITE_CONFIG.social.facebook],
 };
 ---
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta name="author" content={SITE_CONFIG.name} />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href={`${siteUrl}/`} />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={`${siteUrl}/`} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={`${siteUrl}/og-image.svg`} />
+<meta property="og:locale" content="fr_FR" />
+<meta property="og:site_name" content={SITE_CONFIG.name} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={`${siteUrl}/og-image.svg`} />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/neo/styles-v2.css" />
+<script type="application/ld+json" set:html={JSON.stringify(webPageSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
+<script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
+</head>
+<body>
 
-<BaseLayout
-  title="Domotique Paris - Sécurité & maison connectée"
-  description="Sécurisez votre maison avec la simulation de présence. Installation domotique clé en main : éclairage, volets, sécurité. Audit gratuit à Paris et Île-de-France."
-  canonical="/"
-  schema={schema}
->
-  <Hero />
-  <HomeTour />
-  <ProblemSolution />
-  <ServicesPreview />
-  <SecurityHighlight />
-  <HowItWorks />
-  <Testimonials />
-  <Partners />
-  <CTA />
-</BaseLayout>
+<div class="sky" aria-hidden="true"></div>
+
+<div class="cursor-glow"></div>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a class="brand" href="#top">
+    <span class="logo"><span class="dot"></span></span>
+    <b>Neo</b>
+  </a>
+  <div class="nav-links">
+    <a href="#services">Services</a>
+    <a href="#securite">Sécurité</a>
+    <a href="#process">Comment ça marche</a>
+    <a href="#avis">Avis</a>
+  </div>
+  <div class="nav-cta">
+    <a class="nav-phone" href="tel:+33123456789">01 23 45 67 89</a>
+    <a class="btn" href="#audit" data-magnetic>Audit gratuit</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">Domotique · Paris &amp; Île-de-France</span>
+      <h1 class="display build">
+        <span class="w" style="--i:0">Votre</span>
+        <span class="w" style="--i:1">maison</span><br />
+        <span class="w serif grad" style="--i:2">s'éveille.</span>
+      </h1>
+      <p class="lead">Installation clé en main. Éclairage, sécurité, chauffage — tout fonctionne ensemble, simplement.</p>
+      <div class="hero-cta">
+        <a class="btn lg" href="#audit" data-magnetic>Audit gratuit
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a class="btn ghost lg" href="#scene-rentrer">Comment ça marche</a>
+      </div>
+      <div class="hero-proof">
+        <span><b style="color:var(--ink)">+150</b> installations</span>
+        <span class="sep"></span>
+        <span class="stars">★★★★★</span>
+        <span><b style="color:var(--ink)">4.9</b>/5 satisfaction</span>
+      </div>
+    </div>
+
+    <!-- the house that wakes up -->
+    <div class="house-stage lit">
+      <svg viewBox="0 0 560 440" role="img" aria-label="Maison qui s'illumine pièce par pièce">
+        <defs>
+          <radialGradient id="warmGlow" cx="50%" cy="55%" r="55%">
+            <stop offset="0%" stop-color="#ffb259" stop-opacity="0.45"/>
+            <stop offset="100%" stop-color="#ffb259" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="facade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#10151f"/>
+            <stop offset="100%" stop-color="#0a0e16"/>
+          </linearGradient>
+        </defs>
+
+        <!-- ambient warm glow behind house -->
+        <ellipse class="house-glow" cx="280" cy="240" rx="260" ry="200" fill="url(#warmGlow)"/>
+
+        <!-- ground reflection -->
+        <ellipse class="house-glow" cx="280" cy="372" rx="220" ry="22" fill="#ffb259" opacity="0.12"/>
+
+        <!-- tower B (right) -->
+        <rect x="352" y="118" width="120" height="244" rx="6" fill="url(#facade)" stroke="rgba(255,255,255,.1)"/>
+        <rect x="346" y="108" width="132" height="14" rx="4" fill="#141a26"/>
+        <!-- wing C (left low) -->
+        <rect x="66" y="248" width="108" height="114" rx="6" fill="url(#facade)" stroke="rgba(255,255,255,.09)"/>
+        <rect x="60" y="240" width="120" height="12" rx="4" fill="#141a26"/>
+        <!-- main block A -->
+        <rect x="150" y="160" width="212" height="202" rx="6" fill="url(#facade)" stroke="rgba(255,255,255,.11)"/>
+        <rect x="140" y="150" width="232" height="14" rx="4" fill="#161d2b"/>
+
+        <!-- base / terrace -->
+        <rect x="44" y="360" width="472" height="8" rx="4" fill="#0c111a"/>
+
+        <!-- windows (lit in sequence) -->
+        <rect class="hw" x="168" y="184" width="46" height="40" rx="4" fill="#0a0d13"/>
+        <rect class="hw" x="240" y="184" width="46" height="40" rx="4" fill="#0a0d13"/>
+        <rect class="hw" x="312" y="184" width="36" height="40" rx="4" fill="#0a0d13"/>
+        <!-- living big window -->
+        <rect class="hw" x="168" y="250" width="50" height="92" rx="4" fill="#0a0d13"/>
+        <!-- door -->
+        <rect x="244" y="288" width="52" height="74" rx="4" fill="#0a0d13" stroke="rgba(255,255,255,.12)"/>
+        <rect class="hw" x="258" y="300" width="24" height="40" rx="3" fill="#0a0d13"/>
+        <rect class="hw" x="312" y="250" width="36" height="60" rx="4" fill="#0a0d13"/>
+        <!-- tower windows -->
+        <rect class="hw" x="378" y="148" width="68" height="44" rx="4" fill="#0a0d13"/>
+        <rect class="hw" x="378" y="212" width="68" height="44" rx="4" fill="#0a0d13"/>
+        <rect class="hw" x="378" y="276" width="68" height="40" rx="4" fill="#0a0d13"/>
+        <!-- wing window -->
+        <rect class="hw" x="88" y="278" width="64" height="46" rx="4" fill="#0a0d13"/>
+
+        <!-- smart sensor dot -->
+        <circle class="hsmart" cx="356" cy="170" r="4" fill="#5b8cff"/>
+        <!-- twinkle stars -->
+        <circle class="hsmart" cx="70" cy="70" r="1.6" fill="#93b4ff"/>
+        <circle class="hsmart" cx="500" cy="60" r="1.4" fill="#93b4ff" style="animation-delay:1.2s"/>
+        <circle class="hsmart" cx="440" cy="40" r="1.2" fill="#ffd9a3" style="animation-delay:.6s"/>
+      </svg>
+
+      <!-- floating glass chips -->
+      <div class="chip" style="top:6%; left:-4%; --cd:1.7s">
+        <span class="ic warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>
+        <div>Lumières<small>4 pièces allumées</small></div>
+      </div>
+      <div class="chip" style="top:24%; right:-6%; --cd:2.1s">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg></span>
+        <div>21°C<small>Confort optimal</small></div>
+      </div>
+      <div class="chip" style="bottom:18%; left:-6%; --cd:2.5s">
+        <span class="ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <div>Porte verrouillée<small>Sécurisé</small></div>
+      </div>
+      <div class="chip" style="bottom:2%; right:0%; --cd:2.9s">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+        <div>−28% conso<small>Ce mois-ci</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-cue"><span class="mouse"></span>Faites défiler</div>
+</header>
+
+<div class="narrative">
+  <div class="thread" id="thread" aria-hidden="true">
+    <div class="thread-track"></div>
+    <div class="thread-fill" id="threadFill"></div>
+    <div class="thread-comet" id="threadComet"></div>
+  </div>
+
+<!-- ============ SCENE 1 — VOUS RENTREZ ============ -->
+<section class="scene" id="scene-rentrer" data-scroll>
+  <div class="wrap scene-inner">
+    <div class="scene-copy reveal">
+      <span class="eyebrow warm">Imaginez · 19h12</span>
+      <h2 class="scene-title" style="margin-top:18px">Vous rentrez<br /><span class="serif grad">chez vous.</span></h2>
+      <p class="lead">La porte vous reconnaît. Les lumières s'allument. Il fait déjà 21°C. Vous n'avez touché à rien.</p>
+      <div class="statcards" style="margin-top:30px">
+        <div class="statcard" style="--sd:0ms">
+          <span class="sc-ic warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>
+          <div><b>Lumières</b><small data-litcount>6 pièces allumées</small></div>
+          <span class="sc-dot"></span>
+        </div>
+        <div class="statcard" style="--sd:120ms">
+          <span class="sc-ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></span>
+          <div><b>Porte déverrouillée</b><small>Badge reconnu</small></div>
+          <span class="sc-dot"></span>
+        </div>
+        <div class="statcard" style="--sd:240ms">
+          <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg></span>
+          <div><b>21°C optimal</b><small>Chauffage anticipé</small></div>
+          <span class="sc-val">21°</span>
+        </div>
+      </div>
+    </div>
+    <div class="reveal" style="--d:120ms">
+      <div class="panel warmlit">
+        <div class="rooms">
+          <button class="room" type="button" data-room data-light><span class="label">Entrée</span></button>
+          <button class="room" type="button" data-room data-light><span class="label">Salon</span></button>
+          <button class="room" type="button" data-room data-light><span class="label">Cuisine</span></button>
+          <button class="room" type="button" data-room data-light><span class="label">Couloir</span></button>
+          <button class="room" type="button" data-room data-light><span class="label">Bureau</span></button>
+          <button class="room" type="button" data-room data-light><span class="label">Chambre</span></button>
+        </div>
+        <span class="rooms-hint"><span class="rh-dot"></span>Clique une pièce pour l'allumer</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 2 — OK NEO, MODE CINÉMA ============ -->
+<section class="scene rev" data-scroll>
+  <div class="wrap scene-inner">
+    <div class="scene-copy reveal">
+      <span class="eyebrow">Scène du soir</span>
+      <h2 class="scene-title" style="margin-top:18px">« Ok Neo,<br /><span class="serif grad">mode cinéma. »</span></h2>
+      <p class="lead">Une phrase, trois actions. Mais ne nous crois pas sur parole — <b style="color:var(--ink)">touche aux commandes</b>, la pièce réagit en direct.</p>
+      <div class="scene-hint" style="margin-top:24px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V6a1.5 1.5 0 0 1 3 0v5"/><path d="M12 11V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 10.5V6.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-2.7L2.5 13a1.6 1.6 0 0 1 2.7-1.7L7 13.5"/></svg>
+        Volets, lumière, télé — tout est cliquable.
+      </div>
+    </div>
+    <div class="reveal" style="--d:120ms">
+      <div class="salon" data-salon data-tv="off" data-volets="open" style="--bright:1; --blinds:0%">
+        <div class="salon-room">
+          <div class="salon-sky"></div>
+          <div class="salon-blinds"></div>
+          <div class="salon-ceiling"></div>
+          <div class="salon-dim"></div>
+          <div class="salon-tvglow"></div>
+          <div class="salon-tv"><span class="tv-label">▶ Netflix</span></div>
+          <div class="salon-toast" data-toast>« Ok Neo, mode cinéma »</div>
+        </div>
+        <div class="salon-controls">
+          <button class="ctrl" type="button" data-toggle="volets" aria-pressed="false">
+            <span class="ctrl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16"/><path d="M4 14h16"/></svg></span>
+            <span class="ctrl-txt"><b>Volets</b><small data-state>Ouverts</small></span>
+            <span class="sw"><span class="sw-knob"></span></span>
+          </button>
+          <button class="ctrl" type="button" data-toggle="tv" aria-pressed="false">
+            <span class="ctrl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="m17 2-5 5-5-5"/></svg></span>
+            <span class="ctrl-txt"><b>Télé</b><small data-state>Éteinte</small></span>
+            <span class="sw"><span class="sw-knob"></span></span>
+          </button>
+          <div class="ctrl ctrl-dim">
+            <span class="ctrl-ic warm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>
+            <span class="ctrl-txt"><b>Lumière</b><small data-state>100 %</small></span>
+            <input class="dim-range" type="range" min="0" max="100" value="100" data-dim aria-label="Luminosité" />
+          </div>
+        </div>
+        <button class="salon-master" type="button" data-master>
+          <span class="master-sweep"></span>
+          « Ok Neo, mode cinéma »
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 4 — BONNE NUIT ============ -->
+<section class="scene rev" data-scroll>
+  <div class="wrap scene-inner">
+    <div class="scene-copy reveal">
+      <span class="eyebrow">Scène de nuit · 23h30</span>
+      <h2 class="scene-title" style="margin-top:18px">« Bonne nuit. »</h2>
+      <p class="lead">Une seule commande. Les lumières s'éteignent, les volets se ferment, l'alarme s'active. Vous dormez tranquille.</p>
+      <div class="statcards" style="margin-top:30px">
+        <div class="statcard" style="--sd:0ms">
+          <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+          <div><b>Lumières éteintes</b><small>Toute la maison</small></div>
+          <span class="sc-dot" style="background:var(--ink-3);box-shadow:none"></span>
+        </div>
+        <div class="statcard" style="--sd:120ms">
+          <span class="sc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16"/><path d="M4 14h16"/></svg></span>
+          <div><b>Volets fermés</b><small>Verrouillage nocturne</small></div>
+          <span class="sc-dot" style="background:var(--ink-3);box-shadow:none"></span>
+        </div>
+        <div class="statcard" style="--sd:240ms">
+          <span class="sc-ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <div><b>Alarme activée</b><small>Détection périmétrique</small></div>
+          <span class="sc-dot"></span>
+        </div>
+      </div>
+    </div>
+    <div class="reveal" style="--d:120ms">
+      <div class="panel" style="aspect-ratio:4/3.4;background:radial-gradient(120% 100% at 50% 0%, rgba(91,140,255,.08), transparent 60%), linear-gradient(180deg,#070a12,#05070c)">
+        <div class="rooms">
+          <div class="room"><span class="label">Entrée</span></div>
+          <div class="room"><span class="label">Salon</span></div>
+          <div class="room"><span class="label">Cuisine</span></div>
+          <div class="room"><span class="label">Couloir</span></div>
+          <div class="room"><span class="label">Bureau</span></div>
+          <div class="room"><span class="label">Chambre</span></div>
+        </div>
+        <div style="position:absolute;inset:0;display:grid;place-items:center;pointer-events:none">
+          <div style="display:grid;place-items:center;gap:14px;text-align:center">
+            <div style="width:74px;height:74px;border-radius:22px;display:grid;place-items:center;background:rgba(70,217,138,.12);border:1px solid rgba(70,217,138,.3);color:var(--ok);box-shadow:0 0 50px -8px rgba(70,217,138,.5)">
+              <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:13px;color:#8ef0bd;letter-spacing:.04em">MAISON SÉCURISÉE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECURITE — VACANCES / SIMULATION ============ -->
+<section class="pad" id="securite">
+  <div class="wrap scene-inner" data-scroll>
+    <div class="scene-copy reveal">
+      <span class="eyebrow ok">En vacances · à 800 km</span>
+      <h2 class="scene-title" style="margin-top:18px;font-size:clamp(32px,4.8vw,58px)">Votre maison <span class="serif grad">fait semblant que non.</span></h2>
+      <p class="lead">La simulation de présence rejoue vos habitudes : lumières, volets, sons, à horaires variables. Un cambrioleur ne peut pas savoir que vous êtes partis.</p>
+      <div class="bigstats">
+        <div class="bigstat"><div class="n ok"><span data-count="80" data-prefix="−" data-suffix="%">−0%</span></div><div class="l">de risque de cambriolage</div></div>
+        <div class="bigstat"><div class="n">24<span style="font-size:.6em">/7</span></div><div class="l">surveillance active</div></div>
+        <div class="bigstat"><div class="n warm"><span data-count="150" data-prefix="+">+0</span></div><div class="l">maisons protégées</div></div>
+      </div>
+    </div>
+    <div class="reveal" style="--d:120ms;display:grid;place-items:center">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-notch"></div>
+          <div class="phone-status"><span>9:41</span><span>Neo</span></div>
+          <div class="phone-hero">
+            <div class="shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+            <b>Tout est OK</b>
+            <small>Maison sécurisée · simulation active</small>
+          </div>
+          <div class="phone-log" data-simlog>
+            <div class="log-row sec"><span class="lt">22:15</span><span>Aucun mouvement — RAS</span><span class="ld"></span></div>
+            <div class="log-row"><span class="lt">20:00</span><span>Volets fermés</span><span class="ld"></span></div>
+            <div class="log-row"><span class="lt">19:30</span><span>Salon allumé — simulation</span><span class="ld"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 5 — LE MATIN / LEVER DU SOLEIL ============ -->
+<section class="scene" data-scroll data-daynight>
+  <div class="wrap scene-inner">
+    <div class="scene-copy reveal">
+      <span class="eyebrow warm">Le lendemain matin</span>
+      <h2 class="scene-title" style="margin-top:18px">7 heures.<br /><span class="serif grad">Tout est prêt.</span></h2>
+      <p class="lead">Avant même votre réveil, votre maison a préparé votre matinée. Le café est chaud, la playlist tourne.</p>
+      <div class="timeline" style="margin-top:30px">
+        <div class="tl-item"><span class="tl-time">6:45</span><div class="tl-body"><b>Les volets s'ouvrent</b><small>Lever du soleil détecté</small></div></div>
+        <div class="tl-item"><span class="tl-time">7:00</span><div class="tl-body"><b>Le café se lance</b><small>Machine programmée</small></div></div>
+        <div class="tl-item"><span class="tl-time">7:00</span><div class="tl-body"><b>Playlist du matin</b><small>Spotify · Bonne humeur</small></div></div>
+        <div class="tl-item"><span class="tl-time">7:15</span><div class="tl-body"><b>Briefing du jour</b><small>Météo, agenda, trafic</small></div></div>
+      </div>
+    </div>
+    <div class="reveal" style="--d:120ms">
+      <div class="panel" style="aspect-ratio:4/3.4">
+        <div class="daynight">
+          <div class="sun"></div>
+          <div class="skyline">
+            <i style="height:46px"></i><i style="height:72px"></i><i style="height:38px"></i><i style="height:90px"></i><i style="height:56px"></i><i style="height:64px"></i><i style="height:44px"></i>
+          </div>
+          <div class="horizon"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+  </div><!-- /.narrative -->
+
+<!-- ============ SERVICES ============ -->
+<section class="pad" id="services">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Nos services</span>
+      <h2>Une maison plus intelligente,<br /><span class="muted">plus sûre.</span></h2>
+    </div>
+    <div class="cards-grid">
+      <div class="scard warm reveal">
+        <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></div>
+        <h3>Éclairage intelligent</h3>
+        <p>Ambiances personnalisées, scénarios automatiques et contrôle vocal. La bonne lumière, au bon moment.</p>
+      </div>
+      <div class="scard reveal" style="--d:80ms">
+        <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg></div>
+        <h3>Confort thermique</h3>
+        <p>Température idéale pièce par pièce, programmation et géolocalisation. Le chauffage anticipe votre retour.</p>
+      </div>
+      <div class="scard ok reveal" style="--d:160ms">
+        <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Sécurité &amp; présence</h3>
+        <p>Caméras HD, alarme, alertes instantanées et simulation de présence 24/7. Partez l'esprit léger.</p>
+      </div>
+      <div class="scard reveal" style="--d:240ms">
+        <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Économies d'énergie</h3>
+        <p>Jusqu'à −30% sur la facture. Suivi de consommation en temps réel et optimisation automatique.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROCESS ============ -->
+<section class="pad" id="process" style="background:linear-gradient(180deg,var(--bg-2),var(--bg));border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Processus simple</span>
+      <h2>De la maison classique<br />à l'habitat intelligent.</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <span class="num">01</span>
+        <h3>Audit gratuit</h3>
+        <p>On vient chez vous, on analyse vos besoins et votre installation existante. Sans engagement.</p>
+        <span class="dur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>1 heure</span>
+      </div>
+      <div class="step reveal" style="--d:100ms">
+        <span class="num">02</span>
+        <h3>Devis détaillé</h3>
+        <p>Une proposition claire : équipements, scénarios, tarifs. Reçue en 48h, sans surprise.</p>
+        <span class="dur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Sous 48h</span>
+      </div>
+      <div class="step reveal" style="--d:200ms">
+        <span class="num">03</span>
+        <h3>Installation &amp; formation</h3>
+        <p>Nos techniciens installent, configurent et vous forment. Tout fonctionne, tout de suite.</p>
+        <span class="dur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>1 à 2 jours</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TESTIMONIALS ============ -->
+<section class="pad" id="avis">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow warm">Ils nous font confiance</span>
+      <h2>+150 maisons,<br />une seule promesse tenue.</h2>
+    </div>
+    <div class="t-grid">
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <q>Installation impeccable et équipe très pro. Ma maison est enfin connectée et tout fonctionne ensemble.</q>
+        <div class="who"><span class="av">ML</span><div><b>Marie L.</b><small>Paris 16ᵉ · Appartement 120m²</small></div></div>
+      </div>
+      <div class="tcard reveal" style="--d:100ms">
+        <div class="stars">★★★★★</div>
+        <q>Le chauffage intelligent m'a fait baisser ma facture de 25%. L'investissement est vite rentabilisé.</q>
+        <div class="who"><span class="av">TB</span><div><b>Thomas B.</b><small>Neuilly-sur-Seine · Maison 200m²</small></div></div>
+      </div>
+      <div class="tcard reveal" style="--d:200ms">
+        <div class="stars">★★★★★</div>
+        <q>Enfin une solution simple et fiable. L'application est intuitive et le support toujours réactif.</q>
+        <div class="who"><span class="av">SM</span><div><b>Sophie M.</b><small>Paris 7ᵉ · Appartement 85m²</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="pad finale" id="audit">
+  <div class="narrow">
+    <span class="eyebrow reveal" style="justify-content:center;display:inline-flex">Audit gratuit · sans engagement</span>
+    <h2 class="reveal" style="--d:80ms;margin-top:22px">Vous voulez <span class="serif grad">ça</span><br />chez vous ?</h2>
+    <p class="lead reveal" style="--d:160ms">On vient, on analyse, on propose. Devis en 48h. Vous décidez ensuite, l'esprit tranquille.</p>
+    <div class="finale-cta reveal" style="--d:240ms">
+      <a class="btn lg" href="https://neo-domotique.fr/prendre-rdv" data-magnetic>Demander mon audit gratuit
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+      <a class="btn ghost lg" href="tel:+33123456789">01 23 45 67 89</a>
+    </div>
+    <div class="ticks reveal" style="--d:320ms">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>100% gratuit</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Sans engagement</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Réponse sous 24h</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot-grid">
+    <div class="foot-about">
+      <a class="brand" href="#top"><span class="logo"><span class="dot"></span></span><b>Neo Domotique</b></a>
+      <p>Transformez votre maison en habitat intelligent. Installation professionnelle et maintenance incluse.</p>
+    </div>
+    <div>
+      <h5>Services</h5>
+      <a href="#services">Éclairage connecté</a>
+      <a href="#services">Chauffage intelligent</a>
+      <a href="#securite">Sécurité connectée</a>
+      <a href="#services">Économies d'énergie</a>
+    </div>
+    <div>
+      <h5>Entreprise</h5>
+      <a href="#process">Comment ça marche</a>
+      <a href="#avis">Réalisations</a>
+      <a href="#audit">Prendre RDV</a>
+      <a href="https://neo-domotique.fr/faq">FAQ</a>
+    </div>
+    <div>
+      <h5>Contact</h5>
+      <a href="tel:+33123456789">01 23 45 67 89</a>
+      <a href="mailto:contact@neo-domotique.fr">contact@neo-domotique.fr</a>
+      <a href="#top">Paris &amp; Île-de-France</a>
+    </div>
+  </div>
+  <div class="wrap foot-bottom">
+    <span>© 2026 Neo Domotique. Tous droits réservés.</span>
+    <span>Du lundi au vendredi · 9h00 – 18h00</span>
+  </div>
+</footer>
+
+<script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script is:inline src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"></script>
+<script is:inline src="/neo/app-v2.js"></script>
+</body>
+</html>
