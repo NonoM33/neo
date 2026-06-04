@@ -1,7 +1,7 @@
 import type { WSContext } from 'hono/ws';
 import { isChatbotEnabled } from '../../config/env';
 import * as service from './chatbot.service';
-import { generateBotReply } from './chatbot.llm';
+import { generateBotReply, correctText } from './chatbot.llm';
 import type { ChatbotMessage, ChatbotSession } from '../../db/schema';
 
 // ─── Registre des connexions (en mémoire, mono-process) ─────────────────────
@@ -125,6 +125,11 @@ export async function handleVisitorInit(
   await pushSessionToStaff(session, lastMessage ? lastMessage.content : null);
 
   return session.id;
+}
+
+/** Le visiteur est en train d'écrire : on prévient les consoles staff. */
+export function handleVisitorTyping(sessionId: string): void {
+  sendToStaff({ type: 'visitor_typing', sessionId });
 }
 
 /** Traite un message envoyé par le visiteur. */
@@ -268,6 +273,31 @@ export async function handleStaffAction(
       sendToStaff({ type: 'message', sessionId, message: serializeMessage(staffMsg) });
       const after = await service.getSession(sessionId);
       if (after) await pushSessionToStaff(after, staffMsg.content);
+      return;
+    }
+
+    case 'typing': {
+      // Le conseiller écrit : on affiche l'indicateur côté visiteur.
+      if (!sessionId) return;
+      sendToVisitors(sessionId, { type: 'typing' });
+      return;
+    }
+
+    case 'correct': {
+      // Correction orthographique instantanée du brouillon du conseiller.
+      const draft = action.content?.trim();
+      if (!draft) return;
+      if (!isChatbotEnabled) {
+        send(ws, { type: 'correction', original: draft, text: draft });
+        return;
+      }
+      try {
+        const corrected = await correctText(draft);
+        send(ws, { type: 'correction', original: draft, text: corrected });
+      } catch (err) {
+        console.error('[chatbot] correction error:', err);
+        send(ws, { type: 'correction', original: draft, text: draft });
+      }
       return;
     }
 

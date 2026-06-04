@@ -43,6 +43,9 @@ chatbotRoutes.get(
         } else if (data.type === 'message') {
           if (!sessionId || typeof data.content !== 'string') return;
           await hub.handleVisitorMessage(sessionId, data.content);
+        } else if (data.type === 'typing') {
+          if (!sessionId) return;
+          hub.handleVisitorTyping(sessionId);
         }
       },
       onClose: () => {

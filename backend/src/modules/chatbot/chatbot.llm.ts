@@ -61,6 +61,34 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
+const CORRECTION_PROMPT = `Tu corriges l'orthographe, la grammaire, la ponctuation et les accents d'un message écrit par un conseiller commercial, en français.
+Règles STRICTES :
+- Renvoie UNIQUEMENT le message corrigé, sans guillemets, sans préambule, sans commentaire.
+- Conserve le sens, le ton, les emojis, le tutoiement/vouvoiement et les retours à la ligne d'origine.
+- Ne réponds pas au message, ne le complète pas : corrige-le seulement.
+- Si le message est déjà correct, renvoie-le tel quel.`;
+
+/** Corrige l'orthographe/grammaire d'un brouillon du conseiller (renvoie le texte corrigé). */
+export async function correctText(text: string): Promise<string> {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+
+  const client = getClient();
+  const completion = await client.chat.completions.create({
+    model: env.OPENROUTER_MODEL,
+    messages: [
+      { role: 'system', content: CORRECTION_PROMPT },
+      { role: 'user', content: trimmed },
+    ],
+    temperature: 0,
+    max_tokens: 600,
+  });
+
+  const out = completion.choices[0]?.message?.content;
+  const corrected = (out ?? '').trim();
+  return corrected || text;
+}
+
 export function toChatMessage(
   m: ChatbotMessage
 ): OpenAI.Chat.Completions.ChatCompletionMessageParam | null {

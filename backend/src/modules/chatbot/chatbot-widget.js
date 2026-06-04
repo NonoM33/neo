@@ -60,6 +60,7 @@
   var engaged = false; // true dès qu'un vrai message a été envoyé
   var mode = 'bot';
   var seenIds = {};
+  var lastTypingSent = 0;
 
   /* ---- Styles ---- */
   var css =
@@ -83,7 +84,12 @@
     '.ncw-m.visitor{align-self:flex-end;background:#0d6efd;color:#fff;border-bottom-right-radius:4px}' +
     '.ncw-m.staff{align-self:flex-start;background:#198754;color:#fff;border-bottom-left-radius:4px}' +
     '.ncw-m.system{align-self:center;background:transparent;color:#6c757d;font-size:12px;font-style:italic;padding:2px}' +
-    '.ncw-typing{align-self:flex-start;color:#6c757d;font-size:13px;font-style:italic;padding:2px 4px}' +
+    '.ncw-typing{align-self:flex-start;padding:6px 10px;background:#fff;border:1px solid #e9ecef;border-radius:14px;border-bottom-left-radius:4px}' +
+    '.ncw-dots{display:inline-flex;gap:4px;align-items:center}' +
+    '.ncw-dots i{width:7px;height:7px;border-radius:50%;background:#adb5bd;display:inline-block;animation:ncw-bounce 1.2s infinite ease-in-out}' +
+    '.ncw-dots i:nth-child(2){animation-delay:.15s}' +
+    '.ncw-dots i:nth-child(3){animation-delay:.3s}' +
+    '@keyframes ncw-bounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-5px);opacity:1}}' +
     '#ncw-form{display:flex;gap:8px;padding:12px;border-top:1px solid #e9ecef;background:#fff}' +
     '#ncw-input{flex:1;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:none;max-height:90px;outline:none}' +
     '#ncw-input:focus{border-color:#0d6efd}' +
@@ -151,6 +157,7 @@
         onSubmit(e);
       }
     });
+    inputEl.addEventListener('input', sendTyping);
 
     // Auto-engagement : montre une accroche après quelques secondes.
     setTimeout(function () {
@@ -209,7 +216,11 @@
   var typingEl = null;
   function showTyping() {
     if (typingEl) return;
-    typingEl = el('div', { class: 'ncw-typing' }, 'Léa écrit…');
+    typingEl = el(
+      'div',
+      { class: 'ncw-typing' },
+      '<span class="ncw-dots"><i></i><i></i><i></i></span>'
+    );
     msgsEl.appendChild(typingEl);
     scrollDown();
   }
@@ -298,6 +309,16 @@
     // Les messages visiteur sont déjà affichés localement à l'envoi.
     if (m.role === 'visitor' && engaged) return;
     addMsg(m.role, m.content);
+  }
+
+  // Prévient le conseiller que le visiteur est en train d'écrire (throttle 1,5 s).
+  function sendTyping() {
+    var now = Date.now();
+    if (now - lastTypingSent < 1500) return;
+    lastTypingSent = now;
+    if (ws && ws.readyState === WebSocket.OPEN && sessionId) {
+      ws.send(JSON.stringify({ type: 'typing' }));
+    }
   }
 
   function onSubmit(e) {

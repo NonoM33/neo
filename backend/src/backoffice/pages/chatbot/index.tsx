@@ -28,6 +28,12 @@ const STYLE = `
   .cm.bot { align-self:flex-end; background:#e7f1ff; color:#0a58ca; }
   .cm.staff { align-self:flex-end; background:#198754; color:#fff; }
   .cm.system { align-self:center; background:transparent; color:#6c757d; font-size:12px; font-style:italic; }
+  .chat-typing { align-self:flex-start; padding:8px 12px; background:#fff; border:1px solid #e9ecef; border-radius:14px; border-bottom-left-radius:4px; }
+  .chat-dots { display:inline-flex; gap:4px; align-items:center; }
+  .chat-dots i { width:7px; height:7px; border-radius:50%; background:#adb5bd; display:inline-block; animation:chat-bounce 1.2s infinite ease-in-out; }
+  .chat-dots i:nth-child(2){ animation-delay:.15s; }
+  .chat-dots i:nth-child(3){ animation-delay:.3s; }
+  @keyframes chat-bounce { 0%,80%,100%{ transform:translateY(0); opacity:.4 } 40%{ transform:translateY(-5px); opacity:1 } }
   .chat-form { display:flex; gap:8px; padding:12px; border-top:1px solid #e9ecef; }
   .chat-form textarea { flex:1; border:1px solid #d1d5db; border-radius:10px; padding:10px; font-size:14px; resize:none; outline:none; }
   .badge-mode-bot { background:#6c757d; }
@@ -44,6 +50,8 @@ const SCRIPT = `
   var ws = null;
   var seen = {}; // ids des messages déjà rendus dans le fil courant (anti-doublon)
   var statusEl = document.getElementById('ws-status');
+  var lastTypingSent = 0; // throttle de l'indicateur de saisie sortant
+  var typingTimer = null; // masque l'indicateur du visiteur après un délai
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmtTime(t){try{return new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
@@ -65,8 +73,10 @@ const SCRIPT = `
     else if(d.type==='message'){
       var s = sessions[d.sessionId];
       if(s){ s.lastMessage = d.message.content; s.lastMessageAt = d.message.createdAt; if(d.sessionId!==current && d.message.role==='visitor'){ s.unreadForStaff=(s.unreadForStaff||0)+1; } renderList(); }
-      if(d.sessionId===current){ appendMsg(d.message); }
+      if(d.sessionId===current){ hideTyping(); appendMsg(d.message); }
     }
+    else if(d.type==='visitor_typing'){ if(d.sessionId===current) showTyping(); }
+    else if(d.type==='correction'){ applyCorrection(d); }
   }
 
   function renderList(){
@@ -102,6 +112,7 @@ const SCRIPT = `
       '<div class="chat-main-head" id="chat-head"></div>'+
       '<div class="chat-thread" id="chat-thread"></div>'+
       '<form class="chat-form" id="chat-form"><textarea id="chat-input" rows="2" placeholder="Répondre au visiteur..."></textarea>'+
+      '<button class="btn btn-outline-secondary" type="button" id="chat-correct" title="Corriger l\\'orthographe"><i class="bi bi-magic"></i></button>'+
       '<button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button></form>';
     renderHead();
     document.getElementById('chat-form').addEventListener('submit', function(e){
@@ -115,6 +126,54 @@ const SCRIPT = `
     document.getElementById('chat-input').addEventListener('keydown', function(e){
       if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('chat-form').dispatchEvent(new Event('submit',{cancelable:true})); }
     });
+    document.getElementById('chat-input').addEventListener('input', sendStaffTyping);
+    document.getElementById('chat-correct').addEventListener('click', requestCorrection);
+  }
+
+  // Le conseiller écrit : on prévient le visiteur (throttle pour éviter le spam).
+  function sendStaffTyping(){
+    var now = Date.now();
+    if(now - lastTypingSent < 1500) return;
+    lastTypingSent = now;
+    if(current) sendAction({type:'typing', sessionId:current});
+  }
+
+  // Correction orthographique instantanée du brouillon via le LLM.
+  function requestCorrection(){
+    var inp = document.getElementById('chat-input');
+    var btn = document.getElementById('chat-correct');
+    if(!inp || !btn) return;
+    var draft = (inp.value||'').trim();
+    if(!draft || !current) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    sendAction({type:'correct', sessionId:current, content:draft});
+  }
+  function applyCorrection(d){
+    var inp = document.getElementById('chat-input');
+    var btn = document.getElementById('chat-correct');
+    if(btn){ btn.disabled = false; btn.innerHTML = '<i class="bi bi-magic"></i>'; }
+    if(inp && typeof d.text==='string'){ inp.value = d.text; inp.focus(); }
+  }
+
+  // Indicateur de saisie du visiteur (points animés), auto-masqué après 4s.
+  function showTyping(){
+    var thread = document.getElementById('chat-thread'); if(!thread) return;
+    if(!document.getElementById('chat-typing')){
+      var div = document.createElement('div');
+      div.className = 'chat-typing';
+      div.id = 'chat-typing';
+      div.innerHTML = '<span class="chat-dots"><i></i><i></i><i></i></span>';
+      thread.appendChild(div);
+      thread.scrollTop = thread.scrollHeight;
+    }
+    if(typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(hideTyping, 4000);
+  }
+  function hideTyping(){
+    if(typingTimer){ clearTimeout(typingTimer); typingTimer = null; }
+    var el = document.getElementById('chat-typing');
+    if(el && el.parentNode) el.parentNode.removeChild(el);
   }
 
   function renderHead(){
