@@ -53,3 +53,60 @@ describe('chatbot-widget — attribution des bulles', () => {
     expect(chatbot).toContain("role === 'staff' && lastRenderedRole !== 'staff'");
   });
 });
+
+// Régression : "on peut pas scroller en tant que client". La zone des messages
+// est un enfant flex (flex:1) dans un panneau à hauteur fixe (height:520px,
+// overflow:hidden). Sans `min-height:0`, l'enfant flex refuse de rétrécir sous
+// la taille de son contenu : il déborde et masque le haut au lieu de scroller.
+describe('chatbot-widget — scroll de la zone messages', () => {
+  it('#ncw-msgs autorise le rétrécissement flex (min-height:0) pour scroller', () => {
+    const block = chatbot.match(/#ncw-msgs\{[^}]*\}/)?.[0] ?? '';
+    expect(block).toContain('overflow-y:auto');
+    expect(block).toContain('min-height:0');
+  });
+});
+
+// Régression : "les messages envoyés disparaissent". À la (re)connexion, le
+// handler `session` faisait `msgsEl.innerHTML = ''`, ce qui effaçait les bulles
+// optimistes (messages tout juste envoyés, pas encore confirmés par le serveur).
+// On rend désormais l'historique de façon idempotente (par id), sans vider le
+// DOM, et on réconcilie les bulles en attente via l'écho serveur.
+describe('chatbot-widget — fiabilité des messages visiteur', () => {
+  it("ne vide jamais la zone messages en bloc (plus de innerHTML = '')", () => {
+    expect(chatbot).not.toContain("msgsEl.innerHTML = ''");
+    expect(chatbot).not.toContain("msgsEl.innerHTML=''");
+  });
+
+  it('rend l’historique de façon idempotente (dédup par id via seenIds)', () => {
+    expect(chatbot).toContain('if (seenIds[m.id]) return');
+  });
+
+  it('conserve les bulles optimistes en attente (data-pending + réconciliation)', () => {
+    expect(chatbot).toContain("'data-pending'");
+    expect(chatbot).toContain('pending.push(item)');
+    // La réconciliation se fait par contenu sur les messages visiteur.
+    expect(chatbot).toContain("if (m.role === 'visitor')");
+  });
+
+  it('garantit qu’un message n’est jamais envoyé deux fois (flag sent)', () => {
+    expect(chatbot).toContain('if (item.sent) return');
+    expect(chatbot).toContain('item.sent = true');
+  });
+
+  it('se reconnecte automatiquement tant que la conversation est ouverte', () => {
+    expect(chatbot).toContain('function scheduleReconnect()');
+    expect(chatbot).toContain('if (sessionClosed || !opened) return');
+  });
+});
+
+// Régression côté serveur indirecte : le widget doit pouvoir réconcilier sa
+// bulle optimiste, ce qui suppose que le serveur lui renvoie son propre message
+// (écho) — sans quoi la bulle resterait éternellement "en attente".
+describe('chatbot.ws — écho du message visiteur', () => {
+  it('renvoie le message du visiteur à ses propres connexions', () => {
+    const ws = readFileSync(join(import.meta.dir, 'chatbot.ws.ts'), 'utf8');
+    expect(ws).toContain(
+      "sendToVisitors(sessionId, { type: 'message', message: serializeMessage(visitorMsg) })"
+    );
+  });
+});

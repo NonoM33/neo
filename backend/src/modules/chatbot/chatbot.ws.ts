@@ -152,6 +152,9 @@ export async function handleVisitorMessage(
 
   // Diffusion immédiate aux consoles staff.
   sendToStaff({ type: 'message', sessionId, message: serializeMessage(visitorMsg) });
+  // Écho au visiteur : porte l'id serveur, ce qui permet au widget de réconcilier
+  // sa bulle optimiste (et donc de survivre à un rechargement d'historique).
+  sendToVisitors(sessionId, { type: 'message', message: serializeMessage(visitorMsg) });
   const refreshed = await service.getSession(sessionId);
   if (refreshed) await pushSessionToStaff(refreshed, trimmed);
 

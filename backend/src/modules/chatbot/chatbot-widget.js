@@ -57,11 +57,14 @@
   var connected = false;
   var sessionId = null;
   var opened = false;
-  var engaged = false; // true dès qu'un vrai message a été envoyé
   var mode = 'bot';
   var seenIds = {};
   var lastTypingSent = 0;
   var lastRenderedRole = null; // évite de répéter le libellé émetteur
+  var pending = []; // bulles visiteur optimistes en attente d'écho serveur
+  var sessionClosed = false; // true quand le serveur a clos la conversation
+  var reconnectTimer = null;
+  var reconnectDelay = 1000; // backoff exponentiel borné
 
   /* ---- Styles ---- */
   var css =
@@ -79,10 +82,11 @@
     '#ncw-head h3{margin:0;font-size:15px;font-weight:700}' +
     '#ncw-head .ncw-sub{font-size:12px;opacity:.85}' +
     '#ncw-close{margin-left:auto;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}' +
-    '#ncw-msgs{flex:1;overflow-y:auto;padding:16px;background:#f5f7fa;display:flex;flex-direction:column;gap:10px}' +
+    '#ncw-msgs{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px;background:#f5f7fa;display:flex;flex-direction:column;gap:10px}' +
     '.ncw-m{max-width:80%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}' +
     '.ncw-m.bot{align-self:flex-start;background:#fff;color:#1a1d21;border:1px solid #e9ecef;border-bottom-left-radius:4px}' +
     '.ncw-m.visitor{align-self:flex-end;background:#0d6efd;color:#fff;border-bottom-right-radius:4px}' +
+    '.ncw-m.visitor[data-pending]{opacity:.55}' +
     '.ncw-m.staff{align-self:flex-start;background:#198754;color:#fff;border-bottom-left-radius:4px}' +
     '.ncw-m.system{align-self:center;background:transparent;color:#6c757d;font-size:12px;font-style:italic;padding:2px}' +
     '.ncw-meta{align-self:flex-start;font-size:11px;font-weight:600;color:#198754;margin:2px 4px -4px;display:flex;align-items:center;gap:4px}' +
@@ -195,7 +199,8 @@
     panel.style.display = 'flex';
     connect();
     if (msgsEl.childElementCount === 0) {
-      addMsg('bot', GREETING);
+      var greet = addMsg('bot', GREETING);
+      if (greet) greet.setAttribute('data-greeting', '1');
     }
     inputEl.focus();
     scrollDown();
@@ -217,6 +222,7 @@
     msgsEl.appendChild(m);
     if (role !== 'system') lastRenderedRole = role;
     scrollDown();
+    return m;
   }
   function scrollDown() {
     msgsEl.scrollTop = msgsEl.scrollHeight;
@@ -248,13 +254,19 @@
   /* ---- WebSocket ---- */
   function connect() {
     if (connected || (ws && ws.readyState === WebSocket.CONNECTING)) return;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     try {
       ws = new WebSocket(wsUrl());
     } catch (e) {
+      scheduleReconnect();
       return;
     }
     ws.onopen = function () {
       connected = true;
+      reconnectDelay = 1000; // succès : on réinitialise le backoff
       ws.send(
         JSON.stringify({
           type: 'init',
@@ -276,6 +288,7 @@
     ws.onclose = function () {
       connected = false;
       ws = null;
+      scheduleReconnect();
     };
     ws.onerror = function () {
       try {
@@ -284,41 +297,79 @@
     };
   }
 
+  // Reconnexion automatique tant que la conversation est ouverte et non close :
+  // garantit que les messages en attente partent et que l'historique se resync.
+  function scheduleReconnect() {
+    if (sessionClosed || !opened) return;
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(function () {
+      reconnectTimer = null;
+      connect();
+    }, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+  }
+
   function handleServer(data) {
     if (data.type === 'session') {
       sessionId = data.sessionId;
+      sessionClosed = false;
       mode = data.mode || 'bot';
       if (mode === 'human') setSub('Conseiller en ligne');
       if (data.messages && data.messages.length) {
-        // On a un historique réel : on efface l'accroche locale.
-        msgsEl.innerHTML = '';
-        lastRenderedRole = null;
+        // Historique réel : on retire l'accroche locale puis on rend l'historique
+        // de façon IDEMPOTENTE. On n'efface JAMAIS le DOM en bloc, pour ne pas
+        // détruire les bulles optimistes (messages envoyés mais pas encore
+        // confirmés) lors d'une (re)connexion — c'était la cause des messages
+        // qui disparaissaient.
+        var greet = msgsEl.querySelectorAll('[data-greeting]');
+        for (var g = 0; g < greet.length; g++) greet[g].remove();
         data.messages.forEach(function (m) {
-          seenIds[m.id] = true;
+          if (seenIds[m.id]) return;
           renderServerMessage(m);
         });
       }
+      // Connexion (ré)établie : on (re)pousse les messages jamais partis.
+      flushPending();
     } else if (data.type === 'message') {
       var m = data.message;
-      if (!m || seenIds[m.id]) return;
-      seenIds[m.id] = true;
+      if (!m) return;
       hideTyping();
-      renderServerMessage(m);
-      if (!opened) setBadge(1);
+      var added = renderServerMessage(m);
+      // Pas de pastille pour l'écho de nos propres messages.
+      if (added && !opened && m.role !== 'visitor') setBadge(1);
     } else if (data.type === 'typing') {
       showTyping();
     } else if (data.type === 'mode') {
       mode = data.mode;
       setSub(mode === 'human' ? 'Conseiller en ligne' : 'Assistant en ligne');
     } else if (data.type === 'closed') {
+      sessionClosed = true;
       addMsg('system', 'La conversation est terminée. Merci !');
     }
   }
 
+  // Rend un message serveur de façon idempotente. Retourne true si une nouvelle
+  // bulle a été ajoutée, false si le message était déjà connu/réconcilié.
   function renderServerMessage(m) {
-    // Les messages visiteur sont déjà affichés localement à l'envoi.
-    if (m.role === 'visitor' && engaged) return;
+    if (!m) return false;
+    if (m.id != null) {
+      if (seenIds[m.id]) return false;
+      seenIds[m.id] = true;
+    }
+    // Un message visiteur revient du serveur : il a déjà été affiché de façon
+    // optimiste à l'envoi. On réconcilie la bulle en attente (par contenu)
+    // plutôt que d'en créer une seconde — et on confirme la bulle au passage.
+    if (m.role === 'visitor') {
+      for (var i = 0; i < pending.length; i++) {
+        if (pending[i].text === m.content) {
+          if (pending[i].el) pending[i].el.removeAttribute('data-pending');
+          pending.splice(i, 1);
+          return false;
+        }
+      }
+    }
     addMsg(m.role, m.content);
+    return true;
   }
 
   // Prévient le conseiller que le visiteur est en train d'écrire (throttle 1,5 s).
@@ -336,19 +387,39 @@
     var text = (inputEl.value || '').trim();
     if (!text) return;
     inputEl.value = '';
-    engaged = true;
-    addMsg('visitor', text);
+    // Rendu optimiste : la bulle est marquée "en attente" et conservée dans
+    // `pending` jusqu'à l'écho serveur (réconciliation par contenu). Elle
+    // survit ainsi à un rechargement d'historique / une reconnexion.
+    var bubble = addMsg('visitor', text);
+    var item = { el: bubble, text: text, sent: false };
+    if (bubble) bubble.setAttribute('data-pending', '1');
+    pending.push(item);
     connect();
-    var trySend = function (attempts) {
-      if (ws && ws.readyState === WebSocket.OPEN && sessionId) {
-        ws.send(JSON.stringify({ type: 'message', content: text }));
-      } else if (attempts > 0) {
-        setTimeout(function () {
-          trySend(attempts - 1);
-        }, 250);
-      }
-    };
-    trySend(20);
+    trySend(item, 20);
+  }
+
+  // Émet un message en attente sur la connexion ouverte. `item.sent` garantit
+  // qu'un même message n'est jamais envoyé deux fois (pas de doublon possible
+  // même si plusieurs tentatives se chevauchent après une reconnexion).
+  function trySend(item, attempts) {
+    if (item.sent) return;
+    if (ws && ws.readyState === WebSocket.OPEN && sessionId) {
+      ws.send(JSON.stringify({ type: 'message', content: item.text }));
+      item.sent = true;
+    } else if (attempts > 0) {
+      setTimeout(function () {
+        trySend(item, attempts - 1);
+      }, 250);
+    }
+  }
+
+  // À la (re)connexion, renvoie les messages jamais partis (sent === false).
+  // Ceux déjà reçus par le serveur reviennent via l'historique et sont
+  // réconciliés, donc ne sont pas réémis.
+  function flushPending() {
+    for (var i = 0; i < pending.length; i++) {
+      if (!pending[i].sent) trySend(pending[i], 20);
+    }
   }
 
   if (document.readyState === 'loading') {
