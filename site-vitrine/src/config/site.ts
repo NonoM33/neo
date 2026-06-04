@@ -58,5 +58,9 @@ export const SITE_CONFIG = {
   plausibleDomain: 'neo-domotique.fr', // TODO: remplacer si différent
 
   // API — surchargé par env (staging vs prod), défaut = backend prod.
-  apiBaseUrl: import.meta.env.PUBLIC_API_BASE_URL ?? 'https://api.neo-domotique.fr',
+  // On retombe sur le fallback même si la variable est définie mais vide
+  // (sinon data-api="" et le configurateur fetch en relatif => catalogue vide).
+  apiBaseUrl:
+    (import.meta.env.PUBLIC_API_BASE_URL || '').trim() ||
+    'https://api.neo-domotique.fr',
 } as const;
