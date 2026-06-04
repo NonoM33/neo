@@ -56,6 +56,14 @@ const envSchema = z.object({
   GITLAB_TOKEN: z.string().optional(),
   GITLAB_PROJECT_ID: z.string().optional(),
 
+  // Mattermost (notification d'un nouveau retour recette/feedback dans un canal dedie).
+  // URL du webhook entrant ("Incoming Webhook") cree cote Mattermost.
+  MATTERMOST_WEBHOOK_URL: z.string().url().optional(),
+  // Canal cible (ex: "feedback-neo"). Vide = canal par defaut du webhook.
+  MATTERMOST_CHANNEL: z.string().optional(),
+  // Nom d'affichage du bot qui poste le message.
+  MATTERMOST_USERNAME: z.string().default('Neo Feedback'),
+
   // SMS Gateway
   SMS_API_URL: z.string().default('https://api.sms-gate.app/3rdparty/v1/messages'),
   SMS_API_USER: z.string().default('EZMOAP'),
@@ -114,6 +122,9 @@ export const isRecetteEnabled = env.APP_ENV !== 'production';
 
 // L'integration GitLab n'est active que si un token ET un projet cible sont fournis.
 export const isGitlabEnabled = Boolean(env.GITLAB_TOKEN && env.GITLAB_PROJECT_ID);
+
+// La notification Mattermost n'est active que si un webhook entrant est configure.
+export const isMattermostEnabled = Boolean(env.MATTERMOST_WEBHOOK_URL);
 
 // Le chatbot du site vitrine ne répond automatiquement que si une clé OpenRouter est fournie.
 export const isChatbotEnabled = Boolean(env.OPENROUTER_API_KEY);

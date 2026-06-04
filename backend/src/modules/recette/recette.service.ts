@@ -11,6 +11,7 @@ import {
 } from '../../db/schema';
 import { recetteCatalogue } from './recette.catalogue';
 import { sendFeedbackClosureEmail } from './recette.notify';
+import { notifyFeedbackCreated } from './recette.mattermost';
 
 // Seed idempotent du catalogue (upsert par code).
 export async function seedCatalogue(): Promise<{ count: number }> {
@@ -249,6 +250,8 @@ export async function createFeedback(
       author: input.author,
     })
     .returning();
+  // Notifie le canal Mattermost dédié (best-effort, ne bloque pas la création).
+  void notifyFeedbackCreated(created!);
   return created!;
 }
 
@@ -292,6 +295,8 @@ export async function submitWidgetFeedback(
       context: input.context ?? null,
     })
     .returning();
+  // Notifie le canal Mattermost dédié (best-effort, ne bloque pas la création).
+  void notifyFeedbackCreated(created!);
   return created!;
 }
 
