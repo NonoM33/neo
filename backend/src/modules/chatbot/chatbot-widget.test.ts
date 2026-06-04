@@ -34,3 +34,22 @@ describe('chatbot-widget — pas de collision avec le feedback', () => {
     expect(chat.right).not.toBe(fb.right); // mais décalés horizontalement
   });
 });
+
+// Régression : côté visiteur, les messages du visiteur (client) sortent à
+// DROITE et ceux d'un conseiller/bot à GAUCHE. Si la bulle staff sortait à
+// droite, "on aurait l'impression que c'est le client qui envoie". De plus,
+// quand un conseiller prend la main, ses messages doivent être étiquetés.
+describe('chatbot-widget — attribution des bulles', () => {
+  it('place le visiteur à droite et le conseiller/bot à gauche', () => {
+    expect(chatbot).toContain('.ncw-m.visitor{align-self:flex-end');
+    expect(chatbot).toContain('.ncw-m.staff{align-self:flex-start');
+    expect(chatbot).toContain('.ncw-m.bot{align-self:flex-start');
+  });
+
+  it('étiquette les messages du conseiller (prise en main visible)', () => {
+    expect(chatbot).toContain('.ncw-meta{');
+    expect(chatbot).toContain('Conseiller');
+    // Le libellé n'est ajouté que pour un message staff non consécutif.
+    expect(chatbot).toContain("role === 'staff' && lastRenderedRole !== 'staff'");
+  });
+});

@@ -23,11 +23,18 @@ const STYLE = `
   .chat-main { flex: 1; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,.05); display: flex; flex-direction: column; overflow: hidden; }
   .chat-main-head { padding: 14px 16px; border-bottom: 1px solid #e9ecef; display:flex; align-items:center; gap:10px; }
   .chat-thread { flex:1; overflow-y:auto; padding:16px; background:#f5f7fa; display:flex; flex-direction:column; gap:10px; }
-  .cm { max-width:72%; padding:9px 12px; border-radius:14px; font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
-  .cm.visitor { align-self:flex-start; background:#fff; border:1px solid #e9ecef; }
-  .cm.bot { align-self:flex-end; background:#e7f1ff; color:#0a58ca; }
-  .cm.staff { align-self:flex-end; background:#198754; color:#fff; }
-  .cm.system { align-self:center; background:transparent; color:#6c757d; font-size:12px; font-style:italic; }
+  .cm-row { display:flex; flex-direction:column; max-width:72%; }
+  .cm-row.visitor { align-self:flex-start; align-items:flex-start; }
+  .cm-row.bot, .cm-row.staff { align-self:flex-end; align-items:flex-end; }
+  .cm-row.system { align-self:center; align-items:center; max-width:100%; }
+  .cm-meta { font-size:11px; color:#adb5bd; margin:0 4px 2px; display:flex; align-items:center; gap:4px; }
+  .cm-meta.staff { color:#198754; font-weight:600; }
+  .cm { padding:9px 12px; border-radius:14px; font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
+  .cm.visitor { background:#fff; border:1px solid #e9ecef; border-bottom-left-radius:4px; }
+  .cm.bot { background:#e7f1ff; color:#0a58ca; border-bottom-right-radius:4px; }
+  .cm.staff { background:#198754; color:#fff; border-bottom-right-radius:4px; }
+  .cm.system { background:transparent; color:#6c757d; font-size:12px; font-style:italic; }
+  .chat-takeover { padding:8px 14px; background:#d1e7dd; color:#0f5132; border-bottom:1px solid #badbcc; font-size:13px; display:flex; align-items:center; gap:8px; }
   .chat-typing { align-self:flex-start; padding:8px 12px; background:#fff; border:1px solid #e9ecef; border-radius:14px; border-bottom-left-radius:4px; }
   .chat-dots { display:inline-flex; gap:4px; align-items:center; }
   .chat-dots i { width:7px; height:7px; border-radius:50%; background:#adb5bd; display:inline-block; animation:chat-bounce 1.2s infinite ease-in-out; }
@@ -52,6 +59,7 @@ const SCRIPT = `
   var statusEl = document.getElementById('ws-status');
   var lastTypingSent = 0; // throttle de l'indicateur de saisie sortant
   var typingTimer = null; // masque l'indicateur du visiteur après un délai
+  var lastRowRole = null; // dernier émetteur rendu (regroupe les libellés)
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmtTime(t){try{return new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
@@ -110,6 +118,7 @@ const SCRIPT = `
     if(!current || !sessions[current]){ main.innerHTML='<div class="chat-placeholder">Sélectionnez une conversation pour la suivre en temps réel.</div>'; return; }
     main.innerHTML =
       '<div class="chat-main-head" id="chat-head"></div>'+
+      '<div id="chat-takeover-slot"></div>'+
       '<div class="chat-thread" id="chat-thread"></div>'+
       '<form class="chat-form" id="chat-form"><textarea id="chat-input" rows="2" placeholder="Répondre au visiteur..."></textarea>'+
       '<button class="btn btn-outline-secondary" type="button" id="chat-correct" title="Corriger l\\'orthographe"><i class="bi bi-magic"></i></button>'+
@@ -192,13 +201,48 @@ const SCRIPT = `
     var tk=document.getElementById('btn-takeover'); if(tk) tk.addEventListener('click', function(){ sendAction({type:'takeover', sessionId:current}); });
     var rl=document.getElementById('btn-release'); if(rl) rl.addEventListener('click', function(){ sendAction({type:'release', sessionId:current}); });
     var cl=document.getElementById('btn-close'); if(cl) cl.addEventListener('click', function(){ if(confirm('Clôturer cette conversation ?')) sendAction({type:'close', sessionId:current}); });
+    // Bandeau explicite quand un conseiller a repris la main (mode humain).
+    var slot=document.getElementById('chat-takeover-slot');
+    if(slot){
+      slot.innerHTML = s.mode==='human'
+        ? '<div class="chat-takeover"><i class="bi bi-headset"></i> Un conseiller a pris la main — le bot est en pause.</div>'
+        : '';
+    }
   }
 
   function renderThread(messages){
     var thread = document.getElementById('chat-thread'); if(!thread) return;
     thread.innerHTML='';
     seen = {};
+    lastRowRole = null;
     messages.forEach(appendMsg);
+  }
+  // Libellé de l'émetteur affiché au-dessus de chaque bulle, pour lever toute
+  // ambiguïté sur QUI envoie (visiteur, bot, ou conseiller).
+  function metaFor(role){
+    if(role==='staff') return '<i class="bi bi-headset"></i> Conseiller';
+    if(role==='bot') return '<i class="bi bi-robot"></i> Assistant';
+    if(role==='visitor'){ var s=sessions[current]; return '<i class="bi bi-person"></i> '+esc(s?label(s):'Visiteur'); }
+    return '';
+  }
+  // Construit une ligne libellée (méta + bulle) et l'ajoute au fil. Le libellé
+  // émetteur n'est répété que lorsque l'auteur change (regroupement visuel).
+  function buildRow(role, content, pending){
+    var row = document.createElement('div');
+    row.className = 'cm-row ' + role;
+    if(role!=='system' && role!==lastRowRole){
+      var meta = document.createElement('div');
+      meta.className = 'cm-meta ' + role;
+      meta.innerHTML = metaFor(role);
+      row.appendChild(meta);
+    }
+    if(role!=='system') lastRowRole = role;
+    var bubble = document.createElement('div');
+    bubble.className = 'cm ' + role;
+    if(pending!=null) bubble.setAttribute('data-pending', pending);
+    bubble.textContent = content;
+    row.appendChild(bubble);
+    return row;
   }
   function appendMsg(m){
     var thread = document.getElementById('chat-thread'); if(!thread) return;
@@ -209,21 +253,14 @@ const SCRIPT = `
       var pend = thread.querySelector('.cm.staff[data-pending]');
       if(pend && pend.getAttribute('data-pending')===m.content){ pend.removeAttribute('data-pending'); return; }
     }
-    var div = document.createElement('div');
-    div.className = 'cm ' + m.role;
-    div.textContent = m.content;
-    thread.appendChild(div);
+    thread.appendChild(buildRow(m.role, m.content, null));
     thread.scrollTop = thread.scrollHeight;
   }
   // Affiche immédiatement le message du conseiller (optimiste) ; l'écho serveur
   // viendra confirmer ce nœud plutôt que d'en ajouter un second.
   function appendOptimisticStaff(content){
     var thread = document.getElementById('chat-thread'); if(!thread) return;
-    var div = document.createElement('div');
-    div.className = 'cm staff';
-    div.setAttribute('data-pending', content);
-    div.textContent = content;
-    thread.appendChild(div);
+    thread.appendChild(buildRow('staff', content, content));
     thread.scrollTop = thread.scrollHeight;
   }
 

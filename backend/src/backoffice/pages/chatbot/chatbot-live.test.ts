@@ -55,3 +55,27 @@ describe('console Chat live — indicateur de saisie & correction', () => {
     expect(source).toContain('function applyCorrection');
   });
 });
+
+// Régression : "les bulles quand on envoie, c'est comme si c'était le client".
+// Chaque bulle doit porter un libellé d'émetteur (Conseiller / Assistant /
+// visiteur) et, dès qu'un conseiller prend la main, un bandeau explicite doit
+// l'indiquer dans la console.
+describe('console Chat live — attribution & prise en main', () => {
+  it('garde le visiteur à gauche et conseiller/bot à droite', () => {
+    expect(source).toContain('.cm-row.visitor { align-self:flex-start');
+    expect(source).toContain('.cm-row.bot, .cm-row.staff { align-self:flex-end');
+  });
+
+  it('affiche un libellé émetteur au-dessus de chaque bulle', () => {
+    expect(source).toContain('function metaFor');
+    expect(source).toContain('Conseiller');
+    expect(source).toContain('Assistant');
+    expect(source).toContain('cm-meta');
+  });
+
+  it('affiche un bandeau quand un conseiller a pris la main', () => {
+    expect(source).toContain('chat-takeover');
+    expect(source).toContain('Un conseiller a pris la main');
+    expect(source).toContain("s.mode==='human'");
+  });
+});

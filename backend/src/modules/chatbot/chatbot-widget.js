@@ -61,6 +61,7 @@
   var mode = 'bot';
   var seenIds = {};
   var lastTypingSent = 0;
+  var lastRenderedRole = null; // évite de répéter le libellé émetteur
 
   /* ---- Styles ---- */
   var css =
@@ -84,6 +85,7 @@
     '.ncw-m.visitor{align-self:flex-end;background:#0d6efd;color:#fff;border-bottom-right-radius:4px}' +
     '.ncw-m.staff{align-self:flex-start;background:#198754;color:#fff;border-bottom-left-radius:4px}' +
     '.ncw-m.system{align-self:center;background:transparent;color:#6c757d;font-size:12px;font-style:italic;padding:2px}' +
+    '.ncw-meta{align-self:flex-start;font-size:11px;font-weight:600;color:#198754;margin:2px 4px -4px;display:flex;align-items:center;gap:4px}' +
     '.ncw-typing{align-self:flex-start;padding:6px 10px;background:#fff;border:1px solid #e9ecef;border-radius:14px;border-bottom-left-radius:4px}' +
     '.ncw-dots{display:inline-flex;gap:4px;align-items:center}' +
     '.ncw-dots i{width:7px;height:7px;border-radius:50%;background:#adb5bd;display:inline-block;animation:ncw-bounce 1.2s infinite ease-in-out}' +
@@ -204,9 +206,16 @@
   }
 
   function addMsg(role, content) {
+    // Quand un conseiller humain prend la main, on le signale au visiteur par un
+    // libellé au-dessus de ses messages (sans le répéter pour des messages suivis).
+    if (role === 'staff' && lastRenderedRole !== 'staff') {
+      var meta = el('div', { class: 'ncw-meta' }, '\u{1F9D1}‍\u{1F4BC} Conseiller');
+      msgsEl.appendChild(meta);
+    }
     var m = el('div', { class: 'ncw-m ' + role });
     m.textContent = content;
     msgsEl.appendChild(m);
+    if (role !== 'system') lastRenderedRole = role;
     scrollDown();
   }
   function scrollDown() {
@@ -283,6 +292,7 @@
       if (data.messages && data.messages.length) {
         // On a un historique réel : on efface l'accroche locale.
         msgsEl.innerHTML = '';
+        lastRenderedRole = null;
         data.messages.forEach(function (m) {
           seenIds[m.id] = true;
           renderServerMessage(m);
