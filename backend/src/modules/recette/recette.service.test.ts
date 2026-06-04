@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { buildFeatureValidationUpdate } from './recette.service';
+import {
+  buildFeatureValidationUpdate,
+  isFeedbackEditableByReporter,
+} from './recette.service';
 
 describe('buildFeatureValidationUpdate', () => {
   const now = new Date('2026-06-03T10:00:00Z');
@@ -25,5 +28,19 @@ describe('buildFeatureValidationUpdate', () => {
     expect(update.validatedBy).toBeNull();
     expect(update.validatedAt).toBeNull();
     expect(update.updatedAt).toEqual(now);
+  });
+});
+
+describe('isFeedbackEditableByReporter', () => {
+  it('autorise l edition tant que le retour est "ouvert" (pas en traitement)', () => {
+    expect(isFeedbackEditableByReporter('ouvert')).toBe(true);
+  });
+
+  it('verrouille l edition des que le retour est pris en charge', () => {
+    // Regression : un retour corrige/valide/a revoir n'est plus modifiable par
+    // son rapporteur (l'equipe a commence a le traiter).
+    expect(isFeedbackEditableByReporter('corrige')).toBe(false);
+    expect(isFeedbackEditableByReporter('valide')).toBe(false);
+    expect(isFeedbackEditableByReporter('a_revoir')).toBe(false);
   });
 });

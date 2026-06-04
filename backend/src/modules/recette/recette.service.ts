@@ -333,6 +333,71 @@ export async function getFeedbackByReporter(
   }));
 }
 
+// Un retour n'est modifiable par son rapporteur que tant qu'il n'est pas pris
+// en charge par l'equipe : seul le statut "ouvert" autorise l'edition.
+export function isFeedbackEditableByReporter(
+  status: RecetteFeedback['status']
+): boolean {
+  return status === 'ouvert';
+}
+
+export interface UpdateFeedbackByReporterInput {
+  title?: string;
+  severity?: RecetteFeedback['severity'];
+  description?: string | null;
+  stepsToReproduce?: string | null;
+  expectedResult?: string | null;
+}
+
+export type UpdateByReporterResult =
+  | { ok: true; feedback: RecetteFeedback }
+  | { ok: false; reason: 'not_found' | 'locked' };
+
+// Edite un retour appartenant a `reporterEmail`, uniquement s'il est "ouvert".
+// Renvoie un resultat discrimine plutot que de lever, pour un mapping HTTP clair.
+export async function updateFeedbackByReporter(
+  id: string,
+  reporterEmail: string,
+  input: UpdateFeedbackByReporterInput
+): Promise<UpdateByReporterResult> {
+  const email = reporterEmail.trim().toLowerCase();
+  const [fb] = await db
+    .select()
+    .from(recetteFeedback)
+    .where(
+      and(
+        eq(recetteFeedback.id, id),
+        eq(recetteFeedback.reporterEmail, email)
+      )
+    )
+    .limit(1);
+
+  if (!fb) return { ok: false, reason: 'not_found' };
+  if (!isFeedbackEditableByReporter(fb.status)) {
+    return { ok: false, reason: 'locked' };
+  }
+
+  const patch: Partial<typeof recetteFeedback.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.severity !== undefined) patch.severity = input.severity;
+  if (input.description !== undefined) patch.actualResult = input.description;
+  if (input.stepsToReproduce !== undefined) {
+    patch.stepsToReproduce = input.stepsToReproduce;
+  }
+  if (input.expectedResult !== undefined) {
+    patch.expectedResult = input.expectedResult;
+  }
+
+  const [updated] = await db
+    .update(recetteFeedback)
+    .set(patch)
+    .where(eq(recetteFeedback.id, id))
+    .returning();
+  return { ok: true, feedback: updated! };
+}
+
 export async function getFeedbackById(
   id: string
 ): Promise<RecetteFeedback | undefined> {

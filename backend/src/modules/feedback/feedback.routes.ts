@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   submitWidgetFeedback,
   getFeedbackByReporter,
+  updateFeedbackByReporter,
+  isFeedbackEditableByReporter,
 } from '../recette/recette.service';
 import {
   recetteKindLabels,
@@ -100,6 +102,12 @@ feedbackApiRoutes.get('/mine', async (c) => {
       severityLabel: recetteSeverityLabels[fb.severity].label,
       status: fb.status,
       statusLabel: recetteStatusLabels[fb.status].label,
+      // Champs editables exposes pour pre-remplir le formulaire de correction.
+      description: fb.actualResult,
+      stepsToReproduce: fb.stepsToReproduce,
+      expectedResult: fb.expectedResult,
+      // Le rapporteur peut corriger son retour tant qu'il n'est pas pris en charge.
+      editable: isFeedbackEditableByReporter(fb.status),
       createdAt: fb.createdAt,
       updatedAt: fb.updatedAt,
       comments: fb.comments.map((com) => ({
@@ -109,6 +117,39 @@ feedbackApiRoutes.get('/mine', async (c) => {
       })),
     })),
   });
+});
+
+// Le rapporteur edite/complete son retour tant qu'il est "ouvert".
+const updateSchema = z.object({
+  email: z.string().trim().email().max(200),
+  title: z.string().trim().min(3).max(300).optional(),
+  severity: z
+    .enum(['bloquant', 'majeur', 'mineur', 'cosmetique'])
+    .optional(),
+  description: z.string().trim().max(5000).optional(),
+  stepsToReproduce: z.string().trim().max(5000).optional(),
+  expectedResult: z.string().trim().max(5000).optional(),
+});
+
+feedbackApiRoutes.patch('/:id', async (c) => {
+  const id = c.req.param('id');
+  const json = await c.req.json().catch(() => null);
+  const parsed = updateSchema.safeParse(json);
+  if (!parsed.success) {
+    return c.json(
+      { error: 'invalid_payload', details: parsed.error.flatten() },
+      400
+    );
+  }
+  const { email, ...fields } = parsed.data;
+  const result = await updateFeedbackByReporter(id, email, fields);
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      return c.json({ error: 'not_found' }, 404);
+    }
+    return c.json({ error: 'locked' }, 409);
+  }
+  return c.json({ ok: true, id: result.feedback.id });
 });
 
 // Sert le widget JS (charge par <script src="/feedback-widget.js">).

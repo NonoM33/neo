@@ -124,6 +124,11 @@
     '.nf-st-ouvert{background:#fbeaea;color:#b42318}.nf-st-corrige{background:#e7f1fb;color:#1565C0}.nf-st-valide{background:#e7f6ec;color:#1d6f3a}.nf-st-a_revoir{background:#fef3e2;color:#b06a00}' +
     '.nf-reply{background:#f5f7fa;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#374151;white-space:pre-wrap}' +
     '.nf-reply .nf-reply-author{font-weight:700;color:#1565C0;display:block;margin-bottom:2px}' +
+    '.nf-it-actions{margin-top:9px;display:flex;gap:8px;align-items:center}' +
+    '.nf-edit{background:#fff;border:1.5px solid #1565C0;color:#1565C0;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer}' +
+    '.nf-edit:hover{background:#e9f1fb}' +
+    '.nf-lock{font-size:11px;color:#9ca3af}' +
+    '.nf-back{background:none;border:none;color:#1565C0;font-size:12px;font-weight:600;cursor:pointer;padding:0 0 12px;display:block}' +
     '.nf-empty{text-align:center;color:#9ca3af;font-size:13px;padding:24px 0}';
 
   function el(tag, attrs, html) {
@@ -402,6 +407,10 @@
       });
   }
 
+  // Cache des retours charges, pour pre-remplir le formulaire de correction
+  // sans re-fetch (cle = id du retour).
+  var mineCache = {};
+
   function renderMine() {
     var body = document.getElementById('nf-body');
     var email = cfg.email || localStorage.getItem('nf_email') || '';
@@ -420,26 +429,115 @@
           body.innerHTML = '<div class="nf-empty">Aucun retour pour ' + escapeHtml(email) + '.</div>';
           return;
         }
-        body.innerHTML = items
-          .map(function (it) {
-            var replies = (it.comments || [])
-              .map(function (c) {
-                return '<div class="nf-reply"><span class="nf-reply-author">' + escapeHtml(c.author) + '</span>' + escapeHtml(c.body) + '</div>';
-              })
-              .join('');
-            return (
-              '<div class="nf-list-item"><div class="nf-it-top"><h4>' +
-              escapeHtml(it.title) +
-              '</h4><span class="' + statusClass(it.status) + '">' + escapeHtml(it.statusLabel) + '</span></div>' +
-              '<div class="nf-hint" style="margin-top:4px">' + escapeHtml(it.kindLabel) + ' · ' + new Date(it.createdAt).toLocaleDateString('fr-FR') + '</div>' +
-              replies +
-              '</div>'
-            );
-          })
-          .join('');
+        mineCache = {};
+        items.forEach(function (it) {
+          mineCache[it.id] = it;
+        });
+        body.innerHTML =
+          '<div id="nf-msg"></div>' +
+          items
+            .map(function (it) {
+              var replies = (it.comments || [])
+                .map(function (c) {
+                  return '<div class="nf-reply"><span class="nf-reply-author">' + escapeHtml(c.author) + '</span>' + escapeHtml(c.body) + '</div>';
+                })
+                .join('');
+              var actions = it.editable
+                ? '<div class="nf-it-actions"><button class="nf-edit" data-id="' + escapeAttr(it.id) + '">✏️ Corriger / completer</button></div>'
+                : '<div class="nf-it-actions"><span class="nf-lock">🔒 En traitement — non modifiable</span></div>';
+              return (
+                '<div class="nf-list-item"><div class="nf-it-top"><h4>' +
+                escapeHtml(it.title) +
+                '</h4><span class="' + statusClass(it.status) + '">' + escapeHtml(it.statusLabel) + '</span></div>' +
+                '<div class="nf-hint" style="margin-top:4px">' + escapeHtml(it.kindLabel) + ' · ' + new Date(it.createdAt).toLocaleDateString('fr-FR') + '</div>' +
+                replies +
+                actions +
+                '</div>'
+              );
+            })
+            .join('');
+        body.querySelectorAll('.nf-edit').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var item = mineCache[b.getAttribute('data-id')];
+            if (item) renderEditForm(item);
+          });
+        });
       })
       .catch(function () {
         body.innerHTML = '<div class="nf-msg err">Impossible de charger vos retours.</div>';
+      });
+  }
+
+  // Formulaire de correction d'un retour encore "ouvert" (non pris en charge).
+  function renderEditForm(it) {
+    var body = document.getElementById('nf-body');
+    var isBug = it.kind === 'bug';
+    var sevSel = function (v) {
+      return it.severity === v ? ' selected' : '';
+    };
+    body.innerHTML =
+      '<div id="nf-msg"></div>' +
+      '<button class="nf-back" id="nf-edit-back">← Retour à mes retours</button>' +
+      '<div class="nf-field"><label>Resume *</label><input id="nf-e-title" maxlength="300" value="' + escapeAttr(it.title) + '"/></div>' +
+      (isBug
+        ? '<div class="nf-field"><label>Gravite</label><select id="nf-e-sev">' +
+          '<option value="bloquant"' + sevSel('bloquant') + '>Bloquant — je ne peux pas continuer</option>' +
+          '<option value="majeur"' + sevSel('majeur') + '>Majeur — ca gene fortement</option>' +
+          '<option value="mineur"' + sevSel('mineur') + '>Mineur — desagreable mais contournable</option>' +
+          '<option value="cosmetique"' + sevSel('cosmetique') + '>Cosmetique — detail visuel</option>' +
+          '</select></div>'
+        : '') +
+      '<div class="nf-field"><label>' + (isBug ? "Que s'est-il passe ? *" : 'Decrivez votre idee *') + '</label><textarea id="nf-e-desc">' + escapeHtml(it.description || '') + '</textarea></div>' +
+      (isBug
+        ? '<div class="nf-field"><label>Etapes pour reproduire</label><textarea id="nf-e-steps">' + escapeHtml(it.stepsToReproduce || '') + '</textarea></div>' +
+          '<div class="nf-field"><label>Ce que vous attendiez</label><textarea id="nf-e-exp">' + escapeHtml(it.expectedResult || '') + '</textarea></div>'
+        : '') +
+      '<button class="nf-submit" id="nf-e-save">Enregistrer les corrections</button>';
+    document.getElementById('nf-edit-back').addEventListener('click', renderMine);
+    document.getElementById('nf-e-save').addEventListener('click', function () {
+      saveEdit(it);
+    });
+  }
+
+  function saveEdit(it) {
+    var msg = document.getElementById('nf-msg');
+    var email = cfg.email || localStorage.getItem('nf_email') || '';
+    var title = (document.getElementById('nf-e-title').value || '').trim();
+    var desc = (document.getElementById('nf-e-desc').value || '').trim();
+    if (title.length < 3) return showMsg(msg, 'err', 'Merci de resumer votre retour en quelques mots.');
+    if (!desc) return showMsg(msg, 'err', 'Merci de decrire un peu plus votre retour.');
+    var payload = { email: email, title: title, description: desc };
+    var sevEl = document.getElementById('nf-e-sev');
+    if (sevEl) payload.severity = sevEl.value;
+    var stepsEl = document.getElementById('nf-e-steps');
+    var expEl = document.getElementById('nf-e-exp');
+    if (stepsEl) payload.stepsToReproduce = stepsEl.value.trim();
+    if (expEl) payload.expectedResult = expEl.value.trim();
+
+    var btn = document.getElementById('nf-e-save');
+    btn.disabled = true;
+    btn.textContent = 'Enregistrement...';
+    fetch(API + '/feedback-api/' + encodeURIComponent(it.id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) {
+        if (r.status === 409) throw new Error('locked');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function () {
+        renderMine();
+      })
+      .catch(function (e) {
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer les corrections';
+        if (e && e.message === 'locked') {
+          showMsg(msg, 'err', "Ce retour vient d'etre pris en charge : il n'est plus modifiable.");
+        } else {
+          showMsg(msg, 'err', "L'enregistrement a echoue. Verifiez votre connexion et reessayez.");
+        }
       });
   }
 
