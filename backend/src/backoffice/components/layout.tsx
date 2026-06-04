@@ -199,13 +199,35 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
             pointer-events: none;
             cursor: progress;
           }
+          /* Mode RDV : masque les éléments confidentiels (notes internes)
+             quand l'écran est montré au client. */
+          html.rdv-mode .confidential { display: none !important; }
         `}</style>
+        <script>{`
+          (function () {
+            try {
+              if (localStorage.getItem('neoRdvMode') === '1') {
+                document.documentElement.classList.add('rdv-mode');
+              }
+            } catch (e) {}
+          })();
+        `}</script>
       </head>
       <body>
         <Sidebar currentPath={currentPath} permissions={user?.permissions} isSuperAdmin={user?.isSuperAdmin} />
         <div class="main-content">
           <div class="top-bar">
             <h1 class="page-title">{title}</h1>
+            <div class="d-flex align-items-center gap-3">
+              <button
+                type="button"
+                id="rdvToggle"
+                class="btn btn-sm btn-outline-secondary"
+                title="Masque les notes internes quand l'écran est montré au client"
+              >
+                <i class="bi bi-incognito me-1"></i>
+                <span class="rdv-label">Mode RDV</span>
+              </button>
             {user && (
               <div class="dropdown">
                 <div class="user-dropdown" data-bs-toggle="dropdown">
@@ -226,6 +248,7 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
                 </ul>
               </div>
             )}
+            </div>
           </div>
           <div class="content-area">
             {children}
@@ -233,6 +256,29 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
         <script src="/feedback-widget.js" data-app="admin" data-email={user?.email ?? ''}></script>
+        <script>{`
+          (function () {
+            function sync(btn) {
+              var on = document.documentElement.classList.contains('rdv-mode');
+              btn.classList.toggle('btn-warning', on);
+              btn.classList.toggle('btn-outline-secondary', !on);
+              var icon = btn.querySelector('i');
+              if (icon) icon.className = on ? 'bi bi-eye-slash me-1' : 'bi bi-incognito me-1';
+              var label = btn.querySelector('.rdv-label');
+              if (label) label.textContent = on ? 'Mode RDV activé' : 'Mode RDV';
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+              var btn = document.getElementById('rdvToggle');
+              if (!btn) return;
+              sync(btn);
+              btn.addEventListener('click', function () {
+                var on = document.documentElement.classList.toggle('rdv-mode');
+                try { localStorage.setItem('neoRdvMode', on ? '1' : '0'); } catch (e) {}
+                sync(btn);
+              });
+            });
+          })();
+        `}</script>
       </body>
     </html>
   );

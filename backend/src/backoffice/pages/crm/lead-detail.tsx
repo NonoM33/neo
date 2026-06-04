@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx';
-import { Layout, FlashMessages } from '../../components';
+import { Layout, FlashMessages, CommentsThread } from '../../components';
+import type { CommentView } from '../../components';
 import type { AdminUser } from '../../middleware/admin-auth';
 
 interface Activity {
@@ -50,6 +51,7 @@ interface Lead {
 
 interface LeadDetailPageProps {
   lead: Lead;
+  comments: CommentView[];
   success?: string;
   error?: string;
   user: AdminUser;
@@ -128,6 +130,7 @@ const formatDateTime = (date: Date | null) => {
 
 export const LeadDetailPage: FC<LeadDetailPageProps> = ({
   lead,
+  comments,
   success,
   error,
   user,
@@ -313,6 +316,15 @@ export const LeadDetailPage: FC<LeadDetailPageProps> = ({
 
         {/* Sidebar */}
         <div class="col-lg-4">
+          {/* Notes internes (chat équipe) */}
+          <CommentsThread
+            entityType="lead"
+            entityId={lead.id}
+            comments={comments}
+            currentUserId={user.id}
+            canModerate={user.isSuperAdmin}
+          />
+
           {/* Financial */}
           <div class="card mb-4">
             <div class="card-header">

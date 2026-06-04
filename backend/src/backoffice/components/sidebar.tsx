@@ -38,6 +38,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
   {
     title: 'CRM Commercial',
     items: [
+      { path: '/backoffice/parcours', label: 'Parcours projet', icon: 'bi-stars', permission: 'crm.manage' },
       { path: '/backoffice/crm/pipeline', label: 'Pipeline', icon: 'bi-funnel', permission: 'crm.manage' },
       { path: '/backoffice/activities', label: 'Activites', icon: 'bi-calendar-event', permission: 'activites.manage' },
       { path: '/backoffice/crm/kpis', label: 'KPIs', icon: 'bi-graph-up', permission: 'crm.manage' },

@@ -183,6 +183,18 @@ export const PipelinePage: FC<PipelinePageProps> = ({
           color: #adb5bd;
           font-size: 0.8rem;
         }
+        .pipeline-card[draggable="true"] { cursor: grab; }
+        .pipeline-card.dragging { opacity: 0.4; cursor: grabbing; }
+        .pipeline-col-body.drop-target {
+          outline: 2px dashed #0d6efd;
+          outline-offset: -2px;
+          background: #eef4ff;
+        }
+        .pipeline-col-body.drop-invalid {
+          outline: 2px dashed #dc3545;
+          outline-offset: -2px;
+          background: #fdeef0;
+        }
       `}</style>
 
       <FlashMessages success={success} error={error} />
@@ -275,7 +287,7 @@ export const PipelinePage: FC<PipelinePageProps> = ({
                   </span>
                   <span class={`badge bg-${stage.color}`}>{count}</span>
                 </div>
-                <div class="pipeline-col-body">
+                <div class="pipeline-col-body" data-stage={stage.key} data-stage-type={stage.type}>
                   {isLeadStage ? (
                     (leadsByStatus[stage.key]?.length || 0) === 0 ? (
                       <div class="pipeline-empty">
@@ -284,7 +296,7 @@ export const PipelinePage: FC<PipelinePageProps> = ({
                       </div>
                     ) : (
                       leadsByStatus[stage.key]?.map(lead => (
-                        <a href={`/backoffice/crm/leads/${lead.id}`} class="pipeline-card pipeline-card-lead">
+                        <a href={`/backoffice/crm/leads/${lead.id}`} class="pipeline-card pipeline-card-lead" draggable={true} data-card-id={lead.id} data-card-type="lead">
                           <div class="fw-medium" style="font-size:0.85rem;">{lead.title}</div>
                           <div class="text-muted" style="font-size:0.75rem;">
                             {lead.firstName} {lead.lastName}
@@ -311,7 +323,7 @@ export const PipelinePage: FC<PipelinePageProps> = ({
                       </div>
                     ) : (
                       projectsByStatus[stage.key]?.map(proj => (
-                        <a href={`/backoffice/projects/${proj.id}`} class="pipeline-card pipeline-card-project">
+                        <a href={`/backoffice/projects/${proj.id}`} class="pipeline-card pipeline-card-project" draggable={true} data-card-id={proj.id} data-card-type="project">
                           <div class="fw-medium" style="font-size:0.85rem;">{proj.name}</div>
                           <div class="text-muted" style="font-size:0.75rem;">
                             {proj.clientName}
@@ -352,6 +364,106 @@ export const PipelinePage: FC<PipelinePageProps> = ({
           Converti depuis un lead
         </div>
       </div>
+
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function () {
+          var board = document.querySelector('.pipeline-board');
+          if (!board) return;
+          var dragged = null;
+
+          function refresh(body) {
+            var cards = body.querySelectorAll('.pipeline-card');
+            var col = body.closest('.pipeline-col');
+            var badges = col ? col.querySelectorAll('.pipeline-col-header .badge') : [];
+            var countBadge = badges.length ? badges[badges.length - 1] : null;
+            if (countBadge) countBadge.textContent = String(cards.length);
+
+            var emptyState = body.querySelector('.pipeline-empty');
+            if (cards.length === 0 && !emptyState) {
+              var label = body.dataset.stageType === 'lead' ? 'Aucun lead' : 'Aucun projet';
+              body.insertAdjacentHTML('beforeend',
+                '<div class="pipeline-empty"><i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;"></i>' + label + '</div>');
+            } else if (cards.length > 0 && emptyState) {
+              emptyState.remove();
+            }
+          }
+
+          board.addEventListener('dragstart', function (e) {
+            var card = e.target.closest('.pipeline-card');
+            if (!card) return;
+            dragged = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.dataset.cardId || '');
+          });
+
+          board.addEventListener('dragend', function () {
+            if (dragged) dragged.classList.remove('dragging');
+            dragged = null;
+            board.querySelectorAll('.drop-target, .drop-invalid').forEach(function (el) {
+              el.classList.remove('drop-target', 'drop-invalid');
+            });
+          });
+
+          board.addEventListener('dragover', function (e) {
+            var body = e.target.closest('.pipeline-col-body');
+            if (!body || !dragged) return;
+            var sameType = body.dataset.stageType === dragged.dataset.cardType;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = sameType ? 'move' : 'none';
+            body.classList.add(sameType ? 'drop-target' : 'drop-invalid');
+          });
+
+          board.addEventListener('dragleave', function (e) {
+            var body = e.target.closest('.pipeline-col-body');
+            if (body && !body.contains(e.relatedTarget)) {
+              body.classList.remove('drop-target', 'drop-invalid');
+            }
+          });
+
+          board.addEventListener('drop', function (e) {
+            var body = e.target.closest('.pipeline-col-body');
+            if (!body || !dragged) return;
+            e.preventDefault();
+            body.classList.remove('drop-target', 'drop-invalid');
+
+            if (body.dataset.stageType !== dragged.dataset.cardType) return;
+
+            var sourceBody = dragged.closest('.pipeline-col-body');
+            var newStatus = body.dataset.stage;
+            if (sourceBody === body) return;
+
+            var card = dragged;
+            var prevNext = card.nextSibling;
+            var prevParent = sourceBody;
+
+            body.appendChild(card);
+            refresh(prevParent);
+            refresh(body);
+
+            fetch('/backoffice/crm/pipeline/move', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ type: card.dataset.cardType, id: card.dataset.cardId, status: newStatus }),
+            })
+              .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+              .then(function (res) { if (!res.ok) return Promise.reject(res); })
+              .catch(function () {
+                prevParent.insertBefore(card, prevNext);
+                refresh(prevParent);
+                refresh(body);
+                alert('Le déplacement a échoué. Réessayez.');
+              });
+          });
+
+          board.addEventListener('click', function (e) {
+            if (e.target.closest('.pipeline-card') && board.querySelector('.dragging')) {
+              e.preventDefault();
+            }
+          });
+        })();
+      ` }} />
     </Layout>
   );
 };

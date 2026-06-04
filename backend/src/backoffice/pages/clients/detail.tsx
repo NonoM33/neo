@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx';
-import { Layout, FlashMessages } from '../../components';
+import { Layout, FlashMessages, CommentsThread } from '../../components';
+import type { CommentView } from '../../components';
 import type { AdminUser } from '../../middleware/admin-auth';
 
 interface ClientData {
@@ -68,6 +69,7 @@ interface ClientDetailPageProps {
   activities: Activity[];
   tickets: Ticket[];
   leads: Lead[];
+  comments: CommentView[];
   success?: string;
   error?: string;
   user: AdminUser;
@@ -164,6 +166,7 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
   activities,
   tickets,
   leads,
+  comments,
   success,
   error,
   user,
@@ -462,6 +465,15 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
 
         {/* Sidebar */}
         <div class="col-lg-4">
+          {/* Notes internes (chat équipe) */}
+          <CommentsThread
+            entityType="client"
+            entityId={client.id}
+            comments={comments}
+            currentUserId={user.id}
+            canModerate={user.isSuperAdmin}
+          />
+
           {/* Contact Info */}
           <div class="card mb-4">
             <div class="card-header">

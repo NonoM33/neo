@@ -5,11 +5,12 @@ import { db } from '../config/database';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { UnauthorizedError } from '../lib/errors';
+import type { RoleType } from '../db/schema/users';
 
 export interface JWTPayload {
   userId: string;
   email: string;
-  role: 'admin' | 'integrateur' | 'auditeur'; // Legacy single role
+  role: RoleType; // Legacy single role
   roles: string[]; // Multi-role array (built-in + custom role names)
   permissions: string[]; // Aggregated permission keys from the user's roles
 }

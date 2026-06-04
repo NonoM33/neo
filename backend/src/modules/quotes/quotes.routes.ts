@@ -186,7 +186,7 @@ quotesRouter.get('/devis/:id/pdf', async (c) => {
 
   const pdfBytes = await generateQuotePdf(toPdfInput(quote));
 
-  return new Response(pdfBytes, {
+  return new Response(new Uint8Array(pdfBytes), {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="devis-${quote.number}.pdf"`,

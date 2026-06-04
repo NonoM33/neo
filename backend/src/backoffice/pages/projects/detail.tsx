@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx';
-import { Layout } from '../../components';
+import { Layout, CommentsThread } from '../../components';
+import type { CommentView } from '../../components';
 import type { AdminUser } from '../../middleware/admin-auth';
 
 interface ProjectDetail {
@@ -106,6 +107,7 @@ interface ProjectDetailPageProps {
   devices: Device[];
   checklist: ChecklistItem[];
   quotes: Quote[];
+  comments: CommentView[];
   user: AdminUser;
 }
 
@@ -178,6 +180,7 @@ export const ProjectDetailPage: FC<ProjectDetailPageProps> = ({
   devices,
   checklist,
   quotes,
+  comments,
   user,
 }) => {
   const totalDevices = devices.length;
@@ -699,6 +702,15 @@ export const ProjectDetailPage: FC<ProjectDetailPageProps> = ({
 
         {/* Sidebar */}
         <div class="col-lg-4">
+          {/* Notes internes (chat équipe) */}
+          <CommentsThread
+            entityType="project"
+            entityId={project.id}
+            comments={comments}
+            currentUserId={user.id}
+            canModerate={user.isSuperAdmin}
+          />
+
           {/* Client */}
           <div class="card mb-3">
             <div class="card-header">

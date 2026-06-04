@@ -22,6 +22,14 @@ import {
 
 const DEFAULT_PASSWORD = 'password123';
 
+function requireFirst<T>(rows: T[], label: string): T {
+  const row = rows[0];
+  if (row === undefined) {
+    throw new Error(`Seed: aucune ligne retournée pour ${label}`);
+  }
+  return row;
+}
+
 async function seed() {
   console.log('🌱 Démarrage du seed...\n');
 
@@ -147,11 +155,11 @@ async function seed() {
   console.log('📋 Création des projets complets...');
 
   // PROJET 1: Villa Leroy
-  const [projet1] = await db.insert(projects).values({
+  const projet1 = requireFirst(await db.insert(projects).values({
     clientId: insertedClients[0]!.id, userId: jean.id, name: 'Villa Leroy - Domotique complète',
     description: 'Installation complète', status: 'en_cours', address: '15 rue de la Paix',
     city: 'Paris', postalCode: '75002', surface: '185.50', roomCount: 8,
-  }).returning();
+  }).returning(), 'projet1');
 
   const roomsP1 = await db.insert(rooms).values([
     { projectId: projet1.id, name: 'Salon', type: 'salon' as const, floor: 0 },
@@ -191,12 +199,12 @@ async function seed() {
   ]);
 
   // Quote 1: totalHT=4825.52 (after 5% discount), costHT= (12*28.50 + 5*122.85 + 1*226.85 + 0)*0.95 = (342+614.25+226.85)*0.95 = 1183.10*0.95 = 1123.95
-  const [quote1] = await db.insert(quotes).values({
+  const quote1 = requireFirst(await db.insert(quotes).values({
     projectId: projet1.id, number: 'DEV-2024-001', status: 'accepte' as const,
     validUntil: new Date('2024-04-15'), totalHT: '4825.52', totalTVA: '965.10', totalTTC: '5790.62',
     discount: '5.00', totalCostHT: '1123.95', totalMarginHT: '3701.57', marginPercent: '76.71',
     sentAt: new Date('2024-03-01'),
-  }).returning();
+  }).returning(), 'quote1');
 
   await db.insert(quoteLines).values([
     { quoteId: quote1.id, productId: getProduct('PHI-HUE-E27').id, description: 'Ampoule Hue E27', quantity: 12, unitPriceHT: '41.58', unitCostHT: '28.50', totalHT: '498.96', sortOrder: 1 },
@@ -206,11 +214,11 @@ async function seed() {
   ]);
 
   // PROJET 2: Appart Bernard
-  const [projet2] = await db.insert(projects).values({
+  const projet2 = requireFirst(await db.insert(projects).values({
     clientId: insertedClients[1]!.id, userId: marie.id, name: 'Appart Bernard - Audio multiroom',
     description: 'Système audio Sonos + éclairage', status: 'en_cours', address: '28 avenue des Champs',
     city: 'Lyon', postalCode: '69003', surface: '95.00', roomCount: 4,
-  }).returning();
+  }).returning(), 'projet2');
 
   const roomsP2 = await db.insert(rooms).values([
     { projectId: projet2.id, name: 'Séjour', type: 'salon' as const, floor: 3 },
@@ -236,11 +244,11 @@ async function seed() {
   ]);
 
   // Quote 2: cost = 629.30 + 3*125.30 = 629.30+375.90 = 1005.20, margin = 2180 - 1005.20 = 1174.80
-  const [quote2] = await db.insert(quotes).values({
+  const quote2 = requireFirst(await db.insert(quotes).values({
     projectId: projet2.id, number: 'DEV-2024-002', status: 'envoye' as const,
     validUntil: new Date('2024-05-01'), totalHT: '2180.00', totalTVA: '436.00', totalTTC: '2616.00',
     totalCostHT: '1005.20', totalMarginHT: '1174.80', marginPercent: '53.89',
-  }).returning();
+  }).returning(), 'quote2');
 
   await db.insert(quoteLines).values([
     { quoteId: quote2.id, productId: getProduct('SONOS-ARC').id, description: 'Sonos Arc', quantity: 1, unitPriceHT: '899.00', unitCostHT: '629.30', totalHT: '899.00', sortOrder: 1 },
@@ -249,11 +257,11 @@ async function seed() {
   ]);
 
   // PROJET 3: Maison Petit (terminé)
-  const [projet3] = await db.insert(projects).values({
+  const projet3 = requireFirst(await db.insert(projects).values({
     clientId: insertedClients[2]!.id, userId: jean.id, name: 'Maison Petit - Éclairage',
     description: 'Éclairage connecté complet', status: 'termine', address: '5 impasse du Château',
     city: 'Bordeaux', postalCode: '33000', surface: '120.00', roomCount: 6,
-  }).returning();
+  }).returning(), 'projet3');
 
   const roomsP3 = await db.insert(rooms).values([
     { projectId: projet3.id, name: 'Salon', type: 'salon' as const, floor: 0 },
@@ -281,12 +289,12 @@ async function seed() {
   ]);
 
   // Quote 3: cost = 10*28.50 + 6*19.90 + 1*32.50 = 285+119.40+32.50 = 436.90, margin = 1250-436.90 = 813.10
-  const [quote3] = await db.insert(quotes).values({
+  const quote3 = requireFirst(await db.insert(quotes).values({
     projectId: projet3.id, number: 'DEV-2024-003', status: 'accepte' as const,
     validUntil: new Date('2024-02-15'), totalHT: '1250.00', totalTVA: '250.00', totalTTC: '1500.00',
     totalCostHT: '436.90', totalMarginHT: '813.10', marginPercent: '65.05',
     sentAt: new Date('2024-01-20'),
-  }).returning();
+  }).returning(), 'quote3');
 
   await db.insert(quoteLines).values([
     { quoteId: quote3.id, productId: getProduct('PHI-HUE-E27').id, description: 'Ampoules E27', quantity: 10, unitPriceHT: '41.58', unitCostHT: '28.50', totalHT: '415.80', sortOrder: 1 },
@@ -296,11 +304,11 @@ async function seed() {
   ]);
 
   // PROJET 4: Villa Moreau - Sécurité
-  const [projet4] = await db.insert(projects).values({
+  const projet4 = requireFirst(await db.insert(projects).values({
     clientId: insertedClients[3]!.id, userId: marie.id, name: 'Villa Moreau - Sécurité',
     description: 'Alarme + vidéosurveillance', status: 'en_cours', address: '42 boulevard Victor Hugo',
     city: 'Marseille', postalCode: '13008', surface: '210.00', roomCount: 9,
-  }).returning();
+  }).returning(), 'projet4');
 
   const roomsP4 = await db.insert(rooms).values([
     { projectId: projet4.id, name: 'Entrée', type: 'autre' as const, floor: 0 },
@@ -333,12 +341,12 @@ async function seed() {
   ]);
 
   // Quote 4: cost = 226.85 + 8*51.35 + 10*31.85 = 226.85+410.80+318.50 = 956.15, margin = 2890-956.15 = 1933.85
-  const [quote4] = await db.insert(quotes).values({
+  const quote4 = requireFirst(await db.insert(quotes).values({
     projectId: projet4.id, number: 'DEV-2024-004', status: 'envoye' as const,
     validUntil: new Date('2024-04-30'), totalHT: '2890.00', totalTVA: '578.00', totalTTC: '3468.00',
     totalCostHT: '956.15', totalMarginHT: '1933.85', marginPercent: '66.91',
     sentAt: new Date('2024-03-15'),
-  }).returning();
+  }).returning(), 'quote4');
 
   await db.insert(quoteLines).values([
     { quoteId: quote4.id, productId: getProduct('AJAX-HUB2').id, description: 'Centrale Ajax Hub 2', quantity: 1, unitPriceHT: '349.00', unitCostHT: '226.85', totalHT: '349.00', sortOrder: 1 },
@@ -348,11 +356,11 @@ async function seed() {
   ]);
 
   // PROJET 5: Maison Roux (brouillon)
-  const [projet5] = await db.insert(projects).values({
+  const projet5 = requireFirst(await db.insert(projects).values({
     clientId: insertedClients[4]!.id, userId: jean.id, name: 'Maison Roux - Neuf RT2020',
     description: 'Installation domotique construction neuve', status: 'brouillon',
     address: '8 rue des Lilas', city: 'Toulouse', postalCode: '31000', surface: '145.00', roomCount: 7,
-  }).returning();
+  }).returning(), 'projet5');
 
   await db.insert(rooms).values([
     { projectId: projet5.id, name: 'Salon/Séjour', type: 'salon' as const, floor: 0 },
@@ -380,11 +388,11 @@ async function seed() {
   });
 
   // PROJET 6: Appart Simon (archivé)
-  const [projet6] = await db.insert(projects).values({
+  const projet6 = requireFirst(await db.insert(projects).values({
     clientId: insertedClients[5]!.id, userId: marie.id, name: 'Appart Simon - Smart Home',
     description: 'Solution clé en main', status: 'archive', address: '17 place de la République',
     city: 'Nantes', postalCode: '44000', surface: '78.00', roomCount: 3,
-  }).returning();
+  }).returning(), 'projet6');
 
   const roomsP6 = await db.insert(rooms).values([
     { projectId: projet6.id, name: 'Pièce de vie', type: 'salon' as const, floor: 2 },

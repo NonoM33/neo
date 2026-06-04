@@ -4,3 +4,5 @@ export { Table, TableActions } from './table';
 export { Pagination, PaginationInfo } from './pagination';
 export { Alert, FlashMessages } from './alert';
 export { Modal, ConfirmModal } from './modal';
+export { CommentsThread, CommentItem } from './comments-thread';
+export type { CommentView } from './comments-thread';

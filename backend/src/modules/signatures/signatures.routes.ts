@@ -77,7 +77,7 @@ signaturesRouter.delete('/devis/:id/signature', async (c) => {
 signaturesRouter.get('/devis/:id/contrat.pdf', async (c) => {
   const id = c.req.param('id');
   const pdfBytes = await svc.previewContractPdf(id);
-  return new Response(pdfBytes, {
+  return new Response(new Uint8Array(pdfBytes), {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="contrat-${id}.pdf"`,

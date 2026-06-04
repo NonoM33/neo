@@ -47,6 +47,7 @@ adminRouter.get('/users', async (c) => {
       lastName: users.lastName,
       phone: users.phone,
       role: users.role,
+      isActive: users.isActive,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     })
@@ -92,6 +93,7 @@ adminRouter.get('/users/:id/edit', async (c) => {
       lastName: users.lastName,
       phone: users.phone,
       role: users.role,
+      isActive: users.isActive,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     })
@@ -136,6 +138,7 @@ adminRouter.post('/users/:id', async (c) => {
         lastName: users.lastName,
         phone: users.phone,
         role: users.role,
+        isActive: users.isActive,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       })

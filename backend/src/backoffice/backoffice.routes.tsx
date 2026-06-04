@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { count, eq, desc, asc, and, ilike, or, sql, SQL, gte, lte, isNotNull } from 'drizzle-orm';
 import { db } from '../config/database';
-import { users, clients, projects, suppliers, products, productDependencies, quotes, quoteLines, rooms, photos, devices, checklistItems, leads, activities, salesObjectives, leadStageHistory, userRoles, roles, tickets, ticketComments, ticketHistory, ticketCategories, slaDefinitions, cannedResponses, kbArticles, kbCategories, faqItems, chatMessages, chatSessions, orders, orderLines, orderStatusHistory, stockMovements, supplierOrders, supplierOrderLines, invoices, invoiceLines, signatureRequests } from '../db/schema';
-import { hashPassword, verifyPasswordHash } from '../modules/auth/auth.service';
+import { users, clients, projects, suppliers, products, productDependencies, quotes, quoteLines, rooms, photos, devices, checklistItems, leads, activities, salesObjectives, leadStageHistory, userRoles, roles, tickets, ticketComments, ticketHistory, ticketCategories, slaDefinitions, cannedResponses, kbArticles, kbCategories, faqItems, chatMessages, chatSessions, orders, orderLines, orderStatusHistory, stockMovements, supplierOrders, supplierOrderLines, invoices, invoiceLines, signatureRequests, entityComments } from '../db/schema';
+import { hashPassword, verifyPasswordHash, mintAccessTokenForUser } from '../modules/auth/auth.service';
 import * as productsService from '../modules/products/products.service';
 import * as ordersService from '../modules/orders/orders.service';
 import * as stockService from '../modules/stock/stock.service';
@@ -47,7 +47,10 @@ import { ClientsListPage, ClientFormPage, ClientDetailPage } from './pages/clien
 import { ProductsListPage, ProductFormPage, ImportProductsPage } from './pages/products';
 import { SuppliersListPage, SupplierFormPage } from './pages/suppliers';
 import { ProjectsListPage, ProjectDetailPage } from './pages/projects';
-import { PipelinePage, LeadFormPage, LeadDetailPage, KPIsDashboardPage } from './pages/crm';
+import { PipelinePage, LeadFormPage, LeadDetailPage, KPIsDashboardPage, validatePipelineMove } from './pages/crm';
+import { CommentItem } from './components';
+import { validateCommentInput, formatAuthorName } from './comments/comments.validate';
+import { loadEntityComments } from './comments/comments.service';
 import { ActivitiesListPage, ActivityFormPage } from './pages/activities';
 import { ObjectivesListPage, ObjectiveFormPage } from './pages/objectives';
 import {
@@ -67,6 +70,7 @@ import { SupplierOrdersListPage, SupplierOrderDetailPage, SupplierOrderFormPage 
 import { InvoicesListPage, InvoiceDetailPage } from './pages/invoices';
 import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
 import { SignaturesListPage } from './pages/signatures';
+import { ParcoursWizardPage } from './pages/parcours';
 import * as quotesService from '../modules/quotes/quotes.service';
 import { RecettePage, RecetteContent } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
@@ -163,6 +167,31 @@ backofficeRouter.get('/logout', (c) => {
 // ============ Protected routes ============
 
 backofficeRouter.use('/*', requireAdmin);
+
+// ============ Parcours guidé (création projet A→Z, plein écran) ============
+
+// Client JS du wizard (servi tel quel, comme le widget de feedback).
+const parcoursClientPath = import.meta.dir + '/pages/parcours/parcours.client.js';
+backofficeRouter.get('/parcours/app.js', async (c) => {
+  const js = await Bun.file(parcoursClientPath).text();
+  return c.body(js, 200, {
+    'Content-Type': 'application/javascript; charset=utf-8',
+    'Cache-Control': 'no-store',
+  });
+});
+
+backofficeRouter.get('/parcours', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const token = await mintAccessTokenForUser(adminUser.id);
+  const resumeProjectId = c.req.query('project');
+  return c.html(
+    <ParcoursWizardPage
+      token={token}
+      userName={`${adminUser.firstName} ${adminUser.lastName}`}
+      resumeProjectId={resumeProjectId}
+    />
+  );
+});
 
 // ============ Dashboard ============
 
@@ -666,7 +695,7 @@ backofficeRouter.get('/clients/:id', async (c) => {
   }
 
   // Fetch all related data
-  const [clientProjects, clientActivities, clientTickets, clientLeads] = await Promise.all([
+  const [clientProjects, clientActivities, clientTickets, clientLeads, clientComments] = await Promise.all([
     db
       .select({
         id: projects.id,
@@ -716,6 +745,7 @@ backofficeRouter.get('/clients/:id', async (c) => {
       .from(leads)
       .where(eq(leads.clientId, id))
       .orderBy(desc(leads.createdAt)),
+    loadEntityComments('client', id),
   ]);
 
   // Get all quotes for all projects of this client
@@ -746,6 +776,7 @@ backofficeRouter.get('/clients/:id', async (c) => {
       activities={clientActivities}
       tickets={clientTickets}
       leads={clientLeads}
+      comments={clientComments}
       user={adminUser}
     />
   );
@@ -1453,6 +1484,8 @@ backofficeRouter.get('/projects/:id', async (c) => {
     return c.redirect('/backoffice/projects');
   }
 
+  const projectComments = await loadEntityComments('project', id);
+
   return c.html(
     <ProjectDetailPage
       project={projectData}
@@ -1481,6 +1514,7 @@ backofficeRouter.get('/projects/:id', async (c) => {
           .orderBy(quoteLines.sortOrder);
         return { ...q, lines };
       }))}
+      comments={projectComments}
       user={adminUser}
     />
   );
@@ -1633,6 +1667,104 @@ backofficeRouter.get('/crm/pipeline', async (c) => {
   );
 });
 
+// ============ Commentaires internes (notes partagées) ============
+
+backofficeRouter.post('/comments', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody();
+
+  const result = validateCommentInput({
+    entityType: body.entityType as string,
+    entityId: body.entityId as string,
+    content: body.content as string,
+  });
+
+  if (!result.ok) {
+    return c.text(result.error, result.status as any);
+  }
+
+  const [created] = await db
+    .insert(entityComments)
+    .values({
+      entityType: result.entityType,
+      entityId: result.entityId,
+      authorId: adminUser.id,
+      authorName: formatAuthorName(adminUser.firstName, adminUser.lastName),
+      content: result.content,
+    })
+    .returning();
+
+  if (!created) {
+    return c.text('Erreur lors de l’enregistrement', 500);
+  }
+
+  return c.html(<CommentItem comment={created} canDelete={true} />);
+});
+
+backofficeRouter.delete('/comments/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+
+  const [comment] = await db.select().from(entityComments).where(eq(entityComments.id, id)).limit(1);
+  if (!comment) {
+    return c.text('');
+  }
+
+  if (!adminUser.isSuperAdmin && comment.authorId !== adminUser.id) {
+    return c.text('Action non autorisée', 403);
+  }
+
+  await db.delete(entityComments).where(eq(entityComments.id, id));
+  return c.text('');
+});
+
+backofficeRouter.post('/crm/pipeline/move', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.json().catch(() => null) as { type?: string; id?: string; status?: string } | null;
+
+  const move = validatePipelineMove(body ?? {});
+  if (!move.ok) {
+    return c.json({ ok: false, error: move.error }, move.status as any);
+  }
+
+  if (move.type === 'lead') {
+    const [lead] = await db.select().from(leads).where(eq(leads.id, move.id)).limit(1);
+    if (!lead) {
+      return c.json({ ok: false, error: 'Lead introuvable' }, 404);
+    }
+
+    if (lead.status === move.status) {
+      return c.json({ ok: true });
+    }
+
+    await db
+      .update(leads)
+      .set({ status: move.status, updatedAt: new Date() })
+      .where(eq(leads.id, move.id));
+
+    await db.insert(leadStageHistory).values({
+      leadId: move.id,
+      fromStatus: lead.status,
+      toStatus: move.status,
+      changedBy: adminUser.id,
+    });
+
+    return c.json({ ok: true });
+  }
+
+  const [project] = await db.select().from(projects).where(eq(projects.id, move.id)).limit(1);
+  if (!project) {
+    return c.json({ ok: false, error: 'Projet introuvable' }, 404);
+  }
+
+  await db
+    .update(projects)
+    .set({ status: move.status, updatedAt: new Date() })
+    .where(eq(projects.id, move.id));
+
+  return c.json({ ok: true });
+});
+
 backofficeRouter.get('/crm/leads/new', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const commercials = await getCommercials();
@@ -1690,14 +1822,16 @@ backofficeRouter.get('/crm/leads/:id', async (c) => {
     return c.redirect('/backoffice/crm/pipeline');
   }
 
-  const [leadActivities, history] = await Promise.all([
+  const [leadActivities, history, leadComments] = await Promise.all([
     db.select().from(activities).where(eq(activities.leadId, id)).orderBy(desc(activities.createdAt)).limit(20),
     db.select().from(leadStageHistory).where(eq(leadStageHistory.leadId, id)).orderBy(desc(leadStageHistory.changedAt)),
+    loadEntityComments('lead', id),
   ]);
 
   return c.html(
     <LeadDetailPage
       lead={{ ...lead, activities: leadActivities, stageHistory: history }}
+      comments={leadComments}
       user={adminUser}
     />
   );
@@ -3906,7 +4040,7 @@ backofficeRouter.get('/recette/screenshot/:id', async (c) => {
     : ext === 'webp' ? 'image/webp'
     : ext === 'gif' ? 'image/gif'
     : 'image/jpeg';
-  return new Response(data, { headers: { 'Content-Type': contentType } });
+  return new Response(new Uint8Array(data), { headers: { 'Content-Type': contentType } });
 });
 
 // ============ Newsletter / Changelog ============

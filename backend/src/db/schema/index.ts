@@ -24,3 +24,4 @@ export * from './recette';
 export * from './newsletter';
 export * from './chatbot';
 export * from './configurator-drafts';
+export * from './comments';

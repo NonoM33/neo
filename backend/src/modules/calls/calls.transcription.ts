@@ -28,7 +28,7 @@ export async function transcribeAudio(
   const whisperUrl = env.WHISPER_URL;
 
   const formData = new FormData();
-  formData.append('file', new Blob([audioBuffer]), filename);
+  formData.append('file', new Blob([new Uint8Array(audioBuffer)]), filename);
   formData.append('model', 'Systran/faster-whisper-medium');
   formData.append('language', language);
   formData.append('response_format', 'verbose_json');

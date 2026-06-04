@@ -481,6 +481,10 @@ export async function provisionInstance(input: CreateCloudInstanceInput) {
     })
     .returning();
 
+  if (!instance) {
+    throw new AppError(500, "Échec de la création de l'instance cloud");
+  }
+
   // 5. Provision in background (don't block the response)
   (async () => {
     try {

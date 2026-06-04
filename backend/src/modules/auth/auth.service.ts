@@ -152,6 +152,65 @@ export async function login(email: string, password: string) {
   };
 }
 
+/**
+ * Build the staff JWT payload from a resolved identity. Pure (no I/O) so the
+ * token contract used by both login and the back-office "parcours" can be
+ * asserted in tests without a database.
+ */
+export function buildStaffTokenPayload(identity: {
+  userId: string;
+  email: string;
+  role: JWTPayload['role'];
+  roles: string[];
+  permissions: string[];
+}): JWTPayload {
+  return {
+    userId: identity.userId,
+    email: identity.email,
+    role: identity.role,
+    roles: identity.roles,
+    permissions: identity.permissions,
+  };
+}
+
+/**
+ * Mint a staff access token for an already-authenticated user, without a
+ * password check. Used by the back-office guided journey ("parcours"), whose
+ * browser-side wizard calls the same protected /api endpoints as the field app.
+ * The payload is identical to the one issued at login, so RBAC behaves the same.
+ */
+export async function mintAccessTokenForUser(userId: string): Promise<string> {
+  const [user] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      isActive: users.isActive,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user || !user.isActive) {
+    throw new UnauthorizedError('Utilisateur introuvable ou désactivé');
+  }
+
+  const { roles: userRolesList, permissions } = await getUserRolesAndPermissions(
+    user.id,
+    user.role
+  );
+
+  return generateAccessToken(
+    buildStaffTokenPayload({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      roles: userRolesList,
+      permissions,
+    })
+  );
+}
+
 export async function refresh(refreshToken: string) {
   const [token] = await db
     .select()

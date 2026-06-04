@@ -68,9 +68,10 @@ const schema = {
   .cfg-room .rn { font-weight: 600; font-size: 15px; }
   .cfg-room .rb { position: absolute; top: 10px; right: 10px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: linear-gradient(135deg,#6ea8fe,#a98eff); color: #0b0d12; font-size: 12px; font-weight: 700; display: none; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
   .cfg-room.has .rb { display: flex; }
-  .cfg-roomview-head { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
-  .cfg-back { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: #fff; border-radius: 10px; padding: 9px 14px; cursor: pointer; font-size: 14px; font-family: inherit; }
-  .cfg-back:hover { border-color: #6ea8fe; }
+  .cfg-roomview-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; z-index: 3; }
+  .cfg-back { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg,#6ea8fe,#a98eff); border: none; color: #0b0d12; border-radius: 12px; padding: 11px 16px; cursor: pointer; font-size: 14px; font-weight: 700; font-family: inherit; box-shadow: 0 6px 18px rgba(110,168,254,.35); white-space: nowrap; }
+  .cfg-back:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .cfg-back:active { transform: translateY(0); }
   .cfg-roomview-title { font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
   .cfg-catlabel { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #8a8f98; margin: 22px 0 12px; display: flex; align-items: center; gap: 7px; }
   .cfg-catlabel-ic { width: 16px; height: 16px; }
@@ -155,7 +156,7 @@ const schema = {
   /* Toast de confirmation de dépôt */
   .cfg-toast { position: fixed; z-index: 75; left: 50%; bottom: 84px; transform: translate(-50%, 14px); opacity: 0; pointer-events: none; padding: 10px 16px; border-radius: 999px; background: rgba(18,22,30,.96); border: 1px solid rgba(95,224,176,.5); color: #d8ffe9; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.45); transition: opacity .22s ease, transform .22s ease; }
   .cfg-toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .cfg-roompanel { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: rgba(8,10,14,.9); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
+  .cfg-roompanel { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; background: rgba(8,10,14,.94); backdrop-filter: blur(16px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
   .cfg-roompanel.open { opacity: 1; pointer-events: auto; }
   .cfg-roompanel-total { margin-left: auto; text-align: right; display: flex; flex-direction: column; line-height: 1.1; }
   .cfg-roompanel-x { width: 40px; height: 40px; flex: none; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #cfd6e4; font-size: 26px; line-height: 1; cursor: pointer; display: grid; place-items: center; transition: background .15s, border-color .15s; }
@@ -320,6 +321,7 @@ const schema = {
 import { House3D } from '../configurateur/house3d';
 import { OverlayGate } from '../configurateur/overlay-gate';
 import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
+import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -384,6 +386,8 @@ import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configur
   var builderFailed = false;    // bascule grille 2D si WebGL KO
   var openRoomKey = null;       // pièce ouverte dans l'overlay
   var roomGate = new OverlayGate(); // garde anti-réouverture (click-through 3D)
+  var activeRoomKeys = null;    // pièces présentes dans la maison (lazy: toutes au départ)
+  var customRooms = [];         // pièces sur-mesure ajoutées par le client
 
   function getQty(room, pid) { return (selection[room] && selection[room][pid]) || 0; }
   function setQty(room, pid, q) {
@@ -448,6 +452,20 @@ import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configur
     return room.cats.some(function (c) { return (PRODUCTS_BY_CAT[c] || []).length; });
   }
   function availableRooms() { return ROOMS.filter(roomHasProducts); }
+  function allCats() { return Object.keys(PRODUCTS_BY_CAT); }
+
+  // Pièces actuellement dans la maison (prédéfinies actives + sur-mesure).
+  function ensureActiveRooms() {
+    if (!activeRoomKeys) activeRoomKeys = availableRooms().map(function (r) { return r.key; });
+  }
+  function houseRooms() {
+    ensureActiveRooms();
+    return activeRoomKeys.map(function (k) { return ROOM_BY_KEY[k]; }).filter(Boolean);
+  }
+  function activeKeySet() {
+    ensureActiveRooms();
+    var s = {}; activeRoomKeys.forEach(function (k) { s[k] = true; }); return s;
+  }
 
   // ── Builder 3D (étape 2) ──
   function enterBuilder() {
@@ -460,6 +478,7 @@ import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configur
     house3d.setActive(true);
     refreshBadges();
     renderPalette();
+    renderRoomsBar();
   }
 
   function initBuilder() {
@@ -468,7 +487,7 @@ import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configur
     var stage = document.getElementById('cfg-stage');
     try {
       house3d = new House3D(stage, {
-        rooms: availableRooms().map(function (r) { return { key: r.key, label: r.label, accent: r.accent }; }),
+        rooms: houseRooms().map(function (r) { return { key: r.key, label: r.label, accent: r.accent }; }),
         onRoomClick: function (key) { openRoom(key); },
       });
       return true;
@@ -481,7 +500,108 @@ import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configur
 
   function refreshBadges() {
     if (!house3d) return;
-    availableRooms().forEach(function (r) { house3d.setRoomCount(r.key, roomCount(r.key)); });
+    houseRooms().forEach(function (r) { house3d.setRoomCount(r.key, roomCount(r.key)); });
+  }
+
+  // Reconstruit la scène 3D quand la liste des pièces change (dispose + recrée).
+  function rebuildHouse() {
+    if (!house3d) { renderRoomsBar(); return; }
+    try { house3d.dispose(); } catch (_e) { /* noop */ }
+    house3d = null;
+    if (!initBuilder()) { builderFailed = true; renderHouseGrid(); return; }
+    house3d.setActive(true);
+    refreshBadges();
+    renderRoomsBar();
+  }
+
+  // ── Barre « Mes pièces » + ajout de pièce (sur-mesure ou prédéfinie) ──
+  function renderRoomsBar() {
+    var bar = document.getElementById('cfg-rooms-bar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    var label = document.createElement('span');
+    label.className = 'cfg-rooms-label';
+    label.textContent = 'Mes pièces';
+    bar.appendChild(label);
+    houseRooms().forEach(function (room) {
+      var chip = document.createElement('span');
+      chip.className = 'cfg-roomchip';
+      chip.style.setProperty('--accent', room.accent || '#6ea8fe');
+      var n = roomCount(room.key);
+      chip.innerHTML = '<button type="button" class="cfg-roomchip__open">' +
+        '<span class="cfg-roomchip__emoji">' + (room.emoji || '🏠') + '</span>' +
+        esc(room.label) + (n > 0 ? ' <b>' + n + '</b>' : '') + '</button>' +
+        '<button type="button" class="cfg-roomchip__x" aria-label="Retirer ' + esc(room.label) + '">&times;</button>';
+      chip.querySelector('.cfg-roomchip__open').addEventListener('click', function () { openRoom(room.key); });
+      chip.querySelector('.cfg-roomchip__x').addEventListener('click', function () { removeHouseRoom(room.key); });
+      bar.appendChild(chip);
+    });
+    var add = document.createElement('button');
+    add.type = 'button'; add.className = 'cfg-roomadd';
+    add.innerHTML = '<span aria-hidden="true">＋</span> Ajouter une pièce';
+    add.addEventListener('click', openAddRoom);
+    bar.appendChild(add);
+  }
+
+  function removeHouseRoom(key) {
+    ensureActiveRooms();
+    activeRoomKeys = removeRoom(activeRoomKeys, key);
+    if (selection[key]) { delete selection[key]; }
+    scheduleEstimate();
+    rebuildHouse();
+  }
+
+  function addPredefinedRoom(key) {
+    ensureActiveRooms();
+    activeRoomKeys = addRoom(activeRoomKeys, key);
+    rebuildHouse();
+  }
+
+  function addCustomRoom(name) {
+    ensureActiveRooms();
+    var clean = (name || '').trim();
+    if (!clean) return;
+    var existing = ROOMS.map(function (r) { return r.key; }).concat(customRooms.map(function (r) { return r.key; }));
+    var key = slugifyRoomKey(clean, existing);
+    var palette = ['#6ea8fe', '#ff9b6e', '#a98eff', '#5fe0b0', '#7bd88f', '#cfa8ff', '#6ee7ff', '#ffd66e'];
+    var room = { key: key, label: clean, emoji: '🏠', accent: palette[customRooms.length % palette.length], cats: allCats() };
+    customRooms.push(room);
+    ROOM_BY_KEY[key] = room;
+    activeRoomKeys = addRoom(activeRoomKeys, key);
+    rebuildHouse();
+  }
+
+  function openAddRoom() {
+    var modal = document.getElementById('cfg-addroom');
+    var grid = document.getElementById('cfg-addroom-grid');
+    var input = document.getElementById('cfg-addroom-name');
+    grid.innerHTML = '';
+    var active = activeKeySet();
+    availableRooms().forEach(function (room) {
+      if (active[room.key]) return; // déjà dans la maison
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'cfg-addroom-opt';
+      b.style.setProperty('--accent', room.accent);
+      b.innerHTML = '<span class="cfg-addroom-opt__emoji">' + (room.emoji || '🏠') + '</span>' + esc(room.label);
+      b.addEventListener('click', function () { addPredefinedRoom(room.key); closeAddRoom(); });
+      grid.appendChild(b);
+    });
+    if (!grid.children.length) {
+      var none = document.createElement('p');
+      none.className = 'cfg-room-intro';
+      none.textContent = 'Toutes les pièces prédéfinies sont déjà dans votre maison. Ajoutez-en une sur-mesure 👇';
+      grid.appendChild(none);
+    }
+    if (input) input.value = '';
+    modal.hidden = false;
+    requestAnimationFrame(function () { modal.classList.add('open'); if (input) input.focus(); });
+  }
+
+  function closeAddRoom() {
+    var modal = document.getElementById('cfg-addroom');
+    if (!modal) return;
+    modal.classList.remove('open');
+    setTimeout(function () { if (!modal.classList.contains('open')) modal.hidden = true; }, 220);
   }
 
   // ── Palette glisser-déposer (équipement → pièce 3D) ──
@@ -646,7 +766,8 @@ import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configur
     var head = document.createElement('div');
     head.className = 'cfg-roomview-head';
     var back = document.createElement('button');
-    back.type = 'button'; back.className = 'cfg-back'; back.textContent = '← Maison';
+    back.type = 'button'; back.className = 'cfg-back';
+    back.innerHTML = '<span aria-hidden="true">←</span> Retour à la maison 3D';
     back.addEventListener('click', closeRoom);
     var titleEl = document.createElement('div');
     titleEl.className = 'cfg-roomview-title';
