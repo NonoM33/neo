@@ -208,11 +208,11 @@ export const PipelinePage: FC<PipelinePageProps> = ({
                 <span class="pipeline-summary-value text-secondary">{totalLeads}</span>
                 <span class="pipeline-summary-label">Leads actifs</span>
               </div>
-              <div class="pipeline-summary-item">
+              <div class="pipeline-summary-item confidential">
                 <span class="pipeline-summary-value text-primary">{formatCurrency(pipelineTotal.toString())}</span>
                 <span class="pipeline-summary-label">Valeur pipeline</span>
               </div>
-              <div class="pipeline-summary-item">
+              <div class="pipeline-summary-item confidential">
                 <span class="pipeline-summary-value text-success">{formatCurrency(weightedTotal.toString())}</span>
                 <span class="pipeline-summary-label">Valeur ponderee</span>
               </div>
@@ -302,7 +302,7 @@ export const PipelinePage: FC<PipelinePageProps> = ({
                             {lead.firstName} {lead.lastName}
                             {lead.company && ` · ${lead.company}`}
                           </div>
-                          <div class="d-flex justify-content-between align-items-center mt-1">
+                          <div class="d-flex justify-content-between align-items-center mt-1 confidential">
                             <span class="fw-bold text-primary" style="font-size:0.8rem;">
                               {formatCurrency(lead.estimatedValue)}
                             </span>

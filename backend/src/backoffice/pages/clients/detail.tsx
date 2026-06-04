@@ -419,7 +419,7 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
 
           {/* Leads */}
           {leads.length > 0 && (
-            <div class="card">
+            <div class="card confidential">
               <div class="card-header">
                 <i class="bi bi-funnel me-2"></i>Leads ({leads.length})
               </div>
@@ -511,7 +511,7 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
 
           {/* Notes */}
           {client.notes && (
-            <div class="card mb-4">
+            <div class="card mb-4 confidential">
               <div class="card-header">
                 <i class="bi bi-sticky me-2"></i>Notes
               </div>

@@ -598,7 +598,7 @@ export const ProjectDetailPage: FC<ProjectDetailPageProps> = ({
                         </div>
                         <div class="d-flex align-items-center gap-3">
                           {mp !== null && (
-                            <span class={`badge bg-${marginColor}`}>Marge {mp.toFixed(1)}%</span>
+                            <span class={`badge bg-${marginColor} confidential`}>Marge {mp.toFixed(1)}%</span>
                           )}
                           <span class="fw-bold fs-6">
                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(parseFloat(quote.totalTTC))}
@@ -620,13 +620,13 @@ export const ProjectDetailPage: FC<ProjectDetailPageProps> = ({
                             <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(parseFloat(quote.totalHT))}</strong>
                           </span>
                           {quote.totalCostHT && parseFloat(quote.totalCostHT) > 0 && (
-                            <span>
+                            <span class="confidential">
                               <span class="text-muted">Cout:</span>{' '}
                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(parseFloat(quote.totalCostHT))}
                             </span>
                           )}
                           {quote.totalMarginHT && parseFloat(quote.totalMarginHT) > 0 && (
-                            <span>
+                            <span class="confidential">
                               <span class="text-muted">Marge:</span>{' '}
                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(parseFloat(quote.totalMarginHT))}
                             </span>
