@@ -152,6 +152,8 @@
   var overlay = null;
   function closeModal() {
     if (overlay) {
+      syncFromInputs();
+      saveDraft();
       overlay.remove();
       overlay = null;
     }
@@ -163,6 +165,7 @@
 
   function openModal() {
     if (overlay) return;
+    loadDraftIntoState();
     overlay = el('div', { class: 'nf-overlay' });
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) closeModal();
@@ -178,6 +181,9 @@
     var tabs = modal.querySelectorAll('.nf-tab');
     tabs.forEach(function (t) {
       t.addEventListener('click', function () {
+        // Sauvegarde le brouillon avant de quitter l'onglet "Signaler".
+        syncFromInputs();
+        saveDraft();
         tabs.forEach(function (x) {
           x.classList.remove('active');
         });
@@ -189,33 +195,129 @@
     renderReport();
   }
 
-  var state = { kind: 'bug' };
+  /* ---- Brouillon persistant par page ----
+   * Conserve ce que l'utilisateur a saisi quand il ferme la modale, change
+   * d'onglet ou bascule bug/idee, et le restaure a la reouverture SUR LA MEME
+   * PAGE. Vide a l'envoi. Expire apres 24h pour ne pas trainer indefiniment. */
+  var DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+  function defaultState() {
+    return {
+      kind: 'bug',
+      title: '',
+      severity: 'majeur',
+      desc: '',
+      steps: '',
+      exp: '',
+      email: '',
+    };
+  }
+  var state = defaultState();
+
+  function draftKey() {
+    return 'nf_draft:' + location.pathname;
+  }
+  // Pur : un brouillon est "vide" si aucun champ texte n'a ete saisi.
+  function draftIsEmpty(d) {
+    if (!d) return true;
+    return !(
+      (d.title && d.title.trim()) ||
+      (d.desc && d.desc.trim()) ||
+      (d.steps && d.steps.trim()) ||
+      (d.exp && d.exp.trim())
+    );
+  }
+  // Pur : un brouillon est restaurable s'il a un horodatage recent (< TTL).
+  function draftIsFresh(d, now, ttl) {
+    return !!(d && typeof d.at === 'number' && now - d.at <= ttl);
+  }
+  function syncFromInputs() {
+    var get = function (id) {
+      var e = document.getElementById(id);
+      return e ? e.value : undefined;
+    };
+    var v;
+    if ((v = get('nf-title')) !== undefined) state.title = v;
+    if ((v = get('nf-sev')) !== undefined) state.severity = v;
+    if ((v = get('nf-desc')) !== undefined) state.desc = v;
+    if ((v = get('nf-steps')) !== undefined) state.steps = v;
+    if ((v = get('nf-exp')) !== undefined) state.exp = v;
+    if ((v = get('nf-email')) !== undefined) state.email = v;
+  }
+  function saveDraft() {
+    try {
+      var d = {
+        kind: state.kind,
+        title: state.title,
+        severity: state.severity,
+        desc: state.desc,
+        steps: state.steps,
+        exp: state.exp,
+        email: state.email,
+        at: Date.now(),
+      };
+      if (draftIsEmpty(d)) localStorage.removeItem(draftKey());
+      else localStorage.setItem(draftKey(), JSON.stringify(d));
+    } catch (e) {
+      /* localStorage indisponible : on ignore, jamais casser l'app hote */
+    }
+  }
+  function clearDraft() {
+    try {
+      localStorage.removeItem(draftKey());
+    } catch (e) {
+      /* ignore */
+    }
+  }
+  function loadDraftIntoState() {
+    state = defaultState();
+    try {
+      var raw = localStorage.getItem(draftKey());
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (draftIsEmpty(d) || !draftIsFresh(d, Date.now(), DRAFT_TTL_MS)) {
+        localStorage.removeItem(draftKey());
+        return;
+      }
+      state.kind = d.kind === 'amelioration' ? 'amelioration' : 'bug';
+      state.title = d.title || '';
+      state.severity = d.severity || 'majeur';
+      state.desc = d.desc || '';
+      state.steps = d.steps || '';
+      state.exp = d.exp || '';
+      state.email = d.email || '';
+    } catch (e) {
+      /* brouillon illisible : on repart d'un etat propre */
+    }
+  }
 
   function renderReport() {
     var body = document.getElementById('nf-body');
     var ctx = buildContext();
-    var savedEmail = cfg.email || localStorage.getItem('nf_email') || '';
+    var savedEmail = state.email || cfg.email || localStorage.getItem('nf_email') || '';
+    var sevSel = function (v) {
+      return state.severity === v ? ' selected' : '';
+    };
     body.innerHTML =
       '<div id="nf-msg"></div>' +
       '<div class="nf-field"><label>Type de retour</label><div class="nf-kinds">' +
       '<div class="nf-kind' + (state.kind === 'bug' ? ' active' : '') + '" data-kind="bug">🐞 Un bug</div>' +
       '<div class="nf-kind' + (state.kind === 'amelioration' ? ' active' : '') + '" data-kind="amelioration">💡 Une idee</div>' +
       '</div></div>' +
-      '<div class="nf-field"><label>Resume *</label><input id="nf-title" maxlength="300" placeholder="' +
+      '<div class="nf-field"><label>Resume *</label><input id="nf-title" maxlength="300" value="' + escapeAttr(state.title) + '" placeholder="' +
       (state.kind === 'bug' ? 'Ex : Le bouton Enregistrer ne repond pas' : 'Ex : Ajouter un export PDF du devis') +
       '"/></div>' +
       '<div class="nf-field" id="nf-sev-wrap"' + (state.kind === 'amelioration' ? ' style="display:none"' : '') + '><label>Gravite</label><select id="nf-sev">' +
-      '<option value="bloquant">Bloquant — je ne peux pas continuer</option>' +
-      '<option value="majeur" selected>Majeur — ca gene fortement</option>' +
-      '<option value="mineur">Mineur — desagreable mais contournable</option>' +
-      '<option value="cosmetique">Cosmetique — detail visuel</option>' +
+      '<option value="bloquant"' + sevSel('bloquant') + '>Bloquant — je ne peux pas continuer</option>' +
+      '<option value="majeur"' + sevSel('majeur') + '>Majeur — ca gene fortement</option>' +
+      '<option value="mineur"' + sevSel('mineur') + '>Mineur — desagreable mais contournable</option>' +
+      '<option value="cosmetique"' + sevSel('cosmetique') + '>Cosmetique — detail visuel</option>' +
       '</select></div>' +
       '<div class="nf-field"><label>' + (state.kind === 'bug' ? "Que s'est-il passe ? *" : 'Decrivez votre idee *') + '</label><textarea id="nf-desc" placeholder="' +
       (state.kind === 'bug' ? 'Decrivez precisement ce que vous avez vu (message d\'erreur, comportement inattendu...)' : 'Quel besoin cela couvre-t-il ? Comment l\'imaginez-vous ?') +
-      '"></textarea></div>' +
+      '">' + escapeHtml(state.desc) + '</textarea></div>' +
       (state.kind === 'bug'
-        ? '<div class="nf-field"><label>Etapes pour reproduire</label><textarea id="nf-steps" placeholder="1. Je vais sur...\n2. Je clique sur...\n3. ..."></textarea></div>' +
-          '<div class="nf-field"><label>Ce que vous attendiez</label><textarea id="nf-exp" placeholder="Le resultat normal aurait du etre..."></textarea></div>'
+        ? '<div class="nf-field"><label>Etapes pour reproduire</label><textarea id="nf-steps" placeholder="1. Je vais sur...\n2. Je clique sur...\n3. ...">' + escapeHtml(state.steps) + '</textarea></div>' +
+          '<div class="nf-field"><label>Ce que vous attendiez</label><textarea id="nf-exp" placeholder="Le resultat normal aurait du etre...">' + escapeHtml(state.exp) + '</textarea></div>'
         : '') +
       '<div class="nf-field"><label>Votre email (pour le suivi) *</label><input id="nf-email" type="email" value="' + escapeAttr(savedEmail) + '" placeholder="vous@exemple.fr"/><div class="nf-hint">Nous vous repondrons et vous previendrons a la cloture.</div></div>' +
       '<details class="nf-ctx"><summary>🔧 Infos techniques jointes automatiquement</summary><div class="nf-ctx-in">' +
@@ -228,9 +330,21 @@
 
     body.querySelectorAll('.nf-kind').forEach(function (k) {
       k.addEventListener('click', function () {
+        syncFromInputs();
         state.kind = k.getAttribute('data-kind');
         renderReport();
       });
+    });
+    // Auto-sauvegarde du brouillon a chaque frappe/selection.
+    ['nf-title', 'nf-sev', 'nf-desc', 'nf-steps', 'nf-exp', 'nf-email'].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (!e) return;
+      var persist = function () {
+        syncFromInputs();
+        saveDraft();
+      };
+      e.addEventListener('input', persist);
+      e.addEventListener('change', persist);
     });
     document.getElementById('nf-send').addEventListener('click', submit);
   }
@@ -272,6 +386,9 @@
         return r.json();
       })
       .then(function () {
+        // Retour envoye : on purge le brouillon pour ne pas le re-proposer.
+        clearDraft();
+        state = defaultState();
         var body = document.getElementById('nf-body');
         body.innerHTML =
           '<div class="nf-msg ok">✅ Merci ! Votre retour a bien ete enregistre. Vous pouvez suivre son avancement dans « Mes retours ».</div>' +
