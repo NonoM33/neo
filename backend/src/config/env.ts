@@ -56,22 +56,23 @@ const envSchema = z.object({
   GITLAB_TOKEN: z.string().optional(),
   GITLAB_PROJECT_ID: z.string().optional(),
 
-  // Mattermost (notification d'un nouveau retour recette/feedback dans un canal dedie).
-  // URL du webhook entrant ("Incoming Webhook") cree cote Mattermost.
-  MATTERMOST_WEBHOOK_URL: z.string().url().optional(),
-  // Canal cible (ex: "feedback-neo"). Vide = canal par defaut du webhook.
-  MATTERMOST_CHANNEL: z.string().optional(),
-  // Nom d'affichage du bot qui poste le message.
-  MATTERMOST_USERNAME: z.string().default('Neo Feedback'),
-
-  // Mattermost via compte bot (API REST) — utilisé pour notifier l'équipe
-  // commerciale à l'ouverture d'une conversation chatbot.
+  // Mattermost via compte bot (API REST) — sert à notifier l'équipe :
+  // nouveau retour recette/feedback ET ouverture d'une conversation chatbot.
   // URL du serveur Mattermost (ex: https://mattermost.exemple.com).
-  MATTERMOST_URL: z.string().url().optional(),
+  // Empty string traité comme absent (cas .env avec la clé vide).
+  MATTERMOST_URL: z
+    .preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+      z.string().url().optional()
+    ),
   // Token du compte bot (Authorization: Bearer ...). Secret : jamais commité.
   MATTERMOST_BOT_TOKEN: z.string().optional(),
   // Équipe Mattermost (slug) pour résoudre un canal par son nom.
   MATTERMOST_TEAM: z.string().optional(),
+  // Canal dédié aux retours (feedback/recette) : ID explicite (prioritaire)
+  // ou nom à résoudre dans la team.
+  MATTERMOST_FEEDBACK_CHANNEL_ID: z.string().optional(),
+  MATTERMOST_FEEDBACK_CHANNEL: z.string().default('feedback'),
   // Canal des commerciaux : ID explicite (prioritaire) ou nom à résoudre.
   MATTERMOST_COMMERCIAL_CHANNEL_ID: z.string().optional(),
   MATTERMOST_COMMERCIAL_CHANNEL: z.string().default('commercial'),
@@ -135,8 +136,10 @@ export const isRecetteEnabled = env.APP_ENV !== 'production';
 // L'integration GitLab n'est active que si un token ET un projet cible sont fournis.
 export const isGitlabEnabled = Boolean(env.GITLAB_TOKEN && env.GITLAB_PROJECT_ID);
 
-// La notification Mattermost n'est active que si un webhook entrant est configure.
-export const isMattermostEnabled = Boolean(env.MATTERMOST_WEBHOOK_URL);
+// La notification Mattermost n'est active que si le compte bot est configure.
+export const isMattermostEnabled = Boolean(
+  env.MATTERMOST_URL && env.MATTERMOST_BOT_TOKEN
+);
 
 // La notification via compte bot (API REST) requiert l'URL du serveur + le token bot.
 export const isMattermostBotEnabled = Boolean(

@@ -5,6 +5,7 @@ import {
   recetteSeverityLabels,
   type RecetteFeedback,
 } from '../../db/schema';
+import { postToChannel } from '../mattermost/mattermost.client';
 
 // Données normalisées d'un retour fraîchement créé (widget terrain OU centre de
 // recette interne), suffisantes pour composer le message Mattermost.
@@ -24,14 +25,6 @@ export interface FeedbackCreatedNotification {
   featureTitle?: string | null;
 }
 
-// Payload d'un "Incoming Webhook" Mattermost.
-export interface MattermostMessage {
-  text: string;
-  username?: string;
-  channel?: string;
-  icon_emoji?: string;
-}
-
 const KIND_EMOJI: Record<RecetteFeedback['kind'], string> = {
   bug: ':beetle:',
   amelioration: ':bulb:',
@@ -48,11 +41,10 @@ function excerpt(text: string, max = 280): string {
   return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
 }
 
-// Construit le message Mattermost (logique pure, testable). Markdown supporté
-// par Mattermost dans le champ `text`.
+// Construit le message Markdown Mattermost (logique pure, testable).
 export function buildFeedbackMattermostMessage(
   input: FeedbackCreatedNotification
-): MattermostMessage {
+): string {
   const kind = recetteKindLabels[input.kind].label;
   const severity = recetteSeverityLabels[input.severity].label;
   const sourceLabel = SOURCE_LABELS[input.source] ?? input.source;
@@ -76,13 +68,7 @@ export function buildFeedbackMattermostMessage(
   const recetteUrl = `${env.PUBLIC_URL.replace(/\/$/, '')}/backoffice/recette`;
   lines.push(`🔗 [Ouvrir dans le centre de recette](${recetteUrl})`);
 
-  const message: MattermostMessage = {
-    text: lines.join('\n'),
-    username: env.MATTERMOST_USERNAME,
-    icon_emoji: KIND_EMOJI[input.kind],
-  };
-  if (env.MATTERMOST_CHANNEL) message.channel = env.MATTERMOST_CHANNEL;
-  return message;
+  return lines.join('\n');
 }
 
 // Mappe une ligne RecetteFeedback (+ contexte feature) vers la notification.
@@ -104,30 +90,24 @@ export function toFeedbackNotification(
   };
 }
 
-// Notifie le canal Mattermost dédié (best-effort : ne bloque ni ne casse la
-// création du retour si le webhook est absent ou indisponible).
+// Notifie le canal Mattermost dédié aux retours (best-effort : ne bloque ni ne
+// casse la création du retour si le bot est absent ou le canal indisponible).
 export async function notifyFeedbackCreated(
   fb: RecetteFeedback,
   extra: { featureTitle?: string | null; route?: string | null } = {}
 ): Promise<void> {
-  if (!isMattermostEnabled || !env.MATTERMOST_WEBHOOK_URL) return;
-
+  if (!isMattermostEnabled) return;
   try {
     const message = buildFeedbackMattermostMessage(
       toFeedbackNotification(fb, extra)
     );
-    const res = await fetch(env.MATTERMOST_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
-    if (!res.ok) {
-      console.error(
-        `[mattermost] notification refusée (${res.status}): ${await res
-          .text()
-          .catch(() => '')}`
-      );
-    }
+    await postToChannel(
+      {
+        channelId: env.MATTERMOST_FEEDBACK_CHANNEL_ID,
+        channelName: env.MATTERMOST_FEEDBACK_CHANNEL,
+      },
+      message
+    );
   } catch (error) {
     console.error('[mattermost] notification non envoyée:', error);
   }
