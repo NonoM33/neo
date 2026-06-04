@@ -7,14 +7,29 @@
   if (window.__neoFeedbackLoaded) return;
   window.__neoFeedbackLoaded = true;
 
-  var script = document.currentScript;
-  var cfg = {
-    app: (script && script.getAttribute('data-app')) || 'site',
-    api:
-      (script && script.getAttribute('data-api')) ||
-      (script && script.src ? new URL(script.src).origin : ''),
-    email: (script && script.getAttribute('data-email')) || '',
-  };
+  // document.currentScript est null quand le script est injecte dynamiquement
+  // (CRM) ou charge en defer/async : on retombe alors sur la balise <script>
+  // qui pointe vers feedback-widget.js pour lire ses data-attributs.
+  function resolveConfig(doc) {
+    var script = doc.currentScript;
+    if (!script || !script.src || script.src.indexOf('feedback-widget.js') === -1) {
+      var all = doc.getElementsByTagName('script');
+      for (var s = all.length - 1; s >= 0; s--) {
+        if (all[s].src && all[s].src.indexOf('feedback-widget.js') !== -1) {
+          script = all[s];
+          break;
+        }
+      }
+    }
+    return {
+      app: (script && script.getAttribute('data-app')) || 'site',
+      api:
+        (script && script.getAttribute('data-api')) ||
+        (script && script.src ? new URL(script.src).origin : ''),
+      email: (script && script.getAttribute('data-email')) || '',
+    };
+  }
+  var cfg = resolveConfig(document);
   var API = cfg.api.replace(/\/$/, '');
 
   /* ---- Capture des logs console (ring buffer) ---- */
