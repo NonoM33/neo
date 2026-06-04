@@ -9,3 +9,8 @@ export * from './prospection';
 export * from './calendar';
 export * from './cloud';
 export * from './products';
+export * from './users';
+export * from './clients';
+export * from './projects';
+export * from './devis';
+export * from './tickets';

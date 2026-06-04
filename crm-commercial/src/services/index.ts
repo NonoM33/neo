@@ -12,3 +12,8 @@ export * from './scoring.engine';
 export * from './suggestions.engine';
 export * from './prospection.service';
 export { cloudService } from './cloud.service';
+export { usersService } from './users.service';
+export { clientsService } from './clients.service';
+export { projectsService } from './projects.service';
+export { devisService } from './devis.service';
+export { ticketsService } from './tickets.service';

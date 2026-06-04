@@ -1,0 +1,25 @@
+---
+// Analytics PostHog — cookieless (persistance localStorage), respectueux RGPD.
+// Pas de session recording par défaut ; aligné sur la bannière de consentement
+// existante qui annonce « un outil d'analyse respectueux, sans cookies publicitaires ».
+// Le script ci-dessous est traité (bundlé) par Astro : l'import de posthog-js est
+// résolu au build et chargé dynamiquement uniquement si la clé est configurée.
+---
+
+<script>
+  const key = import.meta.env.PUBLIC_POSTHOG_KEY;
+  const apiHost = import.meta.env.PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com';
+
+  if (key) {
+    const { default: posthog } = await import('posthog-js');
+    posthog.init(key, {
+      api_host: apiHost,
+      persistence: 'localStorage',
+      respect_dnt: true,
+      autocapture: true,
+      capture_pageview: true,
+      capture_pageleave: true,
+      disable_session_recording: true,
+    });
+  }
+</script>

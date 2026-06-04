@@ -1,0 +1,108 @@
+Checkpoint: 3 products already scraped.
+
+=== Crawling 206-produits-zigbee (zigbee) ===
+  [listing] page 1: 48 cards (48 new, total 48)
+  [listing] page 2: 48 cards (48 new, total 96)
+  [listing] page 3: 48 cards (48 new, total 144)
+  [listing] page 4: 48 cards (48 new, total 192)
+  [listing] page 5: 48 cards (48 new, total 240)
+  [listing] page 6: 48 cards (48 new, total 288)
+  [listing] page 7: 48 cards (48 new, total 336)
+  [listing] page 8: 48 cards (48 new, total 384)
+  [listing] page 9: 48 cards (48 new, total 432)
+  [listing] page 10: 48 cards (48 new, total 480)
+  [listing] page 11: 48 cards (48 new, total 528)
+  [listing] page 12: 48 cards (48 new, total 576)
+  [listing] page 13: 48 cards (48 new, total 624)
+  [listing] page 14: 31 cards (31 new, total 655)
+  [listing] page 15: 0 cards (0 new, total 655)
+Collected 655 cards for zigbee.
+  …10 new enriched (total 13) — checkpoint saved
+  …20 new enriched (total 23) — checkpoint saved
+  …30 new enriched (total 33) — checkpoint saved
+  …40 new enriched (total 43) — checkpoint saved
+  …50 new enriched (total 53) — checkpoint saved
+  …60 new enriched (total 63) — checkpoint saved
+  …70 new enriched (total 73) — checkpoint saved
+  …80 new enriched (total 83) — checkpoint saved
+  …90 new enriched (total 93) — checkpoint saved
+  …100 new enriched (total 103) — checkpoint saved
+  …110 new enriched (total 113) — checkpoint saved
+  …120 new enriched (total 123) — checkpoint saved
+  …130 new enriched (total 133) — checkpoint saved
+  …140 new enriched (total 143) — checkpoint saved
+  …150 new enriched (total 153) — checkpoint saved
+  …160 new enriched (total 163) — checkpoint saved
+  …170 new enriched (total 173) — checkpoint saved
+  …180 new enriched (total 183) — checkpoint saved
+  …190 new enriched (total 193) — checkpoint saved
+  …200 new enriched (total 203) — checkpoint saved
+  …210 new enriched (total 213) — checkpoint saved
+  …220 new enriched (total 223) — checkpoint saved
+  …230 new enriched (total 233) — checkpoint saved
+  …240 new enriched (total 243) — checkpoint saved
+  …250 new enriched (total 253) — checkpoint saved
+  …260 new enriched (total 263) — checkpoint saved
+  …270 new enriched (total 273) — checkpoint saved
+  …280 new enriched (total 283) — checkpoint saved
+  …290 new enriched (total 293) — checkpoint saved
+  …300 new enriched (total 303) — checkpoint saved
+  …310 new enriched (total 313) — checkpoint saved
+  …320 new enriched (total 323) — checkpoint saved
+  …330 new enriched (total 333) — checkpoint saved
+  …340 new enriched (total 343) — checkpoint saved
+  …350 new enriched (total 353) — checkpoint saved
+  …360 new enriched (total 363) — checkpoint saved
+  …370 new enriched (total 373) — checkpoint saved
+  …380 new enriched (total 383) — checkpoint saved
+  …390 new enriched (total 393) — checkpoint saved
+  …400 new enriched (total 403) — checkpoint saved
+  …410 new enriched (total 413) — checkpoint saved
+  …420 new enriched (total 423) — checkpoint saved
+  …430 new enriched (total 433) — checkpoint saved
+  …440 new enriched (total 443) — checkpoint saved
+  …450 new enriched (total 453) — checkpoint saved
+  …460 new enriched (total 463) — checkpoint saved
+  …470 new enriched (total 473) — checkpoint saved
+  …480 new enriched (total 483) — checkpoint saved
+  …490 new enriched (total 493) — checkpoint saved
+  …500 new enriched (total 503) — checkpoint saved
+  …510 new enriched (total 513) — checkpoint saved
+  …520 new enriched (total 523) — checkpoint saved
+  …530 new enriched (total 533) — checkpoint saved
+  …540 new enriched (total 543) — checkpoint saved
+  …550 new enriched (total 553) — checkpoint saved
+  …560 new enriched (total 563) — checkpoint saved
+  …570 new enriched (total 573) — checkpoint saved
+  …580 new enriched (total 583) — checkpoint saved
+  …590 new enriched (total 593) — checkpoint saved
+  …600 new enriched (total 603) — checkpoint saved
+  …610 new enriched (total 613) — checkpoint saved
+  …620 new enriched (total 623) — checkpoint saved
+  …630 new enriched (total 633) — checkpoint saved
+  …640 new enriched (total 643) — checkpoint saved
+  …650 new enriched (total 653) — checkpoint saved
+
+=== Crawling 211-produits-matter (matter) ===
+  [listing] page 1: 48 cards (48 new, total 48)
+  [listing] page 2: 48 cards (48 new, total 96)
+  [listing] page 3: 48 cards (48 new, total 144)
+  [listing] page 4: 41 cards (41 new, total 185)
+  [listing] page 5: 0 cards (0 new, total 185)
+Collected 185 cards for matter.
+  …660 new enriched (total 663) — checkpoint saved
+  …670 new enriched (total 673) — checkpoint saved
+  …680 new enriched (total 683) — checkpoint saved
+  …690 new enriched (total 693) — checkpoint saved
+  …700 new enriched (total 703) — checkpoint saved
+  …710 new enriched (total 713) — checkpoint saved
+  …720 new enriched (total 723) — checkpoint saved
+  …730 new enriched (total 733) — checkpoint saved
+  …740 new enriched (total 743) — checkpoint saved
+  …750 new enriched (total 753) — checkpoint saved
+  …760 new enriched (total 763) — checkpoint saved
+  …770 new enriched (total 773) — checkpoint saved
+  …780 new enriched (total 783) — checkpoint saved
+
+✅ Done. Total 788 products (zigbee 655, matter 133, coordinators 113).
+Saved to /Users/nono92/neo/backend/scripts/scrape-domadoo/data/domadoo-products.json

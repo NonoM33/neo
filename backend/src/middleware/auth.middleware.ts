@@ -5,13 +5,13 @@ import { db } from '../config/database';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { UnauthorizedError } from '../lib/errors';
-import type { RoleType } from '../db/schema/users';
 
 export interface JWTPayload {
   userId: string;
   email: string;
   role: 'admin' | 'integrateur' | 'auditeur'; // Legacy single role
-  roles: RoleType[]; // Multi-role array
+  roles: string[]; // Multi-role array (built-in + custom role names)
+  permissions: string[]; // Aggregated permission keys from the user's roles
 }
 
 declare module 'hono' {
@@ -48,9 +48,13 @@ export async function authMiddleware(c: Context, next: Next) {
       throw new UnauthorizedError('Compte désactivé');
     }
 
-    // Ensure roles array exists (backward compatibility)
+    // Ensure roles/permissions arrays exist (backward compatibility with
+    // tokens issued before multi-role / permissions support)
     if (!payload.roles) {
       payload.roles = [payload.role];
+    }
+    if (!payload.permissions) {
+      payload.permissions = [];
     }
 
     c.set('user', payload);

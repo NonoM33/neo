@@ -22,4 +22,5 @@ export * from './floor-plans';
 export * from './signatures';
 export * from './recette';
 export * from './newsletter';
+export * from './chatbot';
 export * from './configurator-drafts';

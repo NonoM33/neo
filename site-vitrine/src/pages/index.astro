@@ -1,5 +1,6 @@
 ---
 import { SITE_CONFIG } from '../config/site';
+import PostHog from '../components/analytics/PostHog.astro';
 
 const siteUrl = SITE_CONFIG.url;
 const title = "Neo Domotique — Votre maison s'éveille";
@@ -68,6 +69,7 @@ const localBusinessSchema = {
 <script type="application/ld+json" set:html={JSON.stringify(webPageSchema)} />
 <script type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
 <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
+<PostHog />
 </head>
 <body>
 

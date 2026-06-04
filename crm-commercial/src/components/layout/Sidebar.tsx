@@ -1,12 +1,86 @@
 import { NavLink } from 'react-router-dom';
-import { useAuthStore, useGamificationStore } from '../../stores';
+import { useGamificationStore } from '../../stores';
 import { computeLevelProgress } from '../../services/gamification.engine';
+import { useUserRoles } from '../../hooks';
+import { rolesCanAccess, type Feature } from '../../config/permissions';
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: string;
+  feature: Feature;
+  end?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+// Navigation déclarative : chaque entrée porte sa feature, filtrée par rôle.
+// On n'expose ici que les pages réellement implémentées dans l'app React.
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Tableau de bord',
+    items: [{ to: '/', label: 'Dashboard', icon: 'bi-speedometer2', feature: 'dashboard', end: true }],
+  },
+  {
+    title: 'Commercial',
+    items: [
+      { to: '/prospection', label: 'Prospection', icon: 'bi-crosshair', feature: 'prospection' },
+      { to: '/leads', label: 'Pipeline', icon: 'bi-funnel', feature: 'leads' },
+      { to: '/activities', label: 'Activités', icon: 'bi-calendar-event', feature: 'activities' },
+      { to: '/calendar', label: 'Agenda', icon: 'bi-calendar3', feature: 'calendar' },
+      { to: '/kpis', label: 'KPIs', icon: 'bi-graph-up', feature: 'kpis' },
+    ],
+  },
+  {
+    title: 'Catalogue',
+    items: [{ to: '/produits', label: 'Produits', icon: 'bi-box-seam', feature: 'catalogue' }],
+  },
+  {
+    title: 'Mon espace',
+    items: [{ to: '/calendar/availability', label: 'Disponibilités', icon: 'bi-clock', feature: 'availability' }],
+  },
+  {
+    title: 'Gamification',
+    items: [
+      { to: '/leaderboard', label: 'Classement', icon: 'bi-trophy', feature: 'leaderboard' },
+      { to: '/profile', label: 'Mon Profil', icon: 'bi-person-badge', feature: 'profile' },
+    ],
+  },
+  {
+    title: 'Gestion',
+    items: [
+      { to: '/clients', label: 'Clients', icon: 'bi-people', feature: 'clients' },
+      { to: '/projets', label: 'Projets', icon: 'bi-folder', feature: 'projets' },
+      { to: '/devis', label: 'Devis', icon: 'bi-file-earmark-text', feature: 'devis' },
+    ],
+  },
+  {
+    title: 'Support',
+    items: [{ to: '/tickets', label: 'Tickets', icon: 'bi-life-preserver', feature: 'support' }],
+  },
+  {
+    title: 'Infrastructure',
+    items: [{ to: '/cloud', label: 'Cloud HA', icon: 'bi-cloud-arrow-up', feature: 'cloud' }],
+  },
+  {
+    title: 'Administration',
+    items: [{ to: '/users', label: 'Utilisateurs', icon: 'bi-person-gear', feature: 'users' }],
+  },
+];
 
 export function Sidebar() {
-  const { user } = useAuthStore();
   const { profile } = useGamificationStore();
+  const roles = useUserRoles();
 
   const levelProgress = computeLevelProgress(profile.totalXP);
+
+  const visibleSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => rolesCanAccess(item.feature, roles)),
+  })).filter((section) => section.items.length > 0);
 
   return (
     <aside className="sidebar">
@@ -18,71 +92,17 @@ export function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        <div className="nav-section">Tableau de bord</div>
-        <NavLink to="/" className="nav-link" end>
-          <i className="bi bi-speedometer2"></i>
-          Dashboard
-        </NavLink>
-
-        <div className="nav-section">Commercial</div>
-        <NavLink to="/prospection" className="nav-link">
-          <i className="bi bi-crosshair"></i>
-          Prospection
-        </NavLink>
-        <NavLink to="/leads" className="nav-link">
-          <i className="bi bi-funnel"></i>
-          Pipeline
-        </NavLink>
-        <NavLink to="/activities" className="nav-link">
-          <i className="bi bi-calendar-event"></i>
-          Activités
-        </NavLink>
-        <NavLink to="/calendar" className="nav-link">
-          <i className="bi bi-calendar3"></i>
-          Agenda
-        </NavLink>
-        <NavLink to="/kpis" className="nav-link">
-          <i className="bi bi-graph-up"></i>
-          KPIs
-        </NavLink>
-
-        <div className="nav-section">Catalogue</div>
-        <NavLink to="/produits" className="nav-link">
-          <i className="bi bi-box-seam"></i>
-          Produits
-        </NavLink>
-
-        <div className="nav-section">Mon espace</div>
-        <NavLink to="/calendar/availability" className="nav-link">
-          <i className="bi bi-clock"></i>
-          Disponibilités
-        </NavLink>
-
-        <div className="nav-section">Gamification</div>
-        <NavLink to="/leaderboard" className="nav-link">
-          <i className="bi bi-trophy"></i>
-          Classement
-        </NavLink>
-        <NavLink to="/profile" className="nav-link">
-          <i className="bi bi-person-badge"></i>
-          Mon Profil
-        </NavLink>
-
-        {user?.roles?.includes('admin') && (
-          <>
-            <div className="nav-section">Infrastructure</div>
-            <NavLink to="/cloud" className="nav-link">
-              <i className="bi bi-cloud-arrow-up"></i>
-              Cloud HA
-            </NavLink>
-
-            <div className="nav-section">Administration</div>
-            <NavLink to="/objectives" className="nav-link">
-              <i className="bi bi-bullseye"></i>
-              Objectifs
-            </NavLink>
-          </>
-        )}
+        {visibleSections.map((section) => (
+          <div key={section.title}>
+            <div className="nav-section">{section.title}</div>
+            {section.items.map((item) => (
+              <NavLink key={item.to} to={item.to} className="nav-link" end={item.end}>
+                <i className={`bi ${item.icon}`}></i>
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        ))}
       </nav>
 
       {/* XP Bar & Streak at bottom */}

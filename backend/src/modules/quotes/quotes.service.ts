@@ -1,15 +1,20 @@
-import { eq, and, desc, SQL, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, ilike, count, SQL, inArray } from 'drizzle-orm';
 import { db } from '../../config/database';
 import { quotes, quoteLines, projects, clients, products } from '../../db/schema';
 import { NotFoundError } from '../../lib/errors';
+import { paginate, getOffset, type PaginationParams } from '../../lib/pagination';
 import { sendEmail, renderQuoteSentEmail } from '../email';
 import { generateQuotePdf } from './quote-pdf.service';
 import type { CreateQuoteInput, UpdateQuoteInput, QuoteLineInput } from './quotes.schema';
 
+// Roles that may manage every quote regardless of project ownership.
+// Integrateurs remain scoped to the projects they own.
+const QUOTE_MANAGER_ROLES = new Set(['admin', 'commercial']);
+
 async function verifyProjectAccess(projectId: string, userId: string, userRole: string) {
   const conditions: SQL[] = [eq(projects.id, projectId)];
 
-  if (userRole !== 'admin') {
+  if (!QUOTE_MANAGER_ROLES.has(userRole)) {
     conditions.push(eq(projects.userId, userId));
   }
 
@@ -43,6 +48,90 @@ async function verifyQuoteAccess(quoteId: string, userId: string, userRole: stri
   await verifyProjectAccess(quote.projectId, userId, userRole);
 
   return quote;
+}
+
+// Remove cost/margin fields from a quote response. The staff and mobile APIs
+// must never expose purchase prices or margins to the client-facing layers.
+export function stripQuoteCostFields<T extends Record<string, unknown>>(quote: T): T {
+  const { totalCostHT, totalMarginHT, marginPercent, ...rest } = quote;
+  void totalCostHT;
+  void totalMarginHT;
+  void marginPercent;
+
+  const safeQuote = rest as Record<string, unknown>;
+
+  if (Array.isArray(safeQuote.lines)) {
+    safeQuote.lines = (safeQuote.lines as Record<string, unknown>[]).map((line) => {
+      const { unitCostHT, ...safeLine } = line;
+      void unitCostHT;
+      return safeLine;
+    });
+  }
+
+  return safeQuote as unknown as T;
+}
+
+export interface QuoteListFilters {
+  search?: string;
+  status?: (typeof quotes.status.enumValues)[number];
+}
+
+// Global, ownership-agnostic quote list for the staff back-office (admin/commercial).
+export async function getAllQuotes(params: PaginationParams, filters: QuoteListFilters = {}) {
+  const conditions: SQL[] = [];
+
+  if (filters.status) {
+    conditions.push(eq(quotes.status, filters.status));
+  }
+
+  if (filters.search) {
+    conditions.push(
+      or(
+        ilike(quotes.number, `%${filters.search}%`),
+        ilike(clients.firstName, `%${filters.search}%`),
+        ilike(clients.lastName, `%${filters.search}%`),
+        ilike(clients.email, `%${filters.search}%`)
+      )!
+    );
+  }
+
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const [data, countResult] = await Promise.all([
+    db
+      .select({
+        id: quotes.id,
+        number: quotes.number,
+        status: quotes.status,
+        totalTTC: quotes.totalTTC,
+        createdAt: quotes.createdAt,
+        sentAt: quotes.sentAt,
+        validUntil: quotes.validUntil,
+        project: { id: projects.id, name: projects.name },
+        client: {
+          id: clients.id,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          email: clients.email,
+        },
+      })
+      .from(quotes)
+      .innerJoin(projects, eq(quotes.projectId, projects.id))
+      .innerJoin(clients, eq(projects.clientId, clients.id))
+      .where(where)
+      .orderBy(desc(quotes.createdAt))
+      .limit(params.limit)
+      .offset(getOffset(params)),
+    db
+      .select({ total: count() })
+      .from(quotes)
+      .innerJoin(projects, eq(quotes.projectId, projects.id))
+      .innerJoin(clients, eq(projects.clientId, clients.id))
+      .where(where),
+  ]);
+
+  const total = countResult[0]?.total ?? 0;
+  return paginate(data, total, params);
 }
 
 function calculateTotals(lines: QuoteLineInput[], discount: number = 0, costMap?: Map<string, number>) {

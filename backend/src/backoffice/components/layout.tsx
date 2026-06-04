@@ -9,6 +9,8 @@ interface LayoutProps {
     firstName: string;
     lastName: string;
     email: string;
+    permissions?: string[];
+    isSuperAdmin?: boolean;
   };
 }
 
@@ -200,7 +202,7 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
         `}</style>
       </head>
       <body>
-        <Sidebar currentPath={currentPath} />
+        <Sidebar currentPath={currentPath} permissions={user?.permissions} isSuperAdmin={user?.isSuperAdmin} />
         <div class="main-content">
           <div class="top-bar">
             <h1 class="page-title">{title}</h1>

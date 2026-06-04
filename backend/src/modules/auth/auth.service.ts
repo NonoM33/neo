@@ -7,6 +7,7 @@ import { env } from '../../config/env';
 import { UnauthorizedError } from '../../lib/errors';
 import type { JWTPayload } from '../../middleware/auth.middleware';
 import type { RoleType } from '../../db/schema/users';
+import { aggregatePermissions } from '../roles/permissions';
 
 export async function hashPassword(password: string): Promise<string> {
   return hash(password);
@@ -61,21 +62,37 @@ function parseExpiration(expiresIn: string | undefined): number {
  * Get all roles for a user from the user_roles junction table
  * Falls back to legacy single role if no roles found
  */
-async function getUserRoles(userId: string, legacyRole: RoleType): Promise<RoleType[]> {
+async function getUserRolesAndPermissions(
+  userId: string,
+  legacyRole: RoleType
+): Promise<{ roles: string[]; permissions: string[] }> {
   const userRoleRecords = await db
     .select({
       roleName: roles.name,
+      permissions: roles.permissions,
     })
     .from(userRoles)
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
     .where(eq(userRoles.userId, userId));
 
   if (userRoleRecords.length === 0) {
-    // Fallback to legacy single role for backward compatibility
-    return [legacyRole];
+    // Fallback to legacy single role for backward compatibility, resolving its
+    // permissions from the roles table when the built-in role exists.
+    const [legacy] = await db
+      .select({ permissions: roles.permissions })
+      .from(roles)
+      .where(eq(roles.name, legacyRole))
+      .limit(1);
+    return {
+      roles: [legacyRole],
+      permissions: aggregatePermissions([legacy?.permissions ?? []]),
+    };
   }
 
-  return userRoleRecords.map((r) => r.roleName);
+  return {
+    roles: userRoleRecords.map((r) => r.roleName),
+    permissions: aggregatePermissions(userRoleRecords.map((r) => r.permissions ?? [])),
+  };
 }
 
 export async function login(email: string, password: string) {
@@ -98,14 +115,15 @@ export async function login(email: string, password: string) {
     throw new UnauthorizedError('Email ou mot de passe incorrect');
   }
 
-  // Get all user roles
-  const userRolesList = await getUserRoles(user.id, user.role);
+  // Get all user roles and aggregated permissions
+  const { roles: userRolesList, permissions } = await getUserRolesAndPermissions(user.id, user.role);
 
   const payload: JWTPayload = {
     userId: user.id,
     email: user.email,
     role: user.role, // Legacy single role for backward compatibility
     roles: userRolesList, // Multi-role array
+    permissions,
   };
 
   const accessToken = generateAccessToken(payload);
@@ -129,6 +147,7 @@ export async function login(email: string, password: string) {
       lastName: user.lastName,
       role: user.role,
       roles: userRolesList,
+      permissions,
     },
   };
 }
@@ -166,14 +185,15 @@ export async function refresh(refreshToken: string) {
   // Delete old refresh token
   await db.delete(refreshTokens).where(eq(refreshTokens.id, token.id));
 
-  // Get all user roles
-  const userRolesList = await getUserRoles(user.id, user.role);
+  // Get all user roles and aggregated permissions
+  const { roles: userRolesList, permissions } = await getUserRolesAndPermissions(user.id, user.role);
 
   const payload: JWTPayload = {
     userId: user.id,
     email: user.email,
     role: user.role,
     roles: userRolesList,
+    permissions,
   };
 
   const accessToken = generateAccessToken(payload);
@@ -221,12 +241,13 @@ export async function getMe(userId: string) {
     throw new UnauthorizedError('Utilisateur non trouvé');
   }
 
-  // Get all user roles
-  const userRolesList = await getUserRoles(user.id, user.role);
+  // Get all user roles and aggregated permissions
+  const { roles: userRolesList, permissions } = await getUserRolesAndPermissions(user.id, user.role);
 
   return {
     ...user,
     roles: userRolesList,
+    permissions,
   };
 }
 

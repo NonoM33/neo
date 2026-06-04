@@ -7,7 +7,10 @@ import * as productsService from '../products/products.service';
 import { generateQuotePdf, type QuotePdfInput } from './quote-pdf.service';
 import { createQuoteFromChecklist } from './quote-from-checklist.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireCRMAccess } from '../../middleware/rbac.middleware';
+import { paginationSchema } from '../../lib/pagination';
+
+const { stripQuoteCostFields } = quotesService;
 
 const fromChecklistSchema = z.object({
   roomIds: z.array(z.string().uuid()).optional(),
@@ -56,19 +59,26 @@ function toPdfInput(quote: Awaited<ReturnType<typeof quotesService.getQuoteWithP
 
 const quotesRouter = new Hono();
 
-// Strip cost/margin fields from quote responses (mobile API should never see these)
-function stripQuoteCostFields(quote: Record<string, any>) {
-  const { totalCostHT, totalMarginHT, marginPercent, ...safeQuote } = quote;
-  if (safeQuote.lines) {
-    safeQuote.lines = safeQuote.lines.map((line: Record<string, any>) => {
-      const { unitCostHT, ...safeLine } = line;
-      return safeLine;
-    });
-  }
-  return safeQuote;
-}
+quotesRouter.use('*', authMiddleware, requireCRMAccess());
 
-quotesRouter.use('*', authMiddleware, requireIntegrateurOrAdmin());
+// Global quote list for the staff back-office (admin / commercial / integrateur)
+quotesRouter.get(
+  '/devis',
+  zValidator(
+    'query',
+    paginationSchema.merge(
+      z.object({
+        search: z.string().optional(),
+        status: z.enum(['brouillon', 'envoye', 'accepte', 'refuse', 'expire']).optional(),
+      })
+    )
+  ),
+  async (c) => {
+    const { page, limit, search, status } = c.req.valid('query');
+    const result = await quotesService.getAllQuotes({ page, limit }, { search, status });
+    return c.json(result);
+  }
+);
 
 // Get quotes by project
 quotesRouter.get('/projets/:projectId/devis', async (c) => {

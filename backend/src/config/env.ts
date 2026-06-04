@@ -29,6 +29,12 @@ const envSchema = z.object({
   AI_MAX_TOKENS: z.coerce.number().default(2048),
   AI_MONTHLY_BUDGET_CENTS: z.coerce.number().default(50000),
 
+  // OpenRouter (chatbot du site vitrine) — agrégateur compatible OpenAI.
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_BASE_URL: z.string().url().default('https://openrouter.ai/api/v1'),
+  // Meilleur modèle pour un chatbot de conversion (FR chaleureux + tool-calling).
+  OPENROUTER_MODEL: z.string().default('anthropic/claude-sonnet-4.5'),
+
   // Whisper (Speech-to-Text)
   WHISPER_URL: z.string().default('http://localhost:8000'),
   WHISPER_API_KEY: z.string().optional(),
@@ -108,6 +114,9 @@ export const isRecetteEnabled = env.APP_ENV !== 'production';
 
 // L'integration GitLab n'est active que si un token ET un projet cible sont fournis.
 export const isGitlabEnabled = Boolean(env.GITLAB_TOKEN && env.GITLAB_PROJECT_ID);
+
+// Le chatbot du site vitrine ne répond automatiquement que si une clé OpenRouter est fournie.
+export const isChatbotEnabled = Boolean(env.OPENROUTER_API_KEY);
 
 // Hôtes servant uniquement l'API : les interfaces HTML y sont masquées (404).
 export const apiOnlyHosts = new Set(

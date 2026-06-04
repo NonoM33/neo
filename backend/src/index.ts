@@ -1,8 +1,10 @@
 import app from './app';
+import { chatbotWebSocket } from './modules/chatbot';
 import { env } from './config/env';
 import { db } from './config/database';
 import { users } from './db/schema';
 import { hashPassword } from './modules/auth/auth.service';
+import { ensureSystemRoles } from './modules/roles/system-roles';
 import { eq } from 'drizzle-orm';
 
 async function seedAdmin() {
@@ -44,6 +46,13 @@ async function main() {
     console.error('Error seeding admin:', error);
   }
 
+  // Ensure built-in roles exist with their default permissions
+  try {
+    await ensureSystemRoles();
+  } catch (error) {
+    console.error('Error ensuring system roles:', error);
+  }
+
   console.log(`Server running on http://localhost:${env.PORT}`);
   console.log(`Admin panel: http://localhost:${env.PORT}/admin`);
   console.log(`Backoffice: http://localhost:${env.PORT}/backoffice`);
@@ -54,4 +63,5 @@ main();
 export default {
   port: env.PORT,
   fetch: app.fetch,
+  websocket: chatbotWebSocket,
 };

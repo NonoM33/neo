@@ -1,8 +1,10 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Layout } from './components';
+import { Layout, RoleRoute } from './components';
 import {
   LoginPage,
   DashboardPage,
+  UsersPage,
+  UserFormPage,
   LeadsPage,
   LeadDetailPage,
   LeadFormPage,
@@ -23,6 +25,15 @@ import {
   ProductsPage,
   ProductFormPage,
   ProductDetailPage,
+  ClientsPage,
+  ClientFormPage,
+  ProjectsPage,
+  ProjectFormPage,
+  DevisPage,
+  DevisDetailPage,
+  TicketsPage,
+  TicketDetailPage,
+  TicketFormPage,
 } from './pages';
 import { useAuthStore } from './stores';
 
@@ -162,12 +173,124 @@ export const router = createBrowserRouter([
         element: <ProductFormPage />,
       },
       {
+        path: 'clients',
+        element: (
+          <RoleRoute feature="clients">
+            <ClientsPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'clients/new',
+        element: (
+          <RoleRoute feature="clients">
+            <ClientFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'clients/:id/edit',
+        element: (
+          <RoleRoute feature="clients">
+            <ClientFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'projets',
+        element: (
+          <RoleRoute feature="projets">
+            <ProjectsPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'projets/new',
+        element: (
+          <RoleRoute feature="projets">
+            <ProjectFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'projets/:id/edit',
+        element: (
+          <RoleRoute feature="projets">
+            <ProjectFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'devis',
+        element: (
+          <RoleRoute feature="devis">
+            <DevisPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'devis/:id',
+        element: (
+          <RoleRoute feature="devis">
+            <DevisDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'tickets',
+        element: (
+          <RoleRoute feature="support">
+            <TicketsPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'tickets/new',
+        element: (
+          <RoleRoute feature="support">
+            <TicketFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'tickets/:id',
+        element: (
+          <RoleRoute feature="support">
+            <TicketDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
         path: 'cloud',
         element: <CloudInstancesPage />,
       },
       {
         path: 'cloud/:id',
         element: <CloudInstanceDetailPage />,
+      },
+      {
+        path: 'users',
+        element: (
+          <RoleRoute feature="users">
+            <UsersPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'users/new',
+        element: (
+          <RoleRoute feature="users">
+            <UserFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'users/:id/edit',
+        element: (
+          <RoleRoute feature="users">
+            <UserFormPage />
+          </RoleRoute>
+        ),
       },
     ],
   },

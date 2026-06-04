@@ -2,3 +2,8 @@ node_modules/
 dist/
 .astro/
 .env
+
+# Outillage local / artefacts d'agents (ne pas versionner)
+.claude/
+_bmad/
+_bmad-output/

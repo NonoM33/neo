@@ -19,12 +19,30 @@ import {
   createSession,
   destroySession,
   getSessionUser,
+  loadBackofficeAccess,
+  canAccessBackoffice,
   type AdminUser,
 } from './middleware/admin-auth';
+import type { JWTPayload } from '../middleware/auth.middleware';
 
 import { LoginPage } from './pages/login';
 import { DashboardPage } from './pages/dashboard';
 import { UsersListPage, UserFormPage } from './pages/users';
+import { RolesListPage, RoleFormPage } from './pages/roles';
+import { CreneauxPage } from './pages/creneaux';
+import { ChatbotLivePage } from './pages/chatbot';
+import { getAvailability, setAvailability } from '../modules/appointments/appointments.service';
+import { parseSlotRows } from '../modules/appointments/availability-form';
+import {
+  listRoles,
+  getRole,
+  createRole,
+  updateRole,
+  deleteRole,
+  getUserRoleIds,
+  setUserRoles,
+  RoleValidationError,
+} from '../modules/roles/roles.service';
 import { ClientsListPage, ClientFormPage, ClientDetailPage } from './pages/clients';
 import { ProductsListPage, ProductFormPage, ImportProductsPage } from './pages/products';
 import { SuppliersListPage, SupplierFormPage } from './pages/suppliers';
@@ -61,7 +79,7 @@ import {
 } from '../modules/newsletter';
 import type { ChangelogEntry } from '../db/schema';
 import * as gitlabService from '../modules/gitlab/gitlab.service';
-import { env, isRecetteEnabled } from '../config/env';
+import { env, isRecetteEnabled, isChatbotEnabled } from '../config/env';
 import { uploadFile, getFile } from '../config/s3';
 import { randomUUID } from 'crypto';
 import type { RecetteFeedback, RecetteFeature } from '../db/schema';
@@ -76,11 +94,17 @@ const backofficeRouter = new Hono<Env>();
 
 const PAGE_SIZE = 20;
 
+/** Coerce a checkbox form value into a list of role ids. */
+function parseRoleIds(input: unknown): string[] {
+  const raw = input === undefined || input === null ? [] : Array.isArray(input) ? input : [input];
+  return raw.filter((v): v is string => typeof v === 'string');
+}
+
 // ============ Auth ============
 
 backofficeRouter.get('/login', async (c) => {
   const existingUser = await getSessionUser(c);
-  if (existingUser && existingUser.role === 'admin') {
+  if (existingUser && canAccessBackoffice(existingUser)) {
     return c.redirect('/backoffice');
   }
   const error = c.req.query('error');
@@ -111,7 +135,8 @@ backofficeRouter.post('/login', async (c) => {
       return c.redirect('/backoffice/login?error=invalid_credentials');
     }
 
-    if (user.role !== 'admin') {
+    const access = await loadBackofficeAccess(user.id, user.role);
+    if (!canAccessBackoffice(access)) {
       return c.redirect('/backoffice/login?error=access_denied');
     }
 
@@ -121,6 +146,7 @@ backofficeRouter.post('/login', async (c) => {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      ...access,
     });
 
     return c.redirect('/backoffice');
@@ -279,30 +305,41 @@ backofficeRouter.get('/users', async (c) => {
   );
 });
 
-backofficeRouter.get('/users/new', (c) => {
+backofficeRouter.get('/users/new', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
-  return c.html(<UserFormPage user={adminUser} />);
+  const availableRoles = await listRoles();
+  return c.html(<UserFormPage availableRoles={availableRoles} user={adminUser} />);
 });
 
 backofficeRouter.post('/users', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
-  const body = await c.req.parseBody();
+  const body = await c.req.parseBody({ all: true });
 
   try {
     const hashedPassword = await hashPassword(body.password as string);
 
-    await db.insert(users).values({
-      email: body.email as string,
-      password: hashedPassword,
-      firstName: body.firstName as string,
-      lastName: body.lastName as string,
-      phone: (body.phone as string) || undefined,
-      role: body.role as 'admin' | 'integrateur' | 'auditeur',
-    });
+    const [created] = await db
+      .insert(users)
+      .values({
+        email: body.email as string,
+        password: hashedPassword,
+        firstName: body.firstName as string,
+        lastName: body.lastName as string,
+        phone: (body.phone as string) || undefined,
+        role: body.role as 'admin' | 'integrateur' | 'auditeur',
+      })
+      .returning({ id: users.id });
+
+    if (created) {
+      await setUserRoles(created.id, parseRoleIds(body.roleIds));
+    }
 
     return c.redirect('/backoffice/users');
   } catch (error: any) {
-    return c.html(<UserFormPage error={error.message} user={adminUser} />);
+    const availableRoles = await listRoles();
+    return c.html(
+      <UserFormPage availableRoles={availableRoles} error={error.message} user={adminUser} />
+    );
   }
 });
 
@@ -327,13 +364,25 @@ backofficeRouter.get('/users/:id/edit', async (c) => {
     return c.redirect('/backoffice/users');
   }
 
-  return c.html(<UserFormPage userData={userData} user={adminUser} />);
+  const [availableRoles, assignedRoleIds] = await Promise.all([
+    listRoles(),
+    getUserRoleIds(id),
+  ]);
+
+  return c.html(
+    <UserFormPage
+      userData={userData}
+      availableRoles={availableRoles}
+      assignedRoleIds={assignedRoleIds}
+      user={adminUser}
+    />
+  );
 });
 
 backofficeRouter.post('/users/:id', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const id = c.req.param('id');
-  const body = await c.req.parseBody();
+  const body = await c.req.parseBody({ all: true });
 
   try {
     const updateData: Record<string, any> = {
@@ -350,6 +399,7 @@ backofficeRouter.post('/users/:id', async (c) => {
     }
 
     await db.update(users).set(updateData).where(eq(users.id, id));
+    await setUserRoles(id, parseRoleIds(body.roleIds));
 
     return c.redirect('/backoffice/users');
   } catch (error: any) {
@@ -366,7 +416,20 @@ backofficeRouter.post('/users/:id', async (c) => {
       .where(eq(users.id, id))
       .limit(1);
 
-    return c.html(<UserFormPage userData={userData} error={error.message} user={adminUser} />);
+    const [availableRoles, assignedRoleIds] = await Promise.all([
+      listRoles(),
+      getUserRoleIds(id),
+    ]);
+
+    return c.html(
+      <UserFormPage
+        userData={userData}
+        availableRoles={availableRoles}
+        assignedRoleIds={assignedRoleIds}
+        error={error.message}
+        user={adminUser}
+      />
+    );
   }
 });
 
@@ -374,6 +437,141 @@ backofficeRouter.delete('/users/:id', async (c) => {
   const id = c.req.param('id');
   await db.delete(users).where(eq(users.id, id));
   return c.text('');
+});
+
+// ============ Rôles & permissions (réservé admin) ============
+
+backofficeRouter.get('/roles', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const rolesList = await listRoles();
+  return c.html(
+    <RolesListPage
+      roles={rolesList}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.get('/roles/new', (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  return c.html(<RoleFormPage user={adminUser} />);
+});
+
+backofficeRouter.post('/roles', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody({ all: true });
+
+  try {
+    await createRole({
+      name: body.name,
+      description: body.description,
+      permissions: body.permissions,
+    });
+    return c.redirect('/backoffice/roles?success=Rôle créé');
+  } catch (error: any) {
+    const message = error instanceof RoleValidationError ? error.message : 'Erreur lors de la création';
+    return c.html(<RoleFormPage error={message} user={adminUser} />);
+  }
+});
+
+backofficeRouter.get('/roles/:id/edit', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const role = await getRole(c.req.param('id'));
+  if (!role) {
+    return c.redirect('/backoffice/roles');
+  }
+  return c.html(<RoleFormPage roleData={role} user={adminUser} />);
+});
+
+backofficeRouter.post('/roles/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  const body = await c.req.parseBody({ all: true });
+
+  try {
+    await updateRole(id, {
+      name: body.name,
+      description: body.description,
+      permissions: body.permissions,
+    });
+    return c.redirect('/backoffice/roles?success=Rôle mis à jour');
+  } catch (error: any) {
+    const message = error instanceof RoleValidationError ? error.message : 'Erreur lors de la mise à jour';
+    const role = await getRole(id);
+    return c.html(<RoleFormPage roleData={role ?? undefined} error={message} user={adminUser} />);
+  }
+});
+
+backofficeRouter.delete('/roles/:id', async (c) => {
+  try {
+    await deleteRole(c.req.param('id'));
+    return c.text('');
+  } catch (error: any) {
+    c.status(400);
+    return c.text(error instanceof RoleValidationError ? error.message : 'Suppression impossible');
+  }
+});
+
+// ============ Créneaux de disponibilité ============
+
+backofficeRouter.get('/creneaux', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const selectedUserId = c.req.query('userId');
+
+  const usersList = await db
+    .select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    })
+    .from(users)
+    .where(eq(users.isActive, true))
+    .orderBy(users.firstName, users.lastName);
+
+  let slots: { dayOfWeek: string; startTime: string; endTime: string }[] = [];
+  if (selectedUserId) {
+    const availability = await getAvailability(selectedUserId);
+    slots = availability.slots.map((s) => ({
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    }));
+  }
+
+  return c.html(
+    <CreneauxPage
+      users={usersList}
+      selectedUserId={selectedUserId}
+      slots={slots}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.get('/support/chat', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  return c.html(
+    <ChatbotLivePage user={adminUser} chatbotEnabled={isChatbotEnabled} />
+  );
+});
+
+backofficeRouter.post('/creneaux', async (c) => {
+  const body = await c.req.parseBody({ all: true });
+  const userId = Array.isArray(body.userId) ? body.userId[0] : body.userId;
+
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return c.redirect('/backoffice/creneaux?error=Collaborateur manquant');
+  }
+
+  const slots = parseSlotRows(body.day, body.start, body.end).map((s) => ({ ...s, isActive: true }));
+  await setAvailability(userId, { slots });
+
+  return c.redirect(`/backoffice/creneaux?userId=${userId}&success=Créneaux enregistrés`);
 });
 
 // ============ Clients ============
@@ -1308,12 +1506,13 @@ async function getCommercials() {
 }
 
 // Create a mock JWT payload for backoffice admin
-function createAdminPayload(adminUser: AdminUser) {
+function createAdminPayload(adminUser: AdminUser): JWTPayload {
   return {
     userId: adminUser.id,
     email: adminUser.email,
     role: adminUser.role as 'admin',
-    roles: ['admin'] as ('admin' | 'integrateur' | 'auditeur' | 'commercial')[],
+    roles: ['admin'],
+    permissions: [],
   };
 }
 

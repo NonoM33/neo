@@ -3,6 +3,11 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install
 COPY . .
+# Variables publiques inlinées par Astro au build (output: static)
+ARG PUBLIC_POSTHOG_KEY
+ARG PUBLIC_POSTHOG_HOST
+ENV PUBLIC_POSTHOG_KEY=$PUBLIC_POSTHOG_KEY
+ENV PUBLIC_POSTHOG_HOST=$PUBLIC_POSTHOG_HOST
 RUN bun run build
 
 FROM nginx:alpine

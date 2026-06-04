@@ -78,6 +78,8 @@ const adminUser: AdminUser = {
   firstName: 'Admin',
   lastName: 'Neo',
   role: 'admin',
+  permissions: [],
+  isSuperAdmin: true,
 };
 
 async function renderContent(): Promise<string> {

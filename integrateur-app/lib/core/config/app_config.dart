@@ -55,7 +55,7 @@ class EnvironmentConfig {
   static String get baseUrl {
     switch (current) {
       case Environment.development:
-        return 'http://$_devHost:3000/api';
+        return 'http://neo-api.157.180.43.90.sslip.io/api';
       case Environment.staging:
         return 'https://staging-api.neo-integrateur.com';
       case Environment.production:
@@ -67,7 +67,7 @@ class EnvironmentConfig {
   static String get baseHost {
     switch (current) {
       case Environment.development:
-        return 'http://$_devHost:3000';
+        return 'http://neo-api.157.180.43.90.sslip.io';
       case Environment.staging:
         return 'https://staging.neo-integrateur.com';
       case Environment.production:

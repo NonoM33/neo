@@ -44,6 +44,7 @@ import adminRoutes from './admin/admin.routes';
 import backofficeRoutes from './backoffice/backoffice.routes';
 import { recetteExportRoutes } from './modules/recette';
 import { feedbackApiRoutes, feedbackWidgetRoutes } from './modules/feedback';
+import { chatbotRoutes } from './modules/chatbot';
 import swaggerRoutes from './swagger/swagger.routes';
 
 const app = new Hono();
@@ -161,6 +162,9 @@ app.route('/recette-api', recetteExportRoutes);
 // Widget de feedback terrain (bouton flottant) — public, CORS ouvert.
 app.route('/feedback-api', feedbackApiRoutes);
 app.route('/', feedbackWidgetRoutes);
+
+// Chatbot du site vitrine : WebSocket visiteur + staff, et widget JS public.
+app.route('/', chatbotRoutes);
 
 // 404
 app.notFound((c) => {

@@ -2,6 +2,7 @@
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
 import CookieBanner from '../components/layout/CookieBanner.astro';
+import PostHog from '../components/analytics/PostHog.astro';
 import { SITE_CONFIG } from '../config/site';
 import '../styles/global.css';
 
@@ -119,6 +120,9 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
 
     <!-- Plausible Analytics (cookie-free) -->
     <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
+
+    <!-- PostHog (analytics produit, cookieless) -->
+    <PostHog />
   </head>
   <body class="min-h-screen flex flex-col">
     <Header />
@@ -157,6 +161,14 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
       is:inline
       src={`${SITE_CONFIG.apiBaseUrl}/feedback-widget.js`}
       data-app="site"
+      data-api={SITE_CONFIG.apiBaseUrl}
+      defer
+    ></script>
+
+    <!-- Chatbot commercial (bulle de discussion) servi par le backend -->
+    <script
+      is:inline
+      src={`${SITE_CONFIG.apiBaseUrl}/chatbot-widget.js`}
       data-api={SITE_CONFIG.apiBaseUrl}
       defer
     ></script>

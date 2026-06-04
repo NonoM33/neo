@@ -2,6 +2,7 @@ import type { Context, Next } from 'hono';
 import { ForbiddenError } from '../lib/errors';
 import type { JWTPayload } from './auth.middleware';
 import type { RoleType } from '../db/schema/users';
+import { hasPermission as hasPermissionKey } from '../modules/roles/permissions';
 
 /**
  * Check if user has at least one of the allowed roles
@@ -17,7 +18,7 @@ export function requireRole(...allowedRoles: RoleType[]) {
 
     // Check multi-role array first, fallback to legacy single role
     const userRoles = user.roles || [user.role];
-    const hasRole = userRoles.some((role) => allowedRoles.includes(role));
+    const hasRole = userRoles.some((role) => (allowedRoles as string[]).includes(role));
 
     if (!hasRole) {
       throw new ForbiddenError(`Rôle requis: ${allowedRoles.join(' ou ')}`);
@@ -105,7 +106,7 @@ export function requireAuthenticated() {
  */
 export function userHasRole(user: JWTPayload, role: RoleType): boolean {
   const userRoles = user.roles || [user.role];
-  return userRoles.includes(role);
+  return (userRoles as string[]).includes(role);
 }
 
 /**
@@ -113,7 +114,7 @@ export function userHasRole(user: JWTPayload, role: RoleType): boolean {
  */
 export function userHasAnyRole(user: JWTPayload, roles: RoleType[]): boolean {
   const userRoles = user.roles || [user.role];
-  return userRoles.some((role) => roles.includes(role));
+  return userRoles.some((role) => (roles as string[]).includes(role));
 }
 
 /**
@@ -121,6 +122,33 @@ export function userHasAnyRole(user: JWTPayload, roles: RoleType[]): boolean {
  */
 export function isAdmin(user: JWTPayload): boolean {
   return userHasRole(user, 'admin');
+}
+
+/**
+ * Helper to check if the current user holds a given permission.
+ * A super-admin (admin role) always passes.
+ */
+export function userHasPermission(user: JWTPayload, permissionKey: string): boolean {
+  return hasPermissionKey(user.permissions ?? [], permissionKey, isAdmin(user));
+}
+
+/**
+ * Require a specific permission. Admins bypass the check.
+ */
+export function requirePermission(permissionKey: string) {
+  return async (c: Context, next: Next) => {
+    const user = c.get('user') as JWTPayload;
+
+    if (!user) {
+      throw new ForbiddenError('Utilisateur non authentifié');
+    }
+
+    if (!userHasPermission(user, permissionKey)) {
+      throw new ForbiddenError('Permission insuffisante');
+    }
+
+    await next();
+  };
 }
 
 /**

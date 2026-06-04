@@ -11,6 +11,8 @@ const adminUser: AdminUser = {
   firstName: 'Admin',
   lastName: 'Neo',
   role: 'admin',
+  permissions: [],
+  isSuperAdmin: true,
 };
 
 const release: ReleaseWithEntries = {

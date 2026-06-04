@@ -11,8 +11,16 @@ interface UserData {
   role: 'admin' | 'integrateur' | 'auditeur';
 }
 
+interface RoleOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 interface UserFormPageProps {
   userData?: UserData;
+  availableRoles?: RoleOption[];
+  assignedRoleIds?: string[];
   error?: string;
   user: AdminUser;
 }
@@ -23,9 +31,16 @@ const roleOptions = [
   { value: 'admin', label: 'Administrateur', description: 'Acces complet au backoffice' },
 ];
 
-export const UserFormPage: FC<UserFormPageProps> = ({ userData, error, user }) => {
+export const UserFormPage: FC<UserFormPageProps> = ({
+  userData,
+  availableRoles = [],
+  assignedRoleIds = [],
+  error,
+  user,
+}) => {
   const isEdit = !!userData;
   const title = isEdit ? 'Modifier utilisateur' : 'Nouvel utilisateur';
+  const assigned = new Set(assignedRoleIds);
 
   return (
     <Layout title={title} currentPath="/backoffice/users" user={user}>
@@ -160,6 +175,40 @@ export const UserFormPage: FC<UserFormPageProps> = ({ userData, error, user }) =
                       </ul>
                     </div>
                   </div>
+
+                  {/* Multi-role assignment (permissions du backoffice) */}
+                  {availableRoles.length > 0 && (
+                    <div class="col-12">
+                      <label class="form-label">Rôles & permissions backoffice</label>
+                      <div class="border rounded p-3">
+                        <div class="row g-2">
+                          {availableRoles.map((roleOption) => (
+                            <div class="col-md-6">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input"
+                                  type="checkbox"
+                                  name="roleIds"
+                                  value={roleOption.id}
+                                  id={`role-${roleOption.id}`}
+                                  checked={assigned.has(roleOption.id)}
+                                />
+                                <label class="form-check-label" for={`role-${roleOption.id}`}>
+                                  {roleOption.name}
+                                  {roleOption.description && (
+                                    <span class="text-muted small d-block">{roleOption.description}</span>
+                                  )}
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div class="form-text">
+                        Les rôles cochés déterminent les sections du backoffice accessibles à cet utilisateur.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}

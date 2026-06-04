@@ -7,3 +7,8 @@ export * from './appointment.types';
 export * from './call.types';
 export * from './cloud.types';
 export * from './product.types';
+export * from './user-admin.types';
+export * from './client.types';
+export * from './project.types';
+export * from './devis.types';
+export * from './ticket.types';

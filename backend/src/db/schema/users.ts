@@ -1,16 +1,23 @@
-import { pgTable, uuid, varchar, timestamp, pgEnum, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, pgEnum, boolean, jsonb } from 'drizzle-orm/pg-core';
 
 // Legacy single role enum (kept for backward compatibility during migration)
 export const userRoleEnum = pgEnum('user_role', ['admin', 'integrateur', 'auditeur']);
 
-// New role type enum for multi-role support
+// Legacy role-type enum. The roles.name column is now free-form varchar so that
+// admins can create custom roles; this enum is kept only for the built-in role
+// names referenced in code (admin/integrateur/auditeur/commercial).
 export const roleTypeEnum = pgEnum('role_type', ['admin', 'integrateur', 'auditeur', 'commercial']);
 
-// Roles table - defines available roles in the system
+// Roles table - defines available roles in the system.
+// `name` is free-form so admins can create custom roles; `permissions` holds the
+// ticked permission keys (see modules/roles/permissions.ts); `isSystem` protects
+// the built-in roles from deletion/rename.
 export const roles = pgTable('roles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: roleTypeEnum('name').notNull().unique(),
+  name: varchar('name', { length: 50 }).notNull().unique(),
   description: varchar('description', { length: 255 }),
+  permissions: jsonb('permissions').$type<string[]>().notNull().default([]),
+  isSystem: boolean('is_system').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
