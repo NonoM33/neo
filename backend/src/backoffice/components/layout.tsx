@@ -184,6 +184,19 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
           .htmx-request.htmx-indicator {
             display: inline-block;
           }
+          /* Retour visuel pendant une requete HTMX : l'element en cours est
+             attenue et non-cliquable, sans recharger la page. */
+          .htmx-request {
+            opacity: 0.55;
+            transition: opacity 0.15s ease-in-out;
+          }
+          form.htmx-request,
+          button.htmx-request,
+          .htmx-request button,
+          .htmx-request [type='submit'] {
+            pointer-events: none;
+            cursor: progress;
+          }
         `}</style>
       </head>
       <body>

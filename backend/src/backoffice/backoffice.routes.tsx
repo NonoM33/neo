@@ -50,7 +50,7 @@ import { InvoicesListPage, InvoiceDetailPage } from './pages/invoices';
 import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
 import { SignaturesListPage } from './pages/signatures';
 import * as quotesService from '../modules/quotes/quotes.service';
-import { RecettePage } from './pages/recette';
+import { RecettePage, RecetteContent } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
 import * as recetteService from '../modules/recette/recette.service';
 import * as gitlabService from '../modules/gitlab/gitlab.service';
@@ -3465,8 +3465,8 @@ const renderRecetteFeatureFragment = async (c: any, featureId: string) => {
 backofficeRouter.use('/recette', recetteGuard);
 backofficeRouter.use('/recette/*', recetteGuard);
 
-backofficeRouter.get('/recette', async (c) => {
-  const adminUser = c.get('adminUser') as AdminUser;
+// Charge le resume + le catalogue filtre selon la query string courante.
+const loadRecetteData = async (c: any) => {
   const appParam = c.req.query('app') as RecetteFeature['app'] | undefined;
   const statusParam = c.req.query('status') as RecetteFeedback['status'] | undefined;
   const severityParam = c.req.query('severity') as RecetteFeedback['severity'] | undefined;
@@ -3486,11 +3486,29 @@ backofficeRouter.get('/recette', async (c) => {
     validation: validationParam,
   });
 
+  return {
+    features,
+    summary,
+    filters: { app: appParam, status: statusParam, severity: severityParam, validation: validationParam },
+  };
+};
+
+backofficeRouter.get('/recette', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const { features, summary, filters } = await loadRecetteData(c);
+
+  // Filtrage HTMX : on ne renvoie que le bloc filtrable, jamais toute la page.
+  if (c.req.header('HX-Request')) {
+    return c.html(
+      <RecetteContent features={features} summary={summary} filters={filters} user={adminUser} />,
+    );
+  }
+
   return c.html(
     <RecettePage
       features={features}
       summary={summary}
-      filters={{ app: appParam, status: statusParam, severity: severityParam, validation: validationParam }}
+      filters={filters}
       user={adminUser}
       success={c.req.query('success')}
       error={c.req.query('error')}
@@ -3516,7 +3534,15 @@ backofficeRouter.post('/recette/feature/:id/validation', async (c) => {
 });
 
 backofficeRouter.post('/recette/seed', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
   const { count } = await recetteService.seedCatalogue();
+  // Resync HTMX : on re-rend le bloc filtrable en place, sans recharger la page.
+  if (c.req.header('HX-Request')) {
+    const { features, summary, filters } = await loadRecetteData(c);
+    return c.html(
+      <RecetteContent features={features} summary={summary} filters={filters} user={adminUser} />,
+    );
+  }
   return c.redirect(`/backoffice/recette?success=Catalogue+resynchronise+(${count}+features)`);
 });
 

@@ -15,11 +15,14 @@ import type {
 import { SummaryBar } from './summary';
 import { FeatureCard } from './feature-card';
 
-interface RecettePageProps {
+interface RecetteContentProps {
   features: FeatureWithFeedback[];
   summary: RecetteSummary;
   filters: { app?: string; status?: string; severity?: string; validation?: string };
   user: AdminUser;
+}
+
+interface RecettePageProps extends RecetteContentProps {
   success?: string;
   error?: string;
 }
@@ -33,13 +36,23 @@ const appIcons: Record<RecetteFeature['app'], string> = {
 
 const appOrder: RecetteFeature['app'][] = ['admin', 'crm', 'flutter', 'site'];
 
-export const RecettePage: FC<RecettePageProps> = ({
+// Attributs HTMX communs : on ne recharge jamais toute la page, on remplace
+// uniquement le bloc filtrable #recette-content (resume + filtres + accordeon).
+const swapContent = {
+  'hx-target': '#recette-content',
+  'hx-swap': 'outerHTML',
+  'hx-push-url': 'true',
+} as const;
+
+/**
+ * Bloc filtrable de la page recette. Rendu seul lors d'un swap HTMX
+ * (filtres / resync) pour eviter tout rechargement complet de la page.
+ */
+export const RecetteContent: FC<RecetteContentProps> = ({
   features,
   summary,
   filters,
   user,
-  success,
-  error,
 }) => {
   // Regroupe par app puis par module en conservant l'ordre du catalogue.
   const byApp = new Map<RecetteFeature['app'], Map<string, FeatureWithFeedback[]>>();
@@ -54,26 +67,19 @@ export const RecettePage: FC<RecettePageProps> = ({
     filters.app || filters.status || filters.severity || filters.validation;
 
   return (
-    <Layout title="Centre de recette" currentPath="/backoffice/recette" user={user}>
-      <FlashMessages success={success} error={error} />
-
-      <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
-        <i class="bi bi-info-circle-fill"></i>
-        <div class="small">
-          Recense toutes les features des 4 apps. Deroulez une feature pour
-          remonter un bug (severite, etapes, capture). Demandez ensuite a Claude
-          de <strong>corriger les retours</strong> : il commente et passe les
-          retours en <span class="badge bg-info">Corrige</span>, puis vous re-recettez
-          et validez.
-        </div>
-      </div>
-
+    <div id="recette-content">
       <SummaryBar summary={summary} />
 
-      {/* Filtres */}
+      {/* Filtres (HTMX, sans rechargement de page) */}
       <div class="card mb-4">
-        <div class="card-body">
-          <form method="get" class="row g-2 align-items-end">
+        <div class="card-body d-flex justify-content-between align-items-end gap-3 flex-wrap">
+          <form
+            method="get"
+            action="/backoffice/recette"
+            hx-get="/backoffice/recette"
+            {...swapContent}
+            class="row g-2 align-items-end flex-grow-1 mb-0"
+          >
             <div class="col-md-3">
               <label class="form-label small text-muted">Application</label>
               <select name="app" class="form-select">
@@ -117,18 +123,29 @@ export const RecettePage: FC<RecettePageProps> = ({
                 <i class="bi bi-funnel me-1"></i>Filtrer
               </button>
               {hasFilters && (
-                <a href="/backoffice/recette" class="btn btn-outline-secondary ms-2">
+                <a
+                  href="/backoffice/recette"
+                  hx-get="/backoffice/recette"
+                  {...swapContent}
+                  class="btn btn-outline-secondary ms-2"
+                >
                   <i class="bi bi-x-lg"></i>
                 </a>
               )}
             </div>
-            <div class="col-auto ms-auto">
-              <form method="post" action="/backoffice/recette/seed">
-                <button type="submit" class="btn btn-outline-secondary" title="Resynchroniser le catalogue depuis le code">
-                  <i class="bi bi-arrow-repeat me-1"></i>Resync catalogue
-                </button>
-              </form>
-            </div>
+          </form>
+
+          <form
+            method="post"
+            action="/backoffice/recette/seed"
+            hx-post="/backoffice/recette/seed"
+            hx-target="#recette-content"
+            hx-swap="outerHTML"
+            class="mb-0"
+          >
+            <button type="submit" class="btn btn-outline-secondary" title="Resynchroniser le catalogue depuis le code">
+              <i class="bi bi-arrow-repeat me-1"></i>Resync catalogue
+            </button>
           </form>
         </div>
       </div>
@@ -195,6 +212,34 @@ export const RecettePage: FC<RecettePageProps> = ({
             );
           })}
       </div>
+    </div>
+  );
+};
+
+export const RecettePage: FC<RecettePageProps> = ({
+  features,
+  summary,
+  filters,
+  user,
+  success,
+  error,
+}) => {
+  return (
+    <Layout title="Centre de recette" currentPath="/backoffice/recette" user={user}>
+      <FlashMessages success={success} error={error} />
+
+      <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-info-circle-fill"></i>
+        <div class="small">
+          Recense toutes les features des 4 apps. Deroulez une feature pour
+          remonter un bug (severite, etapes, capture). Demandez ensuite a Claude
+          de <strong>corriger les retours</strong> : il commente et passe les
+          retours en <span class="badge bg-info">Corrige</span>, puis vous re-recettez
+          et validez.
+        </div>
+      </div>
+
+      <RecetteContent features={features} summary={summary} filters={filters} user={user} />
     </Layout>
   );
 };
