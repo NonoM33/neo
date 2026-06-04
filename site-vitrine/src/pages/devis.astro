@@ -1,0 +1,465 @@
+---
+import { SITE_CONFIG } from '../config/site';
+
+const siteUrl = SITE_CONFIG.url;
+const title = 'Obtenir un devis gratuit — Neo Domotique';
+const description =
+  "Décrivez votre projet domotique en 2 minutes et recevez un devis personnalisé gratuit sous 24h. Sans engagement.";
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Devis gratuit - Neo Domotique',
+  description,
+};
+---
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href={`${siteUrl}/devis`} />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={`${siteUrl}/devis`} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:locale" content="fr_FR" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/neo/styles-v2.css" />
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />
+<script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"></div>
+
+<!-- ============ NAV ============ -->
+<nav class="nav scrolled">
+  <a class="brand" href="/">
+    <span class="logo"><span class="dot"></span></span>
+    <b>Neo</b>
+  </a>
+  <div class="nav-cta">
+    <a class="nav-phone" href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
+    <a class="btn ghost" href="/">Retour au site</a>
+  </div>
+</nav>
+
+<main class="devis-main" data-api={SITE_CONFIG.apiBaseUrl}>
+  <div class="narrow">
+    <div class="devis-head">
+      <span class="eyebrow">Devis gratuit · sans engagement</span>
+      <h1 class="scene-title">Obtenez votre <span class="serif grad">devis</span><br />en 2 minutes.</h1>
+      <p class="lead">Quelques questions sur votre projet et vos besoins. Un conseiller vous recontacte sous 24h avec une proposition personnalisée.</p>
+    </div>
+
+    <!-- Progress -->
+    <div class="dz-progress" aria-hidden="true">
+      <div class="dz-progress-bar"><span id="dz-bar"></span></div>
+      <div class="dz-steps">
+        <span class="dz-step active" data-dot="1">Projet</span>
+        <span class="dz-step" data-dot="2">Besoins</span>
+        <span class="dz-step" data-dot="3">Budget</span>
+        <span class="dz-step" data-dot="4">Coordonnées</span>
+      </div>
+    </div>
+
+    <form id="devis-form" class="dz-card" novalidate>
+
+      <!-- ===== ÉTAPE 1 — PROJET ===== -->
+      <section class="dz-pane active" data-step="1">
+        <h2 class="dz-title">Parlez-nous de votre logement</h2>
+
+        <label class="dz-label">Type de logement *</label>
+        <div class="dz-grid-cards">
+          <label class="dz-choice"><input type="radio" name="housingType" value="maison" required /><span>🏡 Maison</span></label>
+          <label class="dz-choice"><input type="radio" name="housingType" value="appartement" /><span>🏢 Appartement</span></label>
+          <label class="dz-choice"><input type="radio" name="housingType" value="local_pro" /><span>🏬 Local pro</span></label>
+          <label class="dz-choice"><input type="radio" name="housingType" value="autre" /><span>✨ Autre</span></label>
+        </div>
+
+        <label class="dz-label">Vous êtes</label>
+        <div class="dz-grid-cards two">
+          <label class="dz-choice"><input type="radio" name="ownership" value="proprietaire" /><span>Propriétaire</span></label>
+          <label class="dz-choice"><input type="radio" name="ownership" value="locataire" /><span>Locataire</span></label>
+        </div>
+
+        <label class="dz-label">Nature du projet</label>
+        <div class="dz-grid-cards">
+          <label class="dz-choice"><input type="radio" name="projectKind" value="neuf" /><span>Construction neuve</span></label>
+          <label class="dz-choice"><input type="radio" name="projectKind" value="renovation" /><span>Rénovation</span></label>
+          <label class="dz-choice"><input type="radio" name="projectKind" value="existant" /><span>Logement existant</span></label>
+        </div>
+
+        <div class="dz-row">
+          <div class="dz-field">
+            <label class="dz-label" for="surface">Surface (m²)</label>
+            <input class="dz-input" type="number" inputmode="numeric" min="1" max="100000" name="surface" id="surface" placeholder="Ex : 90" />
+          </div>
+          <div class="dz-field">
+            <label class="dz-label" for="rooms">Nombre de pièces</label>
+            <input class="dz-input" type="number" inputmode="numeric" min="1" max="100" name="rooms" id="rooms" placeholder="Ex : 4" />
+          </div>
+        </div>
+
+        <div class="dz-actions">
+          <span></span>
+          <button type="button" class="btn" data-next>Continuer
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== ÉTAPE 2 — BESOINS ===== -->
+      <section class="dz-pane" data-step="2">
+        <h2 class="dz-title">Qu'aimeriez-vous automatiser ?</h2>
+        <p class="dz-hint">Sélectionnez tout ce qui vous intéresse.</p>
+        <div class="dz-grid-cards three">
+          <label class="dz-choice"><input type="checkbox" name="needs" value="eclairage" /><span>💡 Éclairage</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="chauffage" /><span>🌡️ Chauffage / Clim</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="securite" /><span>🛡️ Sécurité / Caméras</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="volets" /><span>🪟 Volets / Stores</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="vocal" /><span>🎙️ Contrôle vocal</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="multimedia" /><span>🎬 Multimédia</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="energie" /><span>⚡ Gestion d'énergie</span></label>
+          <label class="dz-choice"><input type="checkbox" name="needs" value="interphone" /><span>🔑 Interphone / Accès</span></label>
+        </div>
+
+        <div class="dz-actions">
+          <button type="button" class="btn ghost" data-prev>← Retour</button>
+          <button type="button" class="btn" data-next>Continuer
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== ÉTAPE 3 — BUDGET & DÉLAI ===== -->
+      <section class="dz-pane" data-step="3">
+        <h2 class="dz-title">Votre budget et votre timing</h2>
+
+        <label class="dz-label">Budget estimé</label>
+        <div class="dz-grid-cards">
+          <label class="dz-choice"><input type="radio" name="budget" value="lt_2000" /><span>Moins de 2 000 €</span></label>
+          <label class="dz-choice"><input type="radio" name="budget" value="2000_5000" /><span>2 000 – 5 000 €</span></label>
+          <label class="dz-choice"><input type="radio" name="budget" value="5000_10000" /><span>5 000 – 10 000 €</span></label>
+          <label class="dz-choice"><input type="radio" name="budget" value="gt_10000" /><span>Plus de 10 000 €</span></label>
+          <label class="dz-choice"><input type="radio" name="budget" value="inconnu" /><span>Je ne sais pas encore</span></label>
+        </div>
+
+        <label class="dz-label">Quand souhaitez-vous démarrer ?</label>
+        <div class="dz-grid-cards">
+          <label class="dz-choice"><input type="radio" name="timeline" value="asap" /><span>Dès que possible</span></label>
+          <label class="dz-choice"><input type="radio" name="timeline" value="1_3_mois" /><span>Dans 1 à 3 mois</span></label>
+          <label class="dz-choice"><input type="radio" name="timeline" value="3_6_mois" /><span>Dans 3 à 6 mois</span></label>
+          <label class="dz-choice"><input type="radio" name="timeline" value="plus_6_mois" /><span>Plus tard</span></label>
+          <label class="dz-choice"><input type="radio" name="timeline" value="renseignement" /><span>Je me renseigne</span></label>
+        </div>
+
+        <div class="dz-actions">
+          <button type="button" class="btn ghost" data-prev>← Retour</button>
+          <button type="button" class="btn" data-next>Continuer
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== ÉTAPE 4 — COORDONNÉES ===== -->
+      <section class="dz-pane" data-step="4">
+        <h2 class="dz-title">Où vous envoyer votre devis ?</h2>
+
+        <div class="dz-row">
+          <div class="dz-field">
+            <label class="dz-label" for="firstName">Prénom *</label>
+            <input class="dz-input" type="text" name="firstName" id="firstName" autocomplete="given-name" required />
+          </div>
+          <div class="dz-field">
+            <label class="dz-label" for="lastName">Nom *</label>
+            <input class="dz-input" type="text" name="lastName" id="lastName" autocomplete="family-name" required />
+          </div>
+        </div>
+
+        <div class="dz-row">
+          <div class="dz-field">
+            <label class="dz-label" for="email">Email *</label>
+            <input class="dz-input" type="email" name="email" id="email" autocomplete="email" required />
+          </div>
+          <div class="dz-field">
+            <label class="dz-label" for="phone">Téléphone *</label>
+            <input class="dz-input" type="tel" name="phone" id="phone" autocomplete="tel" required />
+          </div>
+        </div>
+
+        <div class="dz-field">
+          <label class="dz-label" for="address">Adresse</label>
+          <input class="dz-input" type="text" name="address" id="address" autocomplete="street-address" placeholder="N° et rue" />
+        </div>
+
+        <div class="dz-row">
+          <div class="dz-field">
+            <label class="dz-label" for="postalCode">Code postal *</label>
+            <input class="dz-input" type="text" name="postalCode" id="postalCode" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" required />
+          </div>
+          <div class="dz-field">
+            <label class="dz-label" for="city">Ville</label>
+            <input class="dz-input" type="text" name="city" id="city" autocomplete="address-level2" />
+          </div>
+        </div>
+
+        <label class="dz-label">Meilleur moment pour vous joindre</label>
+        <div class="dz-grid-cards">
+          <label class="dz-choice"><input type="radio" name="contactTime" value="matin" /><span>Le matin</span></label>
+          <label class="dz-choice"><input type="radio" name="contactTime" value="apres_midi" /><span>L'après-midi</span></label>
+          <label class="dz-choice"><input type="radio" name="contactTime" value="soir" /><span>En soirée</span></label>
+          <label class="dz-choice"><input type="radio" name="contactTime" value="indifferent" /><span>Peu importe</span></label>
+        </div>
+
+        <div class="dz-field">
+          <label class="dz-label" for="message">Un mot sur votre projet ? (optionnel)</label>
+          <textarea class="dz-input" name="message" id="message" rows="3" placeholder="Dites-nous en plus…"></textarea>
+        </div>
+
+        <!-- Honeypot anti-bot -->
+        <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="dz-hp" />
+
+        <label class="dz-consent">
+          <input type="checkbox" name="consent" id="consent" required />
+          <span>J'accepte que mes données soient utilisées pour être recontacté au sujet de ma demande de devis. <a href="/mentions-legales">En savoir plus</a>.</span>
+        </label>
+
+        <p class="dz-error" id="dz-error" role="alert"></p>
+
+        <div class="dz-actions">
+          <button type="button" class="btn ghost" data-prev>← Retour</button>
+          <button type="submit" class="btn" id="dz-submit">Recevoir mon devis gratuit
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== SUCCÈS ===== -->
+      <section class="dz-pane dz-success" data-step="done">
+        <div class="dz-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <h2 class="dz-title">Demande envoyée !</h2>
+        <p class="lead" id="dz-success-msg">Merci, nous avons bien reçu votre demande. Un conseiller vous recontacte sous 24h.</p>
+        <a class="btn" href="/">Retour à l'accueil</a>
+      </section>
+    </form>
+
+    <div class="dz-ticks">
+      <span>✓ 100% gratuit</span>
+      <span>✓ Sans engagement</span>
+      <span>✓ Réponse sous 24h</span>
+    </div>
+  </div>
+</main>
+
+<style is:global>
+  .devis-main { padding: 120px 0 80px; position: relative; z-index: 2; }
+  .devis-head { text-align: center; margin-bottom: 36px; }
+  .devis-head .eyebrow { justify-content: center; display: inline-flex; }
+  .devis-head h1 { margin: 18px 0 16px; }
+  .devis-head .lead { max-width: 620px; margin-inline: auto; }
+
+  .dz-progress { margin-bottom: 26px; }
+  .dz-progress-bar { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .dz-progress-bar span { display: block; height: 100%; width: 25%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--neo), var(--neo-2)); transition: width .4s var(--ease); }
+  .dz-steps { display: flex; justify-content: space-between; margin-top: 10px; gap: 6px; }
+  .dz-step { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--ink-3); flex: 1; text-align: center; transition: color .3s; }
+  .dz-step.active { color: var(--neo-2); }
+  .dz-step.done { color: var(--ok); }
+
+  .dz-card { background: var(--glass); border: 1px solid var(--line); border-radius: 22px;
+    padding: clamp(20px, 4vw, 40px); backdrop-filter: blur(12px); }
+
+  .dz-pane { display: none; animation: dzfade .35s var(--ease); }
+  .dz-pane.active { display: block; }
+  @keyframes dzfade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .dz-title { font-size: clamp(22px, 3.2vw, 30px); margin-bottom: 6px; }
+  .dz-hint { color: var(--ink-3); font-size: 14px; margin-bottom: 18px; }
+
+  .dz-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2);
+    letter-spacing: .02em; margin: 22px 0 10px; }
+
+  .dz-grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .dz-grid-cards.two { grid-template-columns: repeat(2, 1fr); }
+  .dz-grid-cards.three { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+  .dz-choice { position: relative; cursor: pointer; }
+  .dz-choice input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .dz-choice span { display: flex; align-items: center; gap: 8px; justify-content: center;
+    text-align: center; padding: 14px 12px; border-radius: 14px; font-size: 14.5px; font-weight: 500;
+    color: var(--ink-2); background: var(--bg-3); border: 1px solid var(--line);
+    transition: border-color .2s, background .2s, color .2s; min-height: 52px; }
+  .dz-choice:hover span { border-color: var(--line-2); color: var(--ink); }
+  .dz-choice input:checked + span { border-color: var(--neo); color: var(--ink);
+    background: var(--neo-soft); box-shadow: 0 0 0 1px var(--neo) inset; }
+  .dz-choice input:focus-visible + span { outline: 2px solid var(--neo-2); outline-offset: 2px; }
+
+  .dz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .dz-row { grid-template-columns: 1fr; } }
+  .dz-field { margin-top: 4px; }
+
+  .dz-input { width: 100%; padding: 13px 15px; border-radius: 13px; background: var(--bg-3);
+    border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 15px;
+    transition: border-color .2s, box-shadow .2s; }
+  .dz-input::placeholder { color: var(--ink-3); }
+  .dz-input:focus { outline: none; border-color: var(--neo); box-shadow: 0 0 0 2px var(--neo-soft); }
+  textarea.dz-input { resize: vertical; }
+
+  .dz-hp { position: absolute; left: -9999px; width: 1px; height: 1px; }
+
+  .dz-consent { display: flex; align-items: flex-start; gap: 10px; margin-top: 24px;
+    font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+  .dz-consent input { margin-top: 3px; accent-color: var(--neo); width: 16px; height: 16px; flex-shrink: 0; }
+  .dz-consent a { color: var(--neo-2); }
+
+  .dz-error { color: var(--alert); font-size: 13.5px; font-weight: 500; margin-top: 14px; min-height: 1px; }
+  .dz-error:empty { margin-top: 0; }
+
+  .dz-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 30px; }
+  .dz-actions .btn { flex-shrink: 0; }
+
+  .dz-success { text-align: center; }
+  .dz-success.active { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 30px 0; }
+  .dz-check { width: 78px; height: 78px; border-radius: 24px; display: grid; place-items: center;
+    background: rgba(70,217,138,.12); border: 1px solid rgba(70,217,138,.35); color: var(--ok);
+    box-shadow: 0 0 50px -8px rgba(70,217,138,.5); }
+  .dz-check svg { width: 36px; height: 36px; }
+
+  .dz-ticks { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px;
+    margin-top: 26px; font-size: 13.5px; color: var(--ink-3); }
+</style>
+
+<script is:inline>
+(function () {
+  var root = document.querySelector('.devis-main');
+  var API = (root && root.dataset.api) || '';
+  var form = document.getElementById('devis-form');
+  var panes = Array.prototype.slice.call(form.querySelectorAll('.dz-pane[data-step]'));
+  var stepPanes = panes.filter(function (p) { return /^\d+$/.test(p.dataset.step); });
+  var bar = document.getElementById('dz-bar');
+  var stepEls = Array.prototype.slice.call(document.querySelectorAll('.dz-step'));
+  var errorEl = document.getElementById('dz-error');
+  var total = stepPanes.length;
+  var current = 1;
+
+  function paneByStep(s) { return form.querySelector('.dz-pane[data-step="' + s + '"]'); }
+
+  function show(step) {
+    panes.forEach(function (p) { p.classList.remove('active'); });
+    var pane = paneByStep(String(step));
+    if (pane) pane.classList.add('active');
+    if (typeof step === 'number') {
+      current = step;
+      bar.style.width = (step / total) * 100 + '%';
+      stepEls.forEach(function (el, i) {
+        el.classList.toggle('active', i === step - 1);
+        el.classList.toggle('done', i < step - 1);
+      });
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function validateStep(step) {
+    errorEl.textContent = '';
+    var pane = paneByStep(String(step));
+    var fields = pane.querySelectorAll('input[required], textarea[required]');
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (f.type === 'radio') {
+        if (!form.querySelector('input[name="' + f.name + '"]:checked')) {
+          errorEl.textContent = 'Merci de choisir une option.';
+          return false;
+        }
+      } else if (!f.checkValidity()) {
+        errorEl.textContent = f.validationMessage || 'Champ requis.';
+        f.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  form.addEventListener('click', function (e) {
+    var next = e.target.closest('[data-next]');
+    var prev = e.target.closest('[data-prev]');
+    if (next) { if (validateStep(current)) show(current + 1); }
+    else if (prev) { show(current - 1); }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!validateStep(4)) return;
+    var btn = document.getElementById('dz-submit');
+    btn.disabled = true;
+    var label = btn.innerHTML;
+    btn.textContent = 'Envoi en cours…';
+
+    var fd = new FormData(form);
+    var needs = fd.getAll('needs');
+    function val(n) { var v = fd.get(n); return v && String(v).trim() ? String(v).trim() : undefined; }
+    function num(n) { var v = val(n); return v ? Number(v) : undefined; }
+
+    var body = {
+      housingType: val('housingType'),
+      ownership: val('ownership'),
+      surface: num('surface'),
+      rooms: num('rooms'),
+      projectKind: val('projectKind'),
+      needs: needs,
+      budget: val('budget'),
+      timeline: val('timeline'),
+      firstName: val('firstName'),
+      lastName: val('lastName'),
+      email: val('email'),
+      phone: val('phone'),
+      address: val('address'),
+      postalCode: val('postalCode'),
+      city: val('city'),
+      contactTime: val('contactTime'),
+      message: val('message'),
+      consent: fd.get('consent') === 'on',
+      website: fd.get('website') || '',
+    };
+
+    try {
+      var res = await fetch(API + '/api/public/devis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (res.ok && data.success) {
+        if (data.message) document.getElementById('dz-success-msg').textContent = data.message;
+        bar.style.width = '100%';
+        stepEls.forEach(function (el) { el.classList.remove('active'); el.classList.add('done'); });
+        show('done');
+        if (window.plausible) window.plausible('Devis envoyé');
+      } else {
+        errorEl.textContent = (data.error && data.error.message) || 'Une erreur est survenue. Réessayez.';
+        btn.disabled = false;
+        btn.innerHTML = label;
+      }
+    } catch (err) {
+      errorEl.textContent = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
+      btn.disabled = false;
+      btn.innerHTML = label;
+    }
+  });
+
+  show(1);
+})();
+</script>
+
+</body>
+</html>

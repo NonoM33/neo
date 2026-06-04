@@ -23,6 +23,7 @@ import { activitiesRoutes } from './modules/activities';
 import { kpisRoutes } from './modules/kpis';
 import { appointmentsRoutes, availabilityRoutes } from './modules/appointments';
 import { bookingRoutes } from './modules/booking';
+import { devisRoutes } from './modules/devis';
 import { calendarSyncRoutes } from './modules/calendar-sync';
 import { callsRoutes } from './modules/calls';
 import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
@@ -76,6 +77,8 @@ app.route('/', scanSessionsRoutes);
 // which use catch-all middleware that would intercept /api/client/* paths)
 // Public booking routes (no auth required)
 app.route('/api/public/booking', bookingRoutes);
+// Public devis (quote request) route (no auth required)
+app.route('/api/public/devis', devisRoutes);
 
 // Calendar sync routes (mixed: token-based feed + JWT-authenticated management)
 app.route('/api/calendar', calendarSyncRoutes);
