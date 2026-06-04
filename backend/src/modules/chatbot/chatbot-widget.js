@@ -63,7 +63,7 @@
 
   /* ---- Styles ---- */
   var css =
-    '#ncw{position:fixed;z-index:2147482000;bottom:20px;right:20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}' +
+    '#ncw{position:fixed;z-index:2147482000;bottom:20px;right:88px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}' +
     '#ncw-fab{width:60px;height:60px;border-radius:50%;background:#0d6efd;color:#fff;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(13,110,253,.45);display:flex;align-items:center;justify-content:center;transition:transform .15s ease}' +
     '#ncw-fab:hover{transform:scale(1.06)}' +
     '#ncw-fab svg{width:30px;height:30px;fill:#fff}' +
