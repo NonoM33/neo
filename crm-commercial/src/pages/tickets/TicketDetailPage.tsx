@@ -12,6 +12,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from '../../types';
+import { assigneeId, categoryName } from './ticket-display';
 
 const STATUS_VARIANT: Record<TicketStatus, string> = {
   nouveau: 'info',
@@ -305,7 +306,7 @@ export function TicketDetailPage() {
                   {ticket.client.firstName} {ticket.client.lastName}
                 </dd>
                 <dt className="col-5 text-secondary fw-normal">Catégorie</dt>
-                <dd className="col-7">{ticket.category.name ?? '—'}</dd>
+                <dd className="col-7">{categoryName(ticket.category)}</dd>
                 <dt className="col-5 text-secondary fw-normal">Source</dt>
                 <dd className="col-7">{ticketSourceLabels[ticket.source]}</dd>
                 <dt className="col-5 text-secondary fw-normal">Escalade</dt>
@@ -344,7 +345,7 @@ export function TicketDetailPage() {
               <label className="form-label">Assigné à</label>
               <select
                 className="form-select"
-                value={ticket.assignedTo.id ?? ''}
+                value={assigneeId(ticket.assignedTo)}
                 disabled={busy}
                 onChange={(e) => handleAssign(e.target.value)}
               >

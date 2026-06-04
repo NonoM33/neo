@@ -73,8 +73,8 @@ export interface TicketListItem {
   createdAt: string;
   updatedAt: string;
   client: TicketClientRef;
-  assignedTo: TicketUserRef;
-  category: TicketCategoryRef;
+  assignedTo: TicketUserRef | null;
+  category: TicketCategoryRef | null;
 }
 
 export interface TicketComment {
@@ -128,8 +128,8 @@ export interface TicketDetail {
   createdAt: string;
   updatedAt: string;
   client: TicketClientRef;
-  assignedTo: TicketUserRef;
-  category: TicketCategoryRef;
+  assignedTo: TicketUserRef | null;
+  category: TicketCategoryRef | null;
   comments: TicketComment[];
   history: TicketHistoryEntry[];
 }

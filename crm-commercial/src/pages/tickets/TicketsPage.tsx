@@ -11,6 +11,7 @@ import {
   type TicketStats,
   type TicketStatus,
 } from '../../types';
+import { assigneeLabel } from './ticket-display';
 
 const PAGE_SIZE = 20;
 
@@ -242,10 +243,7 @@ export function TicketsPage() {
               {
                 key: 'assignedTo',
                 header: 'Assigné à',
-                render: (t) =>
-                  t.assignedTo.id
-                    ? `${t.assignedTo.firstName ?? ''} ${t.assignedTo.lastName ?? ''}`.trim()
-                    : '—',
+                render: (t) => assigneeLabel(t.assignedTo),
               },
               { key: 'createdAt', header: 'Créé le', render: (t) => formatDate(t.createdAt) },
             ]}
