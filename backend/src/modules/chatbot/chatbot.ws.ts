@@ -152,6 +152,31 @@ export async function handleVisitorMessage(
 
   // En mode humain, le bot ne répond pas : un agent gère la conversation.
   if (session.mode !== 'bot') return;
+
+  await runBotReply(sessionId);
+}
+
+/**
+ * Indique s'il reste des messages visiteur sans réponse, c.-à-d. si le dernier
+ * message conversationnel (hors système) provient du visiteur. Sert à savoir si
+ * le bot doit répondre lorsqu'un conseiller lui rend la main.
+ */
+export function hasUnansweredVisitorMessages(
+  messages: Pick<ChatbotMessage, 'role'>[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const role = messages[i]!.role;
+    if (role === 'system') continue;
+    return role === 'visitor';
+  }
+  return false;
+}
+
+/**
+ * Génère et diffuse une réponse du bot pour la session donnée. Mutualisé entre
+ * le flux visiteur normal et la reprise automatique après remise de main.
+ */
+export async function runBotReply(sessionId: string): Promise<void> {
   if (!isChatbotEnabled) return;
 
   sendToVisitors(sessionId, { type: 'typing' });
@@ -252,6 +277,13 @@ export async function handleStaffAction(
       sendToVisitors(sessionId, { type: 'message', message: serializeMessage(sysMsg) });
       sendToStaff({ type: 'message', sessionId, message: serializeMessage(sysMsg) });
       await pushSessionToStaff(session, sysMsg.content);
+
+      // Le conseiller rend la main alors que des messages du visiteur sont
+      // restés sans réponse : le bot répond pour nous au(x) dernier(s) message(s).
+      const history = await service.getMessages(sessionId);
+      if (hasUnansweredVisitorMessages(history)) {
+        await runBotReply(sessionId);
+      }
       return;
     }
 
