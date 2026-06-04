@@ -5,6 +5,7 @@ import { secureHeaders } from 'hono/secure-headers';
 
 import { errorHandler } from './middleware/error.middleware';
 import { blockUiOnApiHost } from './middleware/api-host-only.middleware';
+import { relaxWidgetCorp } from './middleware/widget-corp.middleware';
 
 import { authRoutes } from './modules/auth';
 import { usersRoutes } from './modules/users';
@@ -51,6 +52,8 @@ const app = new Hono();
 
 // Middleware
 app.use('*', logger());
+// Doit précéder secureHeaders() pour pouvoir réécrire le CORP des widgets.
+app.use('*', relaxWidgetCorp);
 app.use('*', secureHeaders());
 // Sur les hôtes "API seule", masque les interfaces HTML (back-office/admin/swagger).
 app.use('*', blockUiOnApiHost);
