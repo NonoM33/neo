@@ -6,9 +6,20 @@ import {
   createPublicBooking,
 } from '../booking/booking.service';
 import { publicBookingSchema } from '../booking/booking.schema';
-import { sendEmail, renderBookingConfirmationEmail } from '../email';
+import {
+  sendEmail,
+  renderBookingConfirmationEmail,
+  renderAccountWelcomeEmail,
+} from '../email';
 import { env } from '../../config/env';
 import * as chatbotService from './chatbot.service';
+import {
+  recognizeVisitor,
+  createClientAccountFromChat,
+} from './chatbot.account';
+
+/** URL de l'espace client (page de connexion du portail). */
+const CLIENT_PORTAL_URL = `${env.SITE_BASE_URL}/espace-client`;
 
 // ─── Contexte & types ────────────────────────────────────────────────────────
 
@@ -218,6 +229,92 @@ async function captureLead(
   return result;
 }
 
+/** Reconnaît un visiteur via son email (RDV existants, compte portail). */
+async function recognizeClient(
+  ctx: ChatbotToolContext,
+  args: Record<string, unknown>
+): Promise<unknown> {
+  const email = asString(args.email);
+  if (!email) {
+    return { success: false, message: "L'email est requis pour reconnaître le visiteur." };
+  }
+  const result = await recognizeVisitor(email);
+
+  // Si on reconnaît le visiteur, on enrichit la session pour la console staff.
+  if (result.known) {
+    const name = [result.firstName, result.lastName].filter(Boolean).join(' ').trim();
+    await chatbotService.updateSessionContact(ctx.sessionId, {
+      name: name || undefined,
+      email,
+    });
+  }
+
+  return {
+    success: true,
+    reconnu: result.known,
+    compte_existant: result.hasAccount,
+    prenom: result.firstName,
+    nom: result.lastName,
+    rdv_a_venir: result.appointments.map((a) => ({
+      type: a.typeLabel,
+      date: a.date,
+      heure: a.startTime,
+      statut: a.status,
+    })),
+  };
+}
+
+/** Crée un compte espace client et envoie les identifiants par email. */
+async function createAccount(
+  ctx: ChatbotToolContext,
+  args: Record<string, unknown>
+): Promise<unknown> {
+  const email = asString(args.email);
+  if (!email) {
+    return { success: false, message: "L'email est requis pour créer un compte." };
+  }
+
+  const result = await createClientAccountFromChat({
+    email,
+    firstName: asString(args.prenom),
+    lastName: asString(args.nom),
+    phone: asString(args.telephone),
+  });
+
+  if (!result.success) {
+    // On ne renvoie jamais le mot de passe au modèle.
+    return { success: false, deja_inscrit: result.alreadyExists ?? false, message: result.message };
+  }
+
+  // Coordonnées visibles côté console staff.
+  await chatbotService.updateSessionContact(ctx.sessionId, {
+    name: [asString(args.prenom), asString(args.nom)].filter(Boolean).join(' ') || undefined,
+    email,
+    phone: asString(args.telephone),
+  });
+
+  // Email best-effort avec les identifiants (mot de passe jamais exposé au modèle).
+  if (result.tempPassword) {
+    try {
+      const mail = renderAccountWelcomeEmail({
+        clientFirstName: result.clientFirstName ?? asString(args.prenom) ?? 'client',
+        email,
+        tempPassword: result.tempPassword,
+        loginUrl: CLIENT_PORTAL_URL,
+      });
+      await sendEmail({ to: email, subject: mail.subject, html: mail.html, text: mail.text });
+    } catch (err) {
+      console.error('[chatbot] account welcome email failed:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message:
+      'Compte créé. Un email avec les identifiants de connexion vient d\'être envoyé au visiteur.',
+  };
+}
+
 // ─── Registre ──────────────────────────────────────────────────────────────
 
 const tools: ChatbotTool[] = [
@@ -330,6 +427,47 @@ const tools: ChatbotTool[] = [
       },
     },
     handler: bookAppointment,
+  },
+  {
+    name: 'reconnaitre_client',
+    definition: {
+      type: 'function',
+      function: {
+        name: 'reconnaitre_client',
+        description:
+          "Reconnaît un visiteur à partir de son email : indique s'il est déjà connu, s'il possède un compte espace client, et liste ses rendez-vous à venir. À utiliser quand le visiteur dit avoir déjà un RDV ou un compte, ou pour personnaliser l'accueil avant de proposer une nouvelle réservation.",
+        parameters: {
+          type: 'object',
+          properties: {
+            email: { type: 'string', description: 'Email du visiteur' },
+          },
+          required: ['email'],
+        },
+      },
+    },
+    handler: recognizeClient,
+  },
+  {
+    name: 'creer_compte_client',
+    definition: {
+      type: 'function',
+      function: {
+        name: 'creer_compte_client',
+        description:
+          "Crée un compte espace client pour le visiteur et lui envoie ses identifiants de connexion par email (un mot de passe provisoire est généré automatiquement — ne demande JAMAIS de mot de passe dans la conversation). À utiliser quand le visiteur souhaite suivre ses rendez-vous/devis et n'a pas encore de compte. Vérifie d'abord avec reconnaitre_client si un compte existe déjà.",
+        parameters: {
+          type: 'object',
+          properties: {
+            email: { type: 'string', description: 'Email du visiteur' },
+            prenom: { type: 'string' },
+            nom: { type: 'string' },
+            telephone: { type: 'string' },
+          },
+          required: ['email', 'prenom', 'nom'],
+        },
+      },
+    },
+    handler: createAccount,
   },
 ];
 

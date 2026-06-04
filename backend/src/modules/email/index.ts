@@ -5,3 +5,7 @@ export {
   renderBookingConfirmationEmail,
   type BookingConfirmationEmailVars,
 } from './templates/booking-confirmation';
+export {
+  renderAccountWelcomeEmail,
+  type AccountWelcomeEmailVars,
+} from './templates/account-welcome';
