@@ -75,13 +75,16 @@ export async function createSession(c: Context, user: AdminUser): Promise<void> 
     secure: env.NODE_ENV === 'production',
     sameSite: 'Lax',
     maxAge: SESSION_EXPIRY,
-    path: '/backoffice',
+    // Portée à toute l'app : le handshake WebSocket de la console staff vise
+    // /ws/chatbot/staff (hors de /backoffice). Avec path:'/backoffice' le cookie
+    // n'était pas envoyé sur ce handshake → WS fermé en 1008 → "déconnecté".
+    path: '/',
   });
 }
 
 export function destroySession(c: Context): void {
   deleteCookie(c, SESSION_COOKIE, {
-    path: '/backoffice',
+    path: '/',
   });
 }
 
