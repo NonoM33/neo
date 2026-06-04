@@ -63,6 +63,9 @@ const envSchema = z.object({
   // Tracking
   TRACKING_EXPIRY_HOURS: z.coerce.number().default(4),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
+  // Base URL du site vitrine (où vit /configurateur) — sert à construire les
+  // liens de reprise + QR code des configurations sauvegardées.
+  SITE_BASE_URL: z.string().default('https://neo-domotique.fr'),
 
   // Multi-domaine : hôtes (séparés par des virgules) servant UNIQUEMENT l'API.
   // Sur ces hôtes, les interfaces HTML (/backoffice, /admin, /swagger) renvoient 404.

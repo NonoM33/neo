@@ -1,0 +1,559 @@
+---
+import { SITE_CONFIG } from '../config/site';
+
+const siteUrl = SITE_CONFIG.url;
+const title = 'Configurez votre maison connectée — Neo Domotique';
+const description =
+  "Composez votre installation domotique pièce par pièce, voyez le prix en temps réel et recevez votre devis. Alarme, caméras, capteurs : simple et assisté.";
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Configurateur maison connectée - Neo Domotique',
+  description,
+};
+---
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href={`${siteUrl}/configurateur`} />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={`${siteUrl}/configurateur`} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:locale" content="fr_FR" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/neo/styles-v2.css" />
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />
+<script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
+<style>
+  .cfg-main { padding: 90px 0 160px; min-height: 100vh; }
+  .cfg-head { text-align: center; margin-bottom: 32px; }
+  .cfg-steps { display: flex; gap: 8px; justify-content: center; margin: 24px 0 8px; flex-wrap: wrap; }
+  .cfg-step { font-size: 13px; color: #8a8f98; display: flex; align-items: center; gap: 6px; }
+  .cfg-step .num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 12px; }
+  .cfg-step.active { color: #fff; }
+  .cfg-step.active .num { background: var(--grad, linear-gradient(135deg,#6ea8fe,#a98eff)); color: #0b0d12; font-weight: 600; }
+  .cfg-step.done .num { background: rgba(110,168,254,.25); color: #cfe0ff; }
+  .cfg-progress { height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin: 12px auto 36px; max-width: 520px; }
+  .cfg-progress span { display: block; height: 100%; width: 25%; background: linear-gradient(90deg,#6ea8fe,#a98eff); transition: width .35s ease; }
+  .cfg-panel { display: none; }
+  .cfg-panel.active { display: block; animation: cfgIn .35s ease; }
+  @keyframes cfgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .cfg-field { margin-bottom: 18px; }
+  .cfg-field label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+  .cfg-field input, .cfg-field textarea { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-family: inherit; font-size: 15px; }
+  .cfg-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; }
+  .cfg-choice { padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); cursor: pointer; transition: all .15s; text-align: center; }
+  .cfg-choice:hover { border-color: rgba(110,168,254,.5); }
+  .cfg-choice.sel { border-color: #6ea8fe; background: rgba(110,168,254,.12); }
+  .cfg-choice .t { font-weight: 600; font-size: 15px; }
+  .cfg-choice .s { font-size: 13px; color: #8a8f98; margin-top: 3px; }
+  .cfg-cat { margin-bottom: 14px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; overflow: hidden; }
+  .cfg-cat-head { padding: 14px 18px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.03); text-transform: capitalize; }
+  .cfg-cat-head .count { font-size: 13px; color: #6ea8fe; font-weight: 500; }
+  .cfg-cat-body { display: none; padding: 8px 18px 18px; }
+  .cfg-cat.open .cfg-cat-body { display: block; }
+  .cfg-prod { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.06); }
+  .cfg-prod:first-child { border-top: none; }
+  .cfg-prod .thumb { width: 56px; height: 56px; border-radius: 10px; background: rgba(255,255,255,.06); object-fit: cover; flex-shrink: 0; }
+  .cfg-prod .info { flex: 1; min-width: 0; }
+  .cfg-prod .info .pn { font-weight: 500; font-size: 15px; }
+  .cfg-prod .info .pp { font-size: 13px; color: #8a8f98; }
+  .cfg-stepper { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .cfg-stepper button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.04); color: #fff; font-size: 18px; cursor: pointer; line-height: 1; }
+  .cfg-stepper button:hover { border-color: #6ea8fe; }
+  .cfg-stepper .qty { min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .cfg-recap-line { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 15px; }
+  .cfg-recap-line .auto { font-size: 12px; color: #a98eff; margin-left: 6px; }
+  .cfg-recap-empty { color: #8a8f98; padding: 24px 0; text-align: center; }
+  .cfg-pricebar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13,15,20,.92); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,.1); padding: 14px 0; z-index: 30; }
+  .cfg-pricebar .inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .cfg-pricebar .total { font-size: 13px; color: #8a8f98; }
+  .cfg-pricebar .total b { display: block; font-size: 22px; color: #fff; font-variant-numeric: tabular-nums; }
+  .cfg-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
+  .cfg-error { color: #ff8a8a; font-size: 14px; margin-top: 10px; min-height: 18px; }
+  .cfg-hp { position: absolute; left: -9999px; opacity: 0; height: 0; }
+  .cfg-done { text-align: center; padding: 40px 0; }
+  .cfg-done .ic { font-size: 56px; }
+  .cfg-loading { text-align: center; color: #8a8f98; padding: 40px 0; }
+  .cfg-modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(6px); z-index: 50; display: grid; place-items: center; padding: 20px; }
+  .cfg-modal-card { background: #14171e; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 28px; max-width: 380px; width: 100%; text-align: center; position: relative; }
+  .cfg-modal-x { position: absolute; top: 12px; right: 16px; background: none; border: none; color: #8a8f98; font-size: 26px; cursor: pointer; line-height: 1; }
+  .cfg-qr { background: #fff; border-radius: 12px; padding: 12px; width: 200px; height: 200px; margin: 0 auto 18px; }
+  .cfg-qr svg { width: 100%; height: 100%; display: block; }
+  .cfg-code { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; letter-spacing: 2px; margin-bottom: 16px; color: #cfe0ff; }
+  .cfg-linkrow { display: flex; gap: 8px; }
+  .cfg-linkrow input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"></div>
+
+<nav class="nav scrolled">
+  <a class="brand" href="/">
+    <span class="logo"><span class="dot"></span></span>
+    <b>Neo</b>
+  </a>
+  <div class="nav-cta">
+    <a class="nav-phone" href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
+    <a class="btn ghost" href="/">Retour au site</a>
+  </div>
+</nav>
+
+<main class="cfg-main" data-api={SITE_CONFIG.apiBaseUrl}>
+  <div class="narrow">
+    <div class="cfg-head">
+      <span class="eyebrow">Configurateur · estimation instantanée</span>
+      <h1 class="scene-title">Composez votre <span class="serif grad">maison connectée</span></h1>
+      <p class="lead">Choisissez vos équipements, voyez le prix en temps réel. On s'occupe du reste — ou vous installez vous-même.</p>
+    </div>
+
+    <div class="cfg-steps">
+      <div class="cfg-step" data-step="1"><span class="num">1</span> Logement</div>
+      <div class="cfg-step" data-step="2"><span class="num">2</span> Équipements</div>
+      <div class="cfg-step" data-step="3"><span class="num">3</span> Estimation</div>
+      <div class="cfg-step" data-step="4"><span class="num">4</span> Coordonnées</div>
+    </div>
+    <div class="cfg-progress"><span id="cfg-bar"></span></div>
+
+    <form id="cfg-form" novalidate>
+      <!-- ÉTAPE 1 — Logement -->
+      <section class="cfg-panel" data-panel="1">
+        <div class="cfg-field">
+          <label>Qui installe&nbsp;?</label>
+          <div class="cfg-choices" data-radio="installMode">
+            <div class="cfg-choice sel" data-value="pro"><div class="t">Un pro Neo</div><div class="s">Installation clé en main</div></div>
+            <div class="cfg-choice" data-value="autonome"><div class="t">Moi-même</div><div class="s">Livré avec notice de pose</div></div>
+          </div>
+        </div>
+        <div class="cfg-field">
+          <label>Type de logement</label>
+          <div class="cfg-choices" data-radio="housingType">
+            <div class="cfg-choice" data-value="maison"><div class="t">Maison</div></div>
+            <div class="cfg-choice" data-value="appartement"><div class="t">Appartement</div></div>
+          </div>
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-surface">Surface approximative (m²)</label>
+          <input type="number" id="cfg-surface" name="surface" min="1" placeholder="ex : 90" />
+        </div>
+      </section>
+
+      <!-- ÉTAPE 2 — Équipements -->
+      <section class="cfg-panel" data-panel="2">
+        <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
+      </section>
+
+      <!-- ÉTAPE 3 — Estimation -->
+      <section class="cfg-panel" data-panel="3">
+        <div id="cfg-recap"></div>
+        <p class="lead" style="font-size:14px;margin-top:16px;color:#8a8f98">
+          Estimation indicative TTC. Le devis final est confirmé par un conseiller.
+        </p>
+        <button type="button" class="btn ghost" id="cfg-save" style="margin-top:8px">
+          💾 Sauvegarder & obtenir mon code
+        </button>
+      </section>
+
+      <!-- ÉTAPE 4 — Coordonnées -->
+      <section class="cfg-panel" data-panel="4">
+        <div class="cfg-field"><label for="cfg-firstName">Prénom</label><input id="cfg-firstName" name="firstName" /></div>
+        <div class="cfg-field"><label for="cfg-lastName">Nom</label><input id="cfg-lastName" name="lastName" /></div>
+        <div class="cfg-field"><label for="cfg-email">Email</label><input id="cfg-email" name="email" type="email" /></div>
+        <div class="cfg-field"><label for="cfg-phone">Téléphone</label><input id="cfg-phone" name="phone" type="tel" /></div>
+        <div class="cfg-field"><label for="cfg-postalCode">Code postal</label><input id="cfg-postalCode" name="postalCode" /></div>
+        <div class="cfg-field"><label for="cfg-city">Ville (optionnel)</label><input id="cfg-city" name="city" /></div>
+        <div class="cfg-field"><label for="cfg-message">Message (optionnel)</label><textarea id="cfg-message" name="message" rows="3"></textarea></div>
+        <label class="cfg-field" style="display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px">
+          <input type="checkbox" name="consent" style="width:auto;margin-top:3px" />
+          <span>J'accepte que mes données soient utilisées pour me recontacter au sujet de ma demande.</span>
+        </label>
+        <input class="cfg-hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      </section>
+
+      <!-- SUCCÈS -->
+      <section class="cfg-panel" data-panel="done">
+        <div class="cfg-done">
+          <div class="ic">✅</div>
+          <h2 class="scene-title">Configuration envoyée&nbsp;!</h2>
+          <p class="lead" id="cfg-done-msg">Votre configuration a bien été enregistrée. Un conseiller vous recontacte sous 24h.</p>
+          <a class="btn" href="/">Retour à l'accueil</a>
+        </div>
+      </section>
+
+      <div class="cfg-error" id="cfg-error"></div>
+
+      <div class="cfg-nav" id="cfg-nav">
+        <button type="button" class="btn ghost" id="cfg-prev">Précédent</button>
+        <button type="button" class="btn" id="cfg-next">Continuer</button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<!-- Modale code + QR -->
+<div class="cfg-modal" id="cfg-modal" style="display:none">
+  <div class="cfg-modal-card">
+    <button type="button" class="cfg-modal-x" id="cfg-modal-close" aria-label="Fermer">×</button>
+    <h3 style="margin:0 0 6px">Votre configuration est sauvegardée</h3>
+    <p class="lead" style="font-size:14px;margin:0 0 18px;color:#8a8f98">
+      Scannez le QR ou notez votre code pour la retrouver, ou donnez-le à votre conseiller.
+    </p>
+    <div class="cfg-qr" id="cfg-qr"></div>
+    <div class="cfg-code" id="cfg-code">—</div>
+    <div class="cfg-linkrow">
+      <input type="text" id="cfg-link" readonly />
+      <button type="button" class="btn" id="cfg-copy">Copier</button>
+    </div>
+  </div>
+</div>
+
+<div class="cfg-pricebar" id="cfg-pricebar" style="display:none">
+  <div class="narrow inner">
+    <div class="total">Estimation TTC<b id="cfg-total">—</b></div>
+    <div class="cfg-step-hint" style="font-size:13px;color:#8a8f98" id="cfg-count">0 équipement</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var main = document.querySelector('.cfg-main');
+  var API = (main && main.getAttribute('data-api')) || '';
+  var form = document.getElementById('cfg-form');
+  var bar = document.getElementById('cfg-bar');
+  var stepEls = Array.prototype.slice.call(document.querySelectorAll('.cfg-step'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.cfg-panel'));
+  var errorEl = document.getElementById('cfg-error');
+  var navEl = document.getElementById('cfg-nav');
+  var prevBtn = document.getElementById('cfg-prev');
+  var nextBtn = document.getElementById('cfg-next');
+  var priceBar = document.getElementById('cfg-pricebar');
+  var totalEl = document.getElementById('cfg-total');
+  var countEl = document.getElementById('cfg-count');
+
+  var EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+  var current = 1;
+  var selection = {}; // productId -> { qty, name }
+  var lastEstimate = { lines: [], totalTTC: 0 };
+
+  // ── Radios (choice chips) ──
+  document.querySelectorAll('[data-radio]').forEach(function (group) {
+    group.addEventListener('click', function (e) {
+      var chip = e.target.closest('.cfg-choice');
+      if (!chip) return;
+      group.querySelectorAll('.cfg-choice').forEach(function (c) { c.classList.remove('sel'); });
+      chip.classList.add('sel');
+    });
+  });
+  function radioValue(name, fallback) {
+    var sel = document.querySelector('[data-radio="' + name + '"] .cfg-choice.sel');
+    return sel ? sel.getAttribute('data-value') : fallback;
+  }
+
+  // ── Catalogue ──
+  var catalogLoaded = false;
+  function loadCatalog() {
+    return fetch(API + '/api/public/configurateur/catalogue')
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderCatalog(data.categories || []); catalogLoaded = true; syncCatalogQuantities(); })
+      .catch(function () {
+        document.getElementById('cfg-catalog').textContent =
+          'Catalogue indisponible pour le moment. Réessayez plus tard.';
+      });
+  }
+
+  function syncCatalogQuantities() {
+    document.querySelectorAll('.qty[data-pid]').forEach(function (el) {
+      var pid = el.getAttribute('data-pid');
+      el.textContent = selection[pid] ? String(selection[pid].qty) : '0';
+    });
+  }
+
+  function renderCatalog(categories) {
+    var host = document.getElementById('cfg-catalog');
+    host.className = '';
+    if (!categories.length) { host.textContent = 'Aucun équipement disponible.'; return; }
+    host.innerHTML = '';
+    categories.forEach(function (cat, idx) {
+      var wrap = document.createElement('div');
+      wrap.className = 'cfg-cat' + (idx === 0 ? ' open' : '');
+      var head = document.createElement('div');
+      head.className = 'cfg-cat-head';
+      head.innerHTML = '<span>' + esc(cat.category) + '</span><span class="count">' + cat.products.length + ' produits</span>';
+      head.addEventListener('click', function () { wrap.classList.toggle('open'); });
+      wrap.appendChild(head);
+      var body = document.createElement('div');
+      body.className = 'cfg-cat-body';
+      cat.products.forEach(function (p) { body.appendChild(productRow(p)); });
+      wrap.appendChild(body);
+      host.appendChild(wrap);
+    });
+  }
+
+  function productRow(p) {
+    var row = document.createElement('div');
+    row.className = 'cfg-prod';
+    var thumb = p.imageUrl
+      ? '<img class="thumb" src="' + esc(p.imageUrl) + '" alt="" />'
+      : '<div class="thumb"></div>';
+    row.innerHTML =
+      thumb +
+      '<div class="info"><div class="pn">' + esc(p.name) + '</div>' +
+      '<div class="pp">' + EUR.format(p.priceTTC) + ' TTC</div></div>';
+    var stepper = document.createElement('div');
+    stepper.className = 'cfg-stepper';
+    var minus = mkBtn('−');
+    var qtyEl = document.createElement('span');
+    qtyEl.className = 'qty';
+    qtyEl.setAttribute('data-pid', p.id);
+    qtyEl.textContent = selection[p.id] ? String(selection[p.id].qty) : '0';
+    var plus = mkBtn('+');
+    minus.addEventListener('click', function () { changeQty(p, -1, qtyEl); });
+    plus.addEventListener('click', function () { changeQty(p, 1, qtyEl); });
+    stepper.appendChild(minus); stepper.appendChild(qtyEl); stepper.appendChild(plus);
+    row.appendChild(stepper);
+    return row;
+  }
+
+  function mkBtn(txt) { var b = document.createElement('button'); b.type = 'button'; b.textContent = txt; return b; }
+
+  function changeQty(p, delta, qtyEl) {
+    var cur = selection[p.id] ? selection[p.id].qty : 0;
+    var next = Math.max(0, cur + delta);
+    if (next === 0) { delete selection[p.id]; }
+    else { selection[p.id] = { qty: next, name: p.name }; }
+    qtyEl.textContent = String(next);
+    scheduleEstimate();
+  }
+
+  // ── Estimation live (débounce) ──
+  var estTimer = null;
+  function scheduleEstimate() {
+    updateCount();
+    if (estTimer) clearTimeout(estTimer);
+    estTimer = setTimeout(runEstimate, 400);
+  }
+
+  function selectionItems() {
+    return Object.keys(selection).map(function (id) {
+      return { productId: id, quantity: selection[id].qty };
+    });
+  }
+
+  function updateCount() {
+    var n = 0;
+    Object.keys(selection).forEach(function (id) { n += selection[id].qty; });
+    countEl.textContent = n + (n > 1 ? ' équipements' : ' équipement');
+    priceBar.style.display = current >= 2 && current !== 'done' ? 'block' : 'none';
+  }
+
+  function runEstimate() {
+    var items = selectionItems();
+    if (!items.length) { lastEstimate = { lines: [], totalTTC: 0 }; totalEl.textContent = EUR.format(0); renderRecap(); return; }
+    fetch(API + '/api/public/configurateur/estimer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { lastEstimate = data; totalEl.textContent = EUR.format(data.totalTTC || 0); renderRecap(); })
+      .catch(function () {});
+  }
+
+  function renderRecap() {
+    var host = document.getElementById('cfg-recap');
+    if (!lastEstimate.lines || !lastEstimate.lines.length) {
+      host.innerHTML = '<div class="cfg-recap-empty">Aucun équipement sélectionné. Revenez à l\'étape précédente pour composer votre installation.</div>';
+      return;
+    }
+    var html = '';
+    lastEstimate.lines.forEach(function (l) {
+      html += '<div class="cfg-recap-line"><span>' + l.quantity + '× ' + esc(l.name) +
+        (l.auto ? '<span class="auto">requis</span>' : '') +
+        '</span><span>' + EUR.format(l.totalTTC) + '</span></div>';
+    });
+    html += '<div class="cfg-recap-line" style="border:none;font-weight:700;font-size:18px;margin-top:8px">' +
+      '<span>Total TTC</span><span>' + EUR.format(lastEstimate.totalTTC) + '</span></div>';
+    host.innerHTML = html;
+  }
+
+  // ── Navigation ──
+  function show(step) {
+    current = step;
+    panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-panel') === String(step)); });
+    stepEls.forEach(function (el) {
+      var n = Number(el.getAttribute('data-step'));
+      el.classList.remove('active', 'done');
+      if (step === 'done' || n < step) el.classList.add('done');
+      else if (n === step) el.classList.add('active');
+    });
+    var pct = step === 'done' ? 100 : step * 25;
+    bar.style.width = pct + '%';
+    errorEl.textContent = '';
+    if (step === 'done') { navEl.style.display = 'none'; priceBar.style.display = 'none'; return; }
+    navEl.style.display = 'flex';
+    prevBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
+    nextBtn.textContent = step === 4 ? 'Envoyer ma demande' : 'Continuer';
+    updateCount();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function validate(step) {
+    errorEl.textContent = '';
+    if (step === 1) {
+      if (!radioValue('housingType')) { errorEl.textContent = 'Choisissez un type de logement.'; return false; }
+    }
+    if (step === 2) {
+      if (!selectionItems().length) { errorEl.textContent = 'Sélectionnez au moins un équipement.'; return false; }
+    }
+    if (step === 4) {
+      var req = ['firstName', 'lastName', 'email', 'phone', 'postalCode'];
+      for (var i = 0; i < req.length; i++) {
+        var f = form.elements[req[i]];
+        if (!f || !f.value.trim()) { errorEl.textContent = 'Merci de compléter tous les champs obligatoires.'; return false; }
+      }
+      if (!/.+@.+\..+/.test(form.elements['email'].value)) { errorEl.textContent = 'Email invalide.'; return false; }
+      if (!form.elements['consent'].checked) { errorEl.textContent = 'Vous devez accepter le traitement de vos données.'; return false; }
+    }
+    return true;
+  }
+
+  prevBtn.addEventListener('click', function () { if (current > 1) show(current - 1); });
+  nextBtn.addEventListener('click', function () {
+    if (!validate(current)) return;
+    if (current < 4) { show(current + 1); return; }
+    submit();
+  });
+
+  function val(n) { var f = form.elements[n]; return f && f.value.trim() ? f.value.trim() : undefined; }
+
+  function submit() {
+    nextBtn.disabled = true;
+    var label = nextBtn.textContent;
+    nextBtn.textContent = 'Envoi…';
+    var body = {
+      items: selectionItems(),
+      installMode: radioValue('installMode', 'pro'),
+      firstName: val('firstName'), lastName: val('lastName'),
+      email: val('email'), phone: val('phone'),
+      postalCode: val('postalCode'), city: val('city'),
+      surface: val('surface') ? Number(val('surface')) : undefined,
+      message: val('message'),
+      consent: form.elements['consent'].checked,
+      website: form.elements['website'].value || '',
+    };
+    fetch(API + '/api/public/configurateur/soumettre', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (res.ok && res.d.success) {
+          if (res.d.message) document.getElementById('cfg-done-msg').textContent = res.d.message;
+          show('done');
+          if (window.plausible) window.plausible('Configurateur soumis');
+        } else {
+          errorEl.textContent = (res.d.error && res.d.error.message) || 'Une erreur est survenue. Réessayez.';
+          nextBtn.disabled = false; nextBtn.textContent = label;
+        }
+      })
+      .catch(function () {
+        errorEl.textContent = 'Erreur réseau. Réessayez.';
+        nextBtn.disabled = false; nextBtn.textContent = label;
+      });
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ── Sauvegarde + code + QR ──
+  var modal = document.getElementById('cfg-modal');
+  var saveBtn = document.getElementById('cfg-save');
+  document.getElementById('cfg-modal-close').addEventListener('click', function () { modal.style.display = 'none'; });
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
+  document.getElementById('cfg-copy').addEventListener('click', function () {
+    var input = document.getElementById('cfg-link');
+    input.select();
+    if (navigator.clipboard) navigator.clipboard.writeText(input.value);
+    else document.execCommand('copy');
+    var b = document.getElementById('cfg-copy');
+    var t = b.textContent; b.textContent = 'Copié ✓';
+    setTimeout(function () { b.textContent = t; }, 1500);
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (!selectionItems().length) { errorEl.textContent = 'Ajoutez au moins un équipement avant de sauvegarder.'; return; }
+    saveBtn.disabled = true;
+    var label = saveBtn.textContent; saveBtn.textContent = 'Sauvegarde…';
+    fetch(API + '/api/public/configurateur/sauvegarder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: selectionItems(),
+        installMode: radioValue('installMode', 'pro'),
+        housingType: radioValue('housingType') || undefined,
+        surface: val('surface') ? Number(val('surface')) : undefined,
+        origin: window.location.origin,
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.code) throw new Error('no code');
+        document.getElementById('cfg-qr').innerHTML = data.qr || '';
+        document.getElementById('cfg-code').textContent = data.code;
+        document.getElementById('cfg-link').value = data.url || '';
+        modal.style.display = 'grid';
+        if (window.plausible) window.plausible('Configurateur sauvegardé');
+      })
+      .catch(function () { errorEl.textContent = 'Sauvegarde impossible pour le moment. Réessayez.'; })
+      .then(function () { saveBtn.disabled = false; saveBtn.textContent = label; });
+  });
+
+  // ── Reprise via ?code= ──
+  function applyDraft(draft) {
+    var nameById = {};
+    (draft.estimate && draft.estimate.lines || []).forEach(function (l) { if (!l.auto) nameById[l.productId] = l.name; });
+    selection = {};
+    (draft.items || []).forEach(function (it) {
+      selection[it.productId] = { qty: it.quantity, name: nameById[it.productId] || '' };
+    });
+    if (draft.installMode) {
+      var chip = document.querySelector('[data-radio="installMode"] .cfg-choice[data-value="' + draft.installMode + '"]');
+      if (chip) { document.querySelectorAll('[data-radio="installMode"] .cfg-choice').forEach(function (c) { c.classList.remove('sel'); }); chip.classList.add('sel'); }
+    }
+    if (draft.housingType) {
+      var hc = document.querySelector('[data-radio="housingType"] .cfg-choice[data-value="' + draft.housingType + '"]');
+      if (hc) { document.querySelectorAll('[data-radio="housingType"] .cfg-choice').forEach(function (c) { c.classList.remove('sel'); }); hc.classList.add('sel'); }
+    }
+    if (draft.surface != null && form.elements['surface']) form.elements['surface'].value = draft.surface;
+    if (draft.estimate) { lastEstimate = draft.estimate; totalEl.textContent = EUR.format(draft.estimate.totalTTC || 0); }
+    renderRecap();
+    if (catalogLoaded) syncCatalogQuantities();
+    show(3);
+  }
+
+  function loadFromCode(code) {
+    fetch(API + '/api/public/configurateur/code/' + encodeURIComponent(code))
+      .then(function (r) { if (!r.ok) throw new Error('not found'); return r.json(); })
+      .then(applyDraft)
+      .catch(function () { errorEl.textContent = 'Configuration introuvable pour ce code.'; });
+  }
+
+  var params = new URLSearchParams(window.location.search);
+  var codeParam = params.get('code');
+
+  loadCatalog();
+  if (codeParam) loadFromCode(codeParam);
+  else show(1);
+})();
+</script>
+
+</body>
+</html>
