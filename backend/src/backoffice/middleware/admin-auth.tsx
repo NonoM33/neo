@@ -61,6 +61,22 @@ export function canAccessBackoffice(access: { permissions: string[]; isSuperAdmi
   return access.isSuperAdmin || access.permissions.length > 0;
 }
 
+/**
+ * Pose le cookie de session. Portée à toute l'app (`path:'/'`) : le handshake
+ * WebSocket de la console staff vise /ws/chatbot/staff, hors de /backoffice.
+ * Avec path:'/backoffice' le cookie n'était pas envoyé sur ce handshake → le WS
+ * était fermé en 1008 "Unauthorized" → la console restait "déconnecté".
+ */
+function writeSessionCookie(c: Context, token: string): void {
+  setCookie(c, SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    maxAge: SESSION_EXPIRY,
+    path: '/',
+  });
+}
+
 export async function createSession(c: Context, user: AdminUser): Promise<void> {
   const payload: SessionPayload = {
     userId: user.id,
@@ -70,16 +86,7 @@ export async function createSession(c: Context, user: AdminUser): Promise<void> 
     expiresIn: SESSION_EXPIRY,
   });
 
-  setCookie(c, SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'Lax',
-    maxAge: SESSION_EXPIRY,
-    // Portée à toute l'app : le handshake WebSocket de la console staff vise
-    // /ws/chatbot/staff (hors de /backoffice). Avec path:'/backoffice' le cookie
-    // n'était pas envoyé sur ce handshake → WS fermé en 1008 → "déconnecté".
-    path: '/',
-  });
+  writeSessionCookie(c, token);
 }
 
 export function destroySession(c: Context): void {
@@ -142,6 +149,15 @@ export async function requireAdmin(c: Context, next: Next) {
     if (!allowed) {
       return c.redirect('/backoffice?error=forbidden');
     }
+  }
+
+  // Auto-migration : les sessions émises avant le fix portaient path:'/backoffice'
+  // et n'étaient donc pas envoyées sur le handshake WS /ws/chatbot/staff. On
+  // réémet le cookie en path:'/' à chaque requête authentifiée pour que la
+  // console temps réel fonctionne sans forcer une déconnexion/reconnexion.
+  const existingToken = getCookie(c, SESSION_COOKIE);
+  if (existingToken) {
+    writeSessionCookie(c, existingToken);
   }
 
   c.set('adminUser', user);
