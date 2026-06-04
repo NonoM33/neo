@@ -28,7 +28,7 @@ describe('priceTTC', () => {
 });
 
 describe('getToolDefinitions', () => {
-  it('expose les 7 outils du chatbot', () => {
+  it('expose les 8 outils du chatbot', () => {
     const defs = getToolDefinitions();
     const names = defs.map((d) =>
       d.type === 'function' ? d.function.name : null
@@ -42,6 +42,7 @@ describe('getToolDefinitions', () => {
         'lister_types_rdv',
         'reconnaitre_client',
         'reserver_rdv',
+        'verifier_adresse',
       ].sort()
     );
   });

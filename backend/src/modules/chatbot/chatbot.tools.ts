@@ -17,6 +17,7 @@ import {
   recognizeVisitor,
   createClientAccountFromChat,
 } from './chatbot.account';
+import { searchAddress, isCompleteAddress } from '../../lib/address';
 
 /** URL de l'espace client (page de connexion du portail). */
 const CLIENT_PORTAL_URL = `${env.SITE_BASE_URL}/espace-client`;
@@ -315,6 +316,60 @@ async function createAccount(
   };
 }
 
+/** Vérifie/normalise une adresse via la Base Adresse Nationale (BAN). */
+async function verifyAddress(
+  _ctx: ChatbotToolContext,
+  args: Record<string, unknown>
+): Promise<unknown> {
+  const parts = [args.adresse, args.code_postal, args.ville]
+    .map(asString)
+    .filter(Boolean);
+  const query = parts.join(' ').trim();
+  if (query.length < 3) {
+    return { success: false, message: "Indique une adresse à vérifier (rue, code postal, ville)." };
+  }
+
+  let matches;
+  try {
+    matches = await searchAddress(query, 5);
+  } catch {
+    // En cas d'indisponibilité de la BAN, on ne bloque pas le parcours.
+    return {
+      success: true,
+      verifiee: false,
+      complete: false,
+      message: "Le service de vérification d'adresse est momentanément indisponible.",
+    };
+  }
+
+  const best = matches[0];
+  if (!best) {
+    return {
+      success: true,
+      verifiee: true,
+      complete: false,
+      message: "Adresse introuvable. Demande au visiteur l'adresse exacte (numéro, rue, code postal, ville).",
+      suggestions: [],
+    };
+  }
+
+  const complete = isCompleteAddress(best);
+  return {
+    success: true,
+    verifiee: true,
+    complete,
+    adresse: best.name,
+    code_postal: best.postcode,
+    ville: best.city,
+    libelle: best.label,
+    score: Math.round(best.score * 100) / 100,
+    message: complete
+      ? undefined
+      : "Adresse incomplète : il manque probablement le numéro de voie. Demande au visiteur le numéro exact, puis re-vérifie.",
+    suggestions: matches.slice(0, 5).map((m) => m.label),
+  };
+}
+
 // ─── Registre ──────────────────────────────────────────────────────────────
 
 const tools: ChatbotTool[] = [
@@ -468,6 +523,27 @@ const tools: ChatbotTool[] = [
       },
     },
     handler: createAccount,
+  },
+  {
+    name: 'verifier_adresse',
+    definition: {
+      type: 'function',
+      function: {
+        name: 'verifier_adresse',
+        description:
+          "Vérifie une adresse postale française via la Base Adresse Nationale et indique si elle est complète (au niveau du numéro de voie). À appeler AVANT 'reserver_rdv' dès que le visiteur donne une adresse. Si 'complete' est false, demande le numéro de voie exact (ou la précision manquante) puis re-vérifie avant de réserver.",
+        parameters: {
+          type: 'object',
+          properties: {
+            adresse: { type: 'string', description: 'Numéro et rue (ou adresse libre)' },
+            code_postal: { type: 'string', description: 'Code postal (optionnel)' },
+            ville: { type: 'string', description: 'Ville (optionnel)' },
+          },
+          required: ['adresse'],
+        },
+      },
+    },
+    handler: verifyAddress,
   },
 ];
 
