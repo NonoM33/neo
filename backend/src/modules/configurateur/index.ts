@@ -3,3 +3,4 @@ export * from './configurateur.service';
 export * from './configurateur.schema';
 export * from './configurateur.pricing';
 export * from './configurateur.code';
+export * from './configurateur.suggest';

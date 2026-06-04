@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { estimateSchema, saveSchema, submitSchema } from './configurateur.schema';
+import { assistantSchema } from './configurateur.assistant.schema';
+import { runConfiguratorAssistant } from './configurateur.assistant';
 import * as configurateurService from './configurateur.service';
 import { rateLimit } from '../../middleware/rate-limit.middleware';
 
@@ -35,6 +37,19 @@ configurateurRouter.post(
     const input = c.req.valid('json');
     const result = await configurateurService.saveDraft(input);
     return c.json(result, 201);
+  },
+);
+
+// ─── POST /api/public/configurateur/assistant ─────────────────────────────
+// Guide IA : conseille, explique les dépendances et peut agir sur le panier.
+configurateurRouter.post(
+  '/assistant',
+  rateLimit({ maxRequests: 20, windowMs: 60_000 }),
+  zValidator('json', assistantSchema),
+  async (c) => {
+    const input = c.req.valid('json');
+    const reply = await runConfiguratorAssistant(input);
+    return c.json(reply);
   },
 );
 
