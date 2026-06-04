@@ -132,6 +132,29 @@ const schema = {
   .cfg-stage:active { cursor: grabbing; }
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
   .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
+  .cfg-stage-hint b { color: #cfe0ff; font-weight: 700; }
+  /* Palette glisser-déposer */
+  .cfg-palette { display: flex; gap: 10px; overflow-x: auto; padding: 12px 2px 4px; margin-top: 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+  .cfg-palette::-webkit-scrollbar { height: 6px; }
+  .cfg-palette::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 6px; }
+  .cfg-pchip { flex: 0 0 auto; width: 124px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, rgba(255,255,255,.03)), rgba(255,255,255,.02)); color: #e4ebff; cursor: grab; text-align: left; touch-action: pan-x; transition: transform .12s, border-color .15s, box-shadow .15s; }
+  .cfg-pchip:hover { border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 6px 20px rgba(0,0,0,.3); transform: translateY(-2px); }
+  .cfg-pchip:active { cursor: grabbing; }
+  .cfg-pchip.dragging { opacity: .35; }
+  .cfg-pchip__media { height: 52px; border-radius: 10px; display: grid; place-items: center; overflow: hidden; background: rgba(0,0,0,.22); }
+  .cfg-pchip__media img { width: 100%; height: 100%; object-fit: cover; }
+  .cfg-pchip__ic { width: 28px; height: 28px; color: var(--accent); }
+  .cfg-pchip__name { font-size: 12px; line-height: 1.25; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cfg-pchip__price { font-size: 12px; font-weight: 800; color: color-mix(in srgb, var(--accent) 75%, #fff); }
+  /* Vignette fantôme suivie pendant le glisser */
+  .cfg-ghost { position: fixed; z-index: 70; left: 0; top: 0; transform: translate(-50%, -50%); pointer-events: none; display: flex; align-items: center; gap: 8px; max-width: 220px; padding: 8px 12px; border-radius: 12px; background: rgba(12,15,22,.92); border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+  .cfg-ghost img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
+  .cfg-ghost .cfg-pchip__ic { width: 22px; height: 22px; color: var(--accent); }
+  .cfg-ghost.ok { border-color: #5fe0b0; box-shadow: 0 12px 30px rgba(95,224,176,.4); }
+  .cfg-ghost.ko { border-color: #ff7a7a; opacity: .8; }
+  /* Toast de confirmation de dépôt */
+  .cfg-toast { position: fixed; z-index: 75; left: 50%; bottom: 84px; transform: translate(-50%, 14px); opacity: 0; pointer-events: none; padding: 10px 16px; border-radius: 999px; background: rgba(18,22,30,.96); border: 1px solid rgba(95,224,176,.5); color: #d8ffe9; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.45); transition: opacity .22s ease, transform .22s ease; }
+  .cfg-toast.show { opacity: 1; transform: translate(-50%, 0); }
   .cfg-roompanel { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: rgba(8,10,14,.9); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
   .cfg-roompanel.open { opacity: 1; pointer-events: auto; }
   .cfg-roompanel-total { margin-left: auto; text-align: right; display: flex; flex-direction: column; line-height: 1.1; }
@@ -211,10 +234,15 @@ const schema = {
         <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
         <div id="cfg-builder" class="cfg-builder" hidden>
           <div id="cfg-stage" class="cfg-stage"></div>
-          <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce pour l'équiper</p>
+          <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
+          <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
         </div>
         <!-- Overlay équipements d'une pièce -->
         <div id="cfg-roompanel" class="cfg-roompanel" hidden aria-hidden="true"></div>
+        <!-- Vignette fantôme suivie pendant le glisser -->
+        <div id="cfg-ghost" class="cfg-ghost" hidden aria-hidden="true"></div>
+        <!-- Confirmation de dépôt -->
+        <div id="cfg-toast" class="cfg-toast" hidden aria-hidden="true"></div>
       </section>
 
       <!-- ÉTAPE 3 — Estimation -->
@@ -291,6 +319,7 @@ const schema = {
 <script>
 import { House3D } from '../configurateur/house3d';
 import { OverlayGate } from '../configurateur/overlay-gate';
+import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -430,6 +459,7 @@ import { OverlayGate } from '../configurateur/overlay-gate';
     if (builderFailed || !initBuilder()) { builder.hidden = true; renderHouseGrid(); return; }
     house3d.setActive(true);
     refreshBadges();
+    renderPalette();
   }
 
   function initBuilder() {
@@ -452,6 +482,125 @@ import { OverlayGate } from '../configurateur/overlay-gate';
   function refreshBadges() {
     if (!house3d) return;
     availableRooms().forEach(function (r) { house3d.setRoomCount(r.key, roomCount(r.key)); });
+  }
+
+  // ── Palette glisser-déposer (équipement → pièce 3D) ──
+  var drag = null; // { product, chip, startX, startY, decided, pid }
+
+  function renderPalette() {
+    var host = document.getElementById('cfg-palette');
+    if (!host) return;
+    if (!house3d) { host.hidden = true; return; } // pas de cible de dépôt en fallback 2D
+    host.hidden = false;
+    host.innerHTML = '';
+    paletteItems(PRODUCTS_BY_CAT, 2).forEach(function (p) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'cfg-pchip';
+      chip.style.setProperty('--accent', catAccent(p.category));
+      chip.setAttribute('data-pid', p.id);
+      var media = p.imageUrl
+        ? '<img src="' + esc(p.imageUrl) + '" alt="" loading="lazy" />'
+        : catSvg(p.category, 'cfg-pchip__ic');
+      chip.innerHTML =
+        '<span class="cfg-pchip__media">' + media + '</span>' +
+        '<span class="cfg-pchip__name">' + esc(p.name) + '</span>' +
+        '<span class="cfg-pchip__price">' + EUR.format(p.priceTTC) + '</span>';
+      chip.addEventListener('pointerdown', function (e) { startDrag(e, p, chip); });
+      host.appendChild(chip);
+    });
+  }
+
+  function ghostEl() { return document.getElementById('cfg-ghost'); }
+
+  function startDrag(e, product, chip) {
+    if (!house3d) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag = { product: product, chip: chip, startX: e.clientX, startY: e.clientY, decided: false, pid: e.pointerId };
+    chip.addEventListener('pointermove', onDragMove);
+    chip.addEventListener('pointerup', onDragEnd);
+    chip.addEventListener('pointercancel', endDrag);
+  }
+
+  function beginGhost(product) {
+    var g = ghostEl();
+    g.style.setProperty('--accent', catAccent(product.category));
+    g.innerHTML = (product.imageUrl
+      ? '<img src="' + esc(product.imageUrl) + '" alt="" />'
+      : catSvg(product.category, 'cfg-pchip__ic')) + '<span>' + esc(product.name) + '</span>';
+    g.hidden = false;
+  }
+
+  function targetRoom(x, y, category) {
+    var key = house3d.roomAtClient(x, y);
+    var room = key && ROOM_BY_KEY[key];
+    return room && roomAcceptsCategory(room.cats, category) ? key : null;
+  }
+
+  function onDragMove(e) {
+    if (!drag) return;
+    if (!drag.decided) {
+      var g = gestureFromDelta(e.clientX - drag.startX, e.clientY - drag.startY, 8);
+      if (g === 'pending') return;
+      if (g === 'scroll') { endDrag(); return; } // laisse la palette défiler
+      drag.decided = true;
+      try { drag.chip.setPointerCapture(drag.pid); } catch (_e) { /* noop */ }
+      drag.chip.classList.add('dragging');
+      beginGhost(drag.product);
+    }
+    e.preventDefault();
+    var gh = ghostEl();
+    gh.style.left = e.clientX + 'px';
+    gh.style.top = e.clientY + 'px';
+    var hitRaw = house3d.roomAtClient(e.clientX, e.clientY);
+    var ok = targetRoom(e.clientX, e.clientY, drag.product.category);
+    house3d.setDropTarget(ok);
+    gh.classList.toggle('ok', !!ok);
+    gh.classList.toggle('ko', !!hitRaw && !ok);
+  }
+
+  function onDragEnd(e) {
+    if (!drag) return;
+    if (drag.decided) {
+      e.preventDefault();
+      var key = targetRoom(e.clientX, e.clientY, drag.product.category);
+      if (key) dropOnRoom(key, drag.product);
+    }
+    endDrag();
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    drag.chip.removeEventListener('pointermove', onDragMove);
+    drag.chip.removeEventListener('pointerup', onDragEnd);
+    drag.chip.removeEventListener('pointercancel', endDrag);
+    try { drag.chip.releasePointerCapture(drag.pid); } catch (_e) { /* noop */ }
+    drag.chip.classList.remove('dragging');
+    drag = null;
+    if (house3d) house3d.setDropTarget(null);
+    var g = ghostEl();
+    g.hidden = true; g.classList.remove('ok', 'ko'); g.innerHTML = '';
+  }
+
+  function dropOnRoom(roomKey, product) {
+    setQty(roomKey, product.id, getQty(roomKey, product.id) + 1);
+    scheduleEstimate();
+    var room = ROOM_BY_KEY[roomKey];
+    showToast('✓ ' + product.name + ' → ' + (room ? room.label : roomKey));
+  }
+
+  var toastTimer = null;
+  function showToast(msg) {
+    var t = document.getElementById('cfg-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.hidden = false;
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      t.classList.remove('show');
+      setTimeout(function () { t.hidden = true; }, 240);
+    }, 1600);
   }
 
   // ── Fallback grille 2D (WebGL indisponible) ──

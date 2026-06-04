@@ -57,6 +57,7 @@ export class House3D {
   private readonly resizeObserver: ResizeObserver;
 
   private hoverKey: string | null = null;
+  private dropKey: string | null = null;
   private pointerDown: { x: number; y: number } | null = null;
   private picking = true;
   private rafId = 0;
@@ -217,10 +218,14 @@ export class House3D {
   }
 
   // ── Pointer / picking ──
-  private setPointer(e: PointerEvent): void {
+  private setPointerFromClient(clientX: number, clientY: number): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  }
+
+  private setPointer(e: PointerEvent): void {
+    this.setPointerFromClient(e.clientX, e.clientY);
   }
 
   private pick(): string | null {
@@ -271,6 +276,17 @@ export class House3D {
     room.badge.set(count, room.accent);
   }
 
+  /** Pièce située sous des coordonnées écran (drag-and-drop), indépendant du picking. */
+  roomAtClient(clientX: number, clientY: number): string | null {
+    this.setPointerFromClient(clientX, clientY);
+    return this.pick();
+  }
+
+  /** Met en surbrillance la pièce visée pendant un glisser (ou null pour effacer). */
+  setDropTarget(key: string | null): void {
+    this.dropKey = key;
+  }
+
   /** Active/désactive le picking des pièces (coupé quand l'overlay est ouvert). */
   setPicking(enabled: boolean): void {
     this.picking = enabled;
@@ -309,12 +325,13 @@ export class House3D {
     const t = this.clock.elapsedTime;
 
     this.rooms.forEach((room) => {
-      const hovered = room.key === this.hoverKey;
-      const targetLift = hovered ? 0.14 : 0;
+      const targeted = room.key === this.dropKey;
+      const hovered = room.key === this.hoverKey || targeted;
+      const targetLift = targeted ? 0.24 : hovered ? 0.14 : 0;
       room.lift = lerp(room.lift, targetLift, 0.15);
       room.group.position.y = room.lift;
 
-      const targetEmissive = hovered ? 0.3 : room.count > 0 ? 0.2 : 0.06;
+      const targetEmissive = targeted ? 0.55 : hovered ? 0.3 : room.count > 0 ? 0.2 : 0.06;
       const m = room.tile.material;
       m.emissiveIntensity = lerp(m.emissiveIntensity, targetEmissive, 0.15);
       room.wallMat.opacity = lerp(room.wallMat.opacity, hovered || room.count > 0 ? 0.38 : 0.2, 0.15);
