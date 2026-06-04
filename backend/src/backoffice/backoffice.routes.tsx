@@ -53,6 +53,12 @@ import * as quotesService from '../modules/quotes/quotes.service';
 import { RecettePage, RecetteContent } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
 import * as recetteService from '../modules/recette/recette.service';
+import { NewsletterPage, CampaignPage } from './pages/newsletter';
+import {
+  changelogService,
+  campaignService,
+} from '../modules/newsletter';
+import type { ChangelogEntry } from '../db/schema';
 import * as gitlabService from '../modules/gitlab/gitlab.service';
 import { env, isRecetteEnabled } from '../config/env';
 import { uploadFile, getFile } from '../config/s3';
@@ -3656,6 +3662,149 @@ backofficeRouter.get('/recette/screenshot/:id', async (c) => {
     : ext === 'gif' ? 'image/gif'
     : 'image/jpeg';
   return new Response(data, { headers: { 'Content-Type': contentType } });
+});
+
+// ============ Newsletter / Changelog ============
+
+const CHANGELOG_CATEGORIES: ChangelogEntry['category'][] = [
+  'nouveaute',
+  'amelioration',
+  'correction',
+];
+
+backofficeRouter.get('/newsletter', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const [releases, campaigns, eligibleCount] = await Promise.all([
+    changelogService.listReleasesWithEntries(),
+    campaignService.listCampaigns(),
+    campaignService.countEligibleRecipients(),
+  ]);
+  return c.html(
+    <NewsletterPage
+      releases={releases}
+      campaigns={campaigns}
+      eligibleCount={eligibleCount}
+      user={adminUser}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+    />,
+  );
+});
+
+backofficeRouter.post('/newsletter/release', async (c) => {
+  const body = await c.req.parseBody();
+  const version = (body.version as string)?.trim();
+  const title = (body.title as string)?.trim();
+  const description = (body.description as string)?.trim() || undefined;
+  if (!version || !title) {
+    return c.redirect('/backoffice/newsletter?error=Version+et+titre+obligatoires');
+  }
+  try {
+    await changelogService.createRelease({ version, title, description });
+  } catch {
+    return c.redirect('/backoffice/newsletter?error=Cette+version+existe+deja');
+  }
+  return c.redirect('/backoffice/newsletter?success=Release+creee');
+});
+
+backofficeRouter.post('/newsletter/release/:id/entry', async (c) => {
+  const releaseId = c.req.param('id');
+  const body = await c.req.parseBody();
+  const title = (body.title as string)?.trim();
+  const description = (body.description as string)?.trim();
+  const categoryRaw = body.category as ChangelogEntry['category'];
+  const category = CHANGELOG_CATEGORIES.includes(categoryRaw)
+    ? categoryRaw
+    : 'nouveaute';
+  const isHighlight = body.isHighlight === '1';
+  if (!title || !description) {
+    return c.redirect('/backoffice/newsletter?error=Titre+et+description+obligatoires');
+  }
+  await changelogService.createEntry({
+    releaseId,
+    title,
+    description,
+    category,
+    isHighlight,
+  });
+  return c.redirect('/backoffice/newsletter?success=Nouveaute+ajoutee');
+});
+
+backofficeRouter.post('/newsletter/release/:id/delete', async (c) => {
+  await changelogService.deleteRelease(c.req.param('id'));
+  return c.redirect('/backoffice/newsletter?success=Release+supprimee');
+});
+
+backofficeRouter.post('/newsletter/entry/:id/delete', async (c) => {
+  await changelogService.deleteEntry(c.req.param('id'));
+  return c.redirect('/backoffice/newsletter?success=Nouveaute+supprimee');
+});
+
+backofficeRouter.post('/newsletter/preview', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody({ all: true });
+  const raw = body.entryIds;
+  const selectedEntryIds = Array.isArray(raw)
+    ? raw.map(String)
+    : raw
+      ? [String(raw)]
+      : [];
+  if (selectedEntryIds.length === 0) {
+    return c.redirect('/backoffice/newsletter?error=Cochez+au+moins+une+nouveaute');
+  }
+  const campaign = await campaignService.createCampaignDraft({
+    selectedEntryIds,
+    createdBy: `${adminUser.firstName} ${adminUser.lastName}`,
+  });
+  return c.redirect(`/backoffice/newsletter/campaign/${campaign.id}`);
+});
+
+backofficeRouter.get('/newsletter/campaign/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  const [stats, eligibleCount] = await Promise.all([
+    campaignService.getCampaignStats(id),
+    campaignService.countEligibleRecipients(),
+  ]);
+  if (!stats) return c.notFound();
+  return c.html(
+    <CampaignPage
+      campaign={stats.campaign}
+      recipients={stats.recipients}
+      openRate={stats.openRate}
+      eligibleCount={eligibleCount}
+      user={adminUser}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+    />,
+  );
+});
+
+backofficeRouter.post('/newsletter/campaign/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+  const subject = (body.subject as string)?.trim();
+  const html = body.html as string;
+  if (!subject || !html) {
+    return c.redirect(`/backoffice/newsletter/campaign/${id}?error=Sujet+et+contenu+requis`);
+  }
+  await campaignService.updateCampaignContent(id, { subject, html });
+  return c.redirect(`/backoffice/newsletter/campaign/${id}?success=Modifications+enregistrees`);
+});
+
+backofficeRouter.post('/newsletter/campaign/:id/send', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const result = await campaignService.sendCampaign(id);
+    return c.redirect(
+      `/backoffice/newsletter/campaign/${id}?success=Campagne+envoyee+(${result.sent}/${result.totalRecipients})`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erreur envoi';
+    return c.redirect(
+      `/backoffice/newsletter/campaign/${id}?error=${encodeURIComponent(message)}`,
+    );
+  }
 });
 
 export default backofficeRouter;

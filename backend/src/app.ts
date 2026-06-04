@@ -26,6 +26,7 @@ import { bookingRoutes } from './modules/booking';
 import { calendarSyncRoutes } from './modules/calendar-sync';
 import { callsRoutes } from './modules/calls';
 import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
+import { newsletterTrackingRoutes } from './modules/newsletter';
 import { cloudInstancesRoutes } from './modules/cloud-instances';
 import { floorPlansRoutes } from './modules/floor-plans';
 import { signaturesRouter, signingPageRouter, webhookRouter } from './modules/signatures';
@@ -117,6 +118,9 @@ app.route('/', webhookRouter);
 
 // Public tracking page (no auth, token-based)
 app.route('/tracking', publicTrackingRoutes);
+
+// Newsletter open-tracking pixel + unsubscribe (no auth, token-based)
+app.route('/track', newsletterTrackingRoutes);
 
 // Public order tracking page (no auth, HMAC-signed token)
 app.route('/suivi-commande', publicOrderTrackingRouter);

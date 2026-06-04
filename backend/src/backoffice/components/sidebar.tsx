@@ -50,6 +50,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
+    title: 'Communication',
+    items: [
+      { path: '/backoffice/newsletter', label: 'Newsletter', icon: 'bi-envelope-paper' },
+    ],
+  },
+  {
     title: 'Gestion',
     items: [
       { path: '/backoffice/users', label: 'Utilisateurs', icon: 'bi-people' },

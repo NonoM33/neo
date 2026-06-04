@@ -21,3 +21,4 @@ export * from './cloud-instances';
 export * from './floor-plans';
 export * from './signatures';
 export * from './recette';
+export * from './newsletter';

@@ -64,6 +64,13 @@
       "when": 1780441854278,
       "tag": "0008_curvy_misty_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780595915098,
+      "tag": "0009_dear_daredevil",
+      "breakpoints": true
     }
   ]
 }
