@@ -156,15 +156,6 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
       });
     </script>
 
-    <!-- Widget de feedback terrain (bouton flottant) servi par le backend -->
-    <script
-      is:inline
-      src={`${SITE_CONFIG.apiBaseUrl}/feedback-widget.js`}
-      data-app="site"
-      data-api={SITE_CONFIG.apiBaseUrl}
-      defer
-    ></script>
-
     <!-- Chatbot commercial (bulle de discussion) servi par le backend -->
     <script
       is:inline
