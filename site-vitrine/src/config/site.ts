@@ -57,6 +57,6 @@ export const SITE_CONFIG = {
   // Analytics (Plausible)
   plausibleDomain: 'neo-domotique.fr', // TODO: remplacer si différent
 
-  // API
-  apiBaseUrl: 'http://neo-api.157.180.43.90.sslip.io',
+  // API — surchargé par env (staging vs prod), défaut = backend prod.
+  apiBaseUrl: import.meta.env.PUBLIC_API_BASE_URL ?? 'https://api.neo-domotique.fr',
 } as const;
