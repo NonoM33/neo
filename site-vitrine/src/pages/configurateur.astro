@@ -126,6 +126,28 @@ const schema = {
   .cfg-code { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; letter-spacing: 2px; margin-bottom: 16px; color: #cfe0ff; }
   .cfg-linkrow { display: flex; gap: 8px; }
   .cfg-linkrow input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 13px; }
+  /* ── Builder 3D ── */
+  .cfg-builder { position: relative; }
+  .cfg-stage { width: 100%; height: min(62vh, 500px); min-height: 320px; border-radius: 20px; overflow: hidden; background: radial-gradient(120% 120% at 50% 0%, rgba(110,168,254,.12), rgba(11,13,18,0) 60%), #0b0d12; border: 1px solid rgba(255,255,255,.08); touch-action: none; cursor: grab; }
+  .cfg-stage:active { cursor: grabbing; }
+  .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
+  .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
+  .cfg-roompanel { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: rgba(8,10,14,.55); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
+  .cfg-roompanel.open { opacity: 1; pointer-events: auto; }
+  .cfg-roompanel-total { margin-left: auto; text-align: right; display: flex; flex-direction: column; line-height: 1.1; }
+  .cfg-roompanel-total span { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8a8f98; }
+  .cfg-roompanel-total b { font-size: 17px; color: #cfe0ff; }
+  .cfg-roompanel-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px 16px; }
+  .cfg-roompanel-foot { padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+  .cfg-roompanel-foot .btn { width: 100%; }
+  .cfg-roompanel > * { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+  .cfg-roompanel { padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom)); }
+  .cfg-roompanel .cfg-roomview-head { transform: translateY(-8px); transition: transform .28s ease; }
+  .cfg-roompanel.open .cfg-roomview-head { transform: translateY(0); }
+  @media (max-width: 640px) {
+    .cfg-roompanel { inset: auto 0 0 0; height: 88vh; border-radius: 22px 22px 0 0; background: #0e1118; border: 1px solid rgba(255,255,255,.1); transform: translateY(100%); transition: transform .28s ease, opacity .24s ease; }
+    .cfg-roompanel.open { transform: translateY(0); }
+  }
 </style>
 </head>
 <body>
@@ -182,9 +204,15 @@ const schema = {
         </div>
       </section>
 
-      <!-- ÉTAPE 2 — Pièces -->
+      <!-- ÉTAPE 2 — Pièces (builder 3D) -->
       <section class="cfg-panel" data-panel="2">
         <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
+        <div id="cfg-builder" class="cfg-builder" hidden>
+          <div id="cfg-stage" class="cfg-stage"></div>
+          <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce pour l'équiper</p>
+        </div>
+        <!-- Overlay équipements d'une pièce -->
+        <div id="cfg-roompanel" class="cfg-roompanel" hidden aria-hidden="true"></div>
       </section>
 
       <!-- ÉTAPE 3 — Estimation -->
@@ -259,6 +287,7 @@ const schema = {
 </div>
 
 <script>
+import { House3D } from '../configurateur/house3d';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -279,13 +308,13 @@ const schema = {
 
   // Pièces de la maison → catégories pertinentes (mapping front).
   var ROOMS = [
-    { key: 'salon',     label: 'Salon',           emoji: '🛋️', cats: ['Audio', 'Éclairage', 'Chauffage', 'Volets', 'Sécurité'] },
-    { key: 'cuisine',   label: 'Cuisine',         emoji: '🍳', cats: ['Éclairage', 'Chauffage', 'Sécurité'] },
-    { key: 'chambre',   label: 'Chambre',         emoji: '🛏️', cats: ['Éclairage', 'Chauffage', 'Volets', 'Audio'] },
-    { key: 'entree',    label: 'Entrée',          emoji: '🚪', cats: ['Sécurité', 'Éclairage'] },
-    { key: 'exterieur', label: 'Extérieur',       emoji: '🌳', cats: ['Sécurité', 'Éclairage'] },
-    { key: 'garage',    label: 'Garage',          emoji: '🚗', cats: ['Sécurité', 'Éclairage'] },
-    { key: 'maison',    label: 'Toute la maison', emoji: '🏠', cats: ['Réseau', 'Services'] },
+    { key: 'salon',     label: 'Salon',           emoji: '🛋️', accent: '#6ea8fe', cats: ['Audio', 'Éclairage', 'Chauffage', 'Volets', 'Sécurité'] },
+    { key: 'cuisine',   label: 'Cuisine',         emoji: '🍳', accent: '#ff9b6e', cats: ['Éclairage', 'Chauffage', 'Sécurité'] },
+    { key: 'chambre',   label: 'Chambre',         emoji: '🛏️', accent: '#a98eff', cats: ['Éclairage', 'Chauffage', 'Volets', 'Audio'] },
+    { key: 'entree',    label: 'Entrée',          emoji: '🚪', accent: '#5fe0b0', cats: ['Sécurité', 'Éclairage'] },
+    { key: 'exterieur', label: 'Extérieur',       emoji: '🌳', accent: '#7bd88f', cats: ['Sécurité', 'Éclairage'] },
+    { key: 'garage',    label: 'Garage',          emoji: '🚗', accent: '#cfa8ff', cats: ['Sécurité', 'Éclairage'] },
+    { key: 'maison',    label: 'Toute la maison', emoji: '🏠', accent: '#6ee7ff', cats: ['Réseau', 'Services'] },
   ];
   var ROOM_BY_KEY = {};
   ROOMS.forEach(function (r) { ROOM_BY_KEY[r.key] = r; });
@@ -319,6 +348,9 @@ const schema = {
   var PRODUCTS_BY_ID = {};      // id -> { name, priceTTC, category }
   var PRODUCTS_BY_CAT = {};     // category -> [{ id, name, priceTTC, category }]
   var catalogLoaded = false;
+  var house3d = null;           // instance Three.js (lazy)
+  var builderFailed = false;    // bascule grille 2D si WebGL KO
+  var openRoomKey = null;       // pièce ouverte dans l'overlay
 
   function getQty(room, pid) { return (selection[room] && selection[room][pid]) || 0; }
   function setQty(room, pid, q) {
@@ -352,7 +384,12 @@ const schema = {
   function loadCatalog() {
     return fetch(API + '/api/public/configurateur/catalogue')
       .then(function (r) { return r.json(); })
-      .then(function (data) { storeCatalog(data.categories || []); catalogLoaded = true; renderHouse(); renderRecap(); })
+      .then(function (data) {
+        storeCatalog(data.categories || []);
+        catalogLoaded = true;
+        renderRecap();
+        if (current === 2) enterBuilder();
+      })
       .catch(function () {
         document.getElementById('cfg-catalog').textContent =
           'Catalogue indisponible pour le moment. Réessayez plus tard.';
@@ -373,9 +410,52 @@ const schema = {
     });
   }
 
-  // ── Vue maison (grille de pièces) ──
-  function renderHouse() {
+  // ── Pièces disponibles (≥ 1 produit) ──
+  function roomHasProducts(room) {
+    return room.cats.some(function (c) { return (PRODUCTS_BY_CAT[c] || []).length; });
+  }
+  function availableRooms() { return ROOMS.filter(roomHasProducts); }
+
+  // ── Builder 3D (étape 2) ──
+  function enterBuilder() {
+    if (!catalogLoaded) return;
+    var loading = document.getElementById('cfg-catalog');
+    var builder = document.getElementById('cfg-builder');
+    loading.hidden = true;
+    builder.hidden = false; // démasquer avant de construire pour que #cfg-stage ait une taille
+    if (builderFailed || !initBuilder()) { builder.hidden = true; renderHouseGrid(); return; }
+    house3d.setActive(true);
+    refreshBadges();
+  }
+
+  function initBuilder() {
+    if (house3d) return true;
+    if (builderFailed) return false;
+    var stage = document.getElementById('cfg-stage');
+    try {
+      house3d = new House3D(stage, {
+        rooms: availableRooms().map(function (r) { return { key: r.key, label: r.label, accent: r.accent }; }),
+        onRoomClick: function (key) { openRoom(key); },
+      });
+      return true;
+    } catch (err) {
+      builderFailed = true;
+      house3d = null;
+      return false;
+    }
+  }
+
+  function refreshBadges() {
+    if (!house3d) return;
+    availableRooms().forEach(function (r) { house3d.setRoomCount(r.key, roomCount(r.key)); });
+  }
+
+  // ── Fallback grille 2D (WebGL indisponible) ──
+  function renderHouseGrid() {
     var host = document.getElementById('cfg-catalog');
+    var builder = document.getElementById('cfg-builder');
+    if (builder) builder.hidden = true;
+    host.hidden = false;
     host.className = '';
     if (!Object.keys(PRODUCTS_BY_CAT).length) { host.textContent = 'Aucun équipement disponible.'; return; }
     host.innerHTML = '';
@@ -385,10 +465,7 @@ const schema = {
     host.appendChild(intro);
     var grid = document.createElement('div');
     grid.className = 'cfg-house';
-    ROOMS.forEach(function (room) {
-      // N'affiche que les pièces qui ont au moins un produit disponible.
-      var hasProducts = room.cats.some(function (c) { return (PRODUCTS_BY_CAT[c] || []).length; });
-      if (!hasProducts) return;
+    availableRooms().forEach(function (room) {
       var n = roomCount(room.key);
       var tile = document.createElement('div');
       tile.className = 'cfg-room' + (n > 0 ? ' has' : '');
@@ -401,25 +478,31 @@ const schema = {
     host.appendChild(grid);
   }
 
-  // ── Vue d'une pièce (cartes équipements) ──
+  // ── Overlay équipements d'une pièce ──
   function openRoom(roomKey) {
     var room = ROOM_BY_KEY[roomKey];
     if (!room) return;
-    var host = document.getElementById('cfg-catalog');
-    host.className = '';
-    host.innerHTML = '';
+    openRoomKey = roomKey;
+    var panel = document.getElementById('cfg-roompanel');
+    panel.hidden = false;
+    panel.setAttribute('aria-hidden', 'false');
+    panel.innerHTML = '';
 
     var head = document.createElement('div');
     head.className = 'cfg-roomview-head';
     var back = document.createElement('button');
-    back.type = 'button'; back.className = 'cfg-back'; back.textContent = '← Pièces';
-    back.addEventListener('click', renderHouse);
+    back.type = 'button'; back.className = 'cfg-back'; back.textContent = '← Maison';
+    back.addEventListener('click', closeRoom);
     var titleEl = document.createElement('div');
     titleEl.className = 'cfg-roomview-title';
     titleEl.innerHTML = '<span>' + room.emoji + '</span><span>' + esc(room.label) + '</span>';
-    head.appendChild(back); head.appendChild(titleEl);
-    host.appendChild(head);
+    var totalMini = document.createElement('div');
+    totalMini.className = 'cfg-roompanel-total';
+    totalMini.innerHTML = '<span>Total TTC</span><b id="cfg-panel-total">' + EUR.format(lastEstimate.totalTTC || 0) + '</b>';
+    head.appendChild(back); head.appendChild(titleEl); head.appendChild(totalMini);
 
+    var body = document.createElement('div');
+    body.className = 'cfg-roompanel-body';
     var rendered = 0;
     room.cats.forEach(function (catName) {
       var prods = PRODUCTS_BY_CAT[catName] || [];
@@ -429,19 +512,38 @@ const schema = {
       label.className = 'cfg-catlabel';
       label.innerHTML = '<span style="color:' + catAccent(catName) + '">' +
         catSvg(catName, 'cfg-catlabel-ic') + '</span><span>' + esc(catName) + '</span>';
-      host.appendChild(label);
+      body.appendChild(label);
       var grid = document.createElement('div');
       grid.className = 'cfg-cards';
       prods.forEach(function (p) { grid.appendChild(productCard(p, roomKey)); });
-      host.appendChild(grid);
+      body.appendChild(grid);
     });
     if (!rendered) {
       var none = document.createElement('p');
       none.className = 'cfg-room-intro';
       none.textContent = 'Aucun équipement pour cette pièce pour le moment.';
-      host.appendChild(none);
+      body.appendChild(none);
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    var foot = document.createElement('div');
+    foot.className = 'cfg-roompanel-foot';
+    var done = document.createElement('button');
+    done.type = 'button'; done.className = 'btn'; done.textContent = 'Terminé';
+    done.addEventListener('click', closeRoom);
+    foot.appendChild(done);
+
+    panel.appendChild(head); panel.appendChild(body); panel.appendChild(foot);
+    requestAnimationFrame(function () { panel.classList.add('open'); });
+  }
+
+  function closeRoom() {
+    var panel = document.getElementById('cfg-roompanel');
+    if (!panel) return;
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    openRoomKey = null;
+    setTimeout(function () { if (!panel.classList.contains('open')) panel.hidden = true; }, 240);
+    if (builderFailed) renderHouseGrid();
   }
 
   function productCard(p, roomKey) {
@@ -499,8 +601,14 @@ const schema = {
   var estTimer = null;
   function scheduleEstimate() {
     updateCount();
+    refreshBadges();
     if (estTimer) clearTimeout(estTimer);
     estTimer = setTimeout(runEstimate, 400);
+  }
+
+  function updatePanelTotal() {
+    var el = document.getElementById('cfg-panel-total');
+    if (el) el.textContent = EUR.format((lastEstimate && lastEstimate.totalTTC) || 0);
   }
 
   function selectionItems() {
@@ -522,13 +630,13 @@ const schema = {
 
   function runEstimate() {
     var items = selectionItems();
-    if (!items.length) { lastEstimate = { lines: [], totalTTC: 0 }; totalEl.textContent = EUR.format(0); renderRecap(); return; }
+    if (!items.length) { lastEstimate = { lines: [], totalTTC: 0 }; totalEl.textContent = EUR.format(0); updatePanelTotal(); renderRecap(); return; }
     fetch(API + '/api/public/configurateur/estimer', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: items }),
     })
       .then(function (r) { return r.json(); })
-      .then(function (data) { lastEstimate = data; totalEl.textContent = EUR.format(data.totalTTC || 0); renderRecap(); })
+      .then(function (data) { lastEstimate = data; totalEl.textContent = EUR.format(data.totalTTC || 0); updatePanelTotal(); renderRecap(); })
       .catch(function () {});
   }
 
@@ -592,7 +700,8 @@ const schema = {
     var pct = step === 'done' ? 100 : step * 25;
     bar.style.width = pct + '%';
     errorEl.textContent = '';
-    if (step === 2 && catalogLoaded) renderHouse();
+    if (step === 2) { if (catalogLoaded) enterBuilder(); }
+    else { if (house3d) house3d.setActive(false); if (openRoomKey) closeRoom(); }
     if (step === 'done') { navEl.style.display = 'none'; priceBar.style.display = 'none'; return; }
     navEl.style.display = 'flex';
     prevBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
