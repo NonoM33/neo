@@ -5,7 +5,11 @@ import { join } from 'node:path';
 // La page d'accueil n'utilise pas BaseLayout : elle doit donc embarquer
 // elle-même les widgets servis par le backend. Régression : la bulle de chat
 // avait disparu de la home car ce script manquait ici.
-const source = readFileSync(join(import.meta.dir, 'index.astro'), 'utf8');
+// NB : ce test vit hors de src/pages/ car Astro route tout fichier de src/pages.
+const source = readFileSync(
+  join(import.meta.dir, '../src/pages/index.astro'),
+  'utf8'
+);
 
 describe('index.astro — widgets injectés', () => {
   it('charge le widget chatbot depuis apiBaseUrl', () => {
