@@ -341,20 +341,47 @@ body.ready .chip { opacity: 1; transform: none; }
 
 /* scroll cue */
 .scroll-cue {
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  color: var(--ink-3); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
-  z-index: 6;
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  color: var(--ink-2, #b6bfd0); font-size: 13px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; text-decoration: none;
+  z-index: 40; cursor: pointer; text-align: center;
+  animation: cue-bob 2.4s var(--ease) infinite;
+  transition: opacity .4s ease, color .25s ease;
+}
+.scroll-cue.cue-hidden { opacity: 0; pointer-events: none; }
+.scroll-cue:hover { color: var(--neo-2); }
+.scroll-cue-label {
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(91, 140, 255, 0.10);
+  border: 1px solid rgba(147, 180, 255, 0.22);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
 }
 .scroll-cue .mouse {
-  width: 22px; height: 34px; border: 1.5px solid var(--line-2); border-radius: 12px; position: relative;
+  width: 24px; height: 38px; border: 2px solid var(--neo-2); border-radius: 13px; position: relative;
+  box-shadow: 0 0 16px rgba(91, 140, 255, 0.25);
 }
 .scroll-cue .mouse::after {
-  content: ""; position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-  width: 3px; height: 7px; border-radius: 2px; background: var(--neo-2);
+  content: ""; position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+  width: 3.5px; height: 8px; border-radius: 2px; background: var(--neo-2);
   animation: scrolly 1.8s var(--ease) infinite;
 }
+.scroll-cue .scroll-chevrons {
+  width: 22px; height: 26px; color: var(--neo-2); margin-top: -2px;
+}
+.scroll-cue .scroll-chevrons path { opacity: .35; animation: chev 1.8s var(--ease) infinite; }
+.scroll-cue .scroll-chevrons path:nth-child(2) { animation-delay: .22s; }
 @keyframes scrolly { 0%{opacity:0; transform:translate(-50%,0)} 30%{opacity:1} 70%{opacity:1} 100%{opacity:0; transform:translate(-50%,12px)} }
+@keyframes chev { 0%,100%{opacity:.25} 50%{opacity:1} }
+@keyframes cue-bob { 0%,100%{transform:translate(-50%,0)} 50%{transform:translate(-50%,8px)} }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue { animation: none; }
+  .scroll-cue .scroll-chevrons path, .scroll-cue .mouse::after { animation: none; }
+}
+@media (max-width: 600px) {
+  .scroll-cue-label { font-size: 11px; }
+}
 
 /* ====================== SCENES (scrollytelling) ====================== */
 .scene {

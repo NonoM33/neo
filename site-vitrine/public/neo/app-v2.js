@@ -23,6 +23,12 @@
   navUpd();
   window.addEventListener("scroll", navUpd, { passive: true });
 
+  // hide scroll cue once the visitor starts scrolling
+  const cue = $(".scroll-cue");
+  const cueUpd = () => cue && cue.classList.toggle("cue-hidden", window.scrollY > 60);
+  cueUpd();
+  window.addEventListener("scroll", cueUpd, { passive: true });
+
   initSalon();
   initRooms();
   initSimlog();
@@ -91,8 +97,7 @@
       { autoAlpha: 1, scale: 1, filter: "blur(0px)", duration: 1.3, ease: "power2.out" }, 0.1)
     .fromTo(".chip",
       { autoAlpha: 0, y: 18, scale: 0.94 },
-      { autoAlpha: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.14 }, 0.85)
-    .from(".scroll-cue", { autoAlpha: 0, duration: 0.6 }, "-=0.2");
+      { autoAlpha: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.14 }, 0.85);
 
   // subtle continuous float on hero house + chips
   gsap.to(".house-stage svg", { y: -10, duration: 4.5, ease: "sine.inOut", yoyo: true, repeat: -1 });
