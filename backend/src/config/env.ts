@@ -64,6 +64,11 @@ const envSchema = z.object({
   TRACKING_EXPIRY_HOURS: z.coerce.number().default(4),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
 
+  // Multi-domaine : hôtes (séparés par des virgules) servant UNIQUEMENT l'API.
+  // Sur ces hôtes, les interfaces HTML (/backoffice, /admin, /swagger) renvoient 404.
+  // Le back-office reste accessible via le domaine staff (proxy). Vide = aucun filtrage.
+  API_ONLY_HOSTS: z.string().default(''),
+
   // DocuSeal (signature electronique)
   DOCUSEAL_API_KEY: z.string().optional(),
   DOCUSEAL_BASE_URL: z.string().default('https://api.docuseal.com'),
@@ -100,3 +105,10 @@ export const isRecetteEnabled = env.APP_ENV !== 'production';
 
 // L'integration GitLab n'est active que si un token ET un projet cible sont fournis.
 export const isGitlabEnabled = Boolean(env.GITLAB_TOKEN && env.GITLAB_PROJECT_ID);
+
+// Hôtes servant uniquement l'API : les interfaces HTML y sont masquées (404).
+export const apiOnlyHosts = new Set(
+  env.API_ONLY_HOSTS.split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+);

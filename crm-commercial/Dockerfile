@@ -16,11 +16,34 @@ RUN bun run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY <<'EOF' /etc/nginx/conf.d/default.conf
+
+# URL interne du backend Hono (réseau Coolify). Surchargée par l'env du déploiement.
+ENV BACKEND_UPSTREAM=http://backend:3000
+# N'autorise envsubst QUE sur cette variable : les $host/$uri/... de nginx sont préservés.
+ENV NGINX_ENVSUBST_FILTER=BACKEND_UPSTREAM
+
+# Template traité par envsubst au démarrage (-> /etc/nginx/conf.d/default.conf).
+COPY <<'EOF' /etc/nginx/templates/default.conf.template
 server {
     listen 80;
     root /usr/share/nginx/html;
     index index.html;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+
+    # Interfaces + API servies par le backend, accessibles via le seul domaine staff.
+    location /backoffice  { proxy_pass ${BACKEND_UPSTREAM}; }
+    location /admin       { proxy_pass ${BACKEND_UPSTREAM}; }
+    location /swagger     { proxy_pass ${BACKEND_UPSTREAM}; }
+    location /api         { proxy_pass ${BACKEND_UPSTREAM}; }
+    location /recette-api { proxy_pass ${BACKEND_UPSTREAM}; }
+
+    # SPA React (fallback index.html pour le routing client).
     location / {
         try_files $uri $uri/ /index.html;
     }

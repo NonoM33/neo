@@ -208,9 +208,18 @@ Workflow : `feature` → `stg` (validation/recette) → `main` (production).
 
 | Application | Production | Staging |
 |---|---|---|
-| Backend (API + back-office) | `api.neo-domotique.fr` | `stg.api.neo-domotique.fr` |
-| CRM commercial (staff) | `staff.neo-domotique.fr` | `stg.staff.neo-domotique.fr` |
+| Backend (API seule) | `api.neo-domotique.fr` | `stg.api.neo-domotique.fr` |
+| Staff (React CRM + back-office) | `staff.neo-domotique.fr` | `stg.staff.neo-domotique.fr` |
 | Site vitrine | `neo-domotique.fr` | `stg.neo-domotique.fr` |
+
+> **Accès unifié staff.** Toute l'interface (CRM React + back-office JSX/HTMX) est
+> servie sous le **seul** domaine `staff.*`. Le domaine `api.*` est *headless* :
+> il n'expose que `/api/*` et les pages publiques fonctionnelles (signature, tracking,
+> suivi-commande, booking) ; `/backoffice`, `/admin` et `/swagger` y renvoient 404.
+>
+> Câblage : le backend lit `API_ONLY_HOSTS` (liste des hôtes API masquant l'UI) et
+> l'app staff (nginx) reverse-proxy `/backoffice`, `/admin`, `/swagger`, `/api`,
+> `/recette-api` vers le backend via la variable `BACKEND_UPSTREAM`.
 
 Le **centre de recette** (`/backoffice/recette`) est disponible hors production
 (staging + dev) : il pilote la validation des features et la remontée de bugs, avec
