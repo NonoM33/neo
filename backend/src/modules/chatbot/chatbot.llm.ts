@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { env } from '../../config/env';
-import * as chatbotService from './chatbot.service';
+import { getToolDefinitions, executeTool } from './chatbot.tools';
 import type { ChatbotMessage } from '../../db/schema';
 
 const getClient = (() => {
@@ -28,38 +28,19 @@ Style :
 - Pose une seule question à la fois.
 - N'invente jamais de prix précis ni de délais fermes : propose plutôt un rendez-vous pour un devis personnalisé.
 
-Collecte du rendez-vous :
-- Recueille progressivement : le besoin/projet, le prénom et nom, un email OU un téléphone, et le créneau souhaité.
-- Dès que tu as le nom, un moyen de contact (email ou téléphone) et une idée du besoin, appelle l'outil "enregistrer_rdv".
-- Après l'enregistrement, confirme chaleureusement que l'équipe va recontacter le visiteur rapidement.`;
+Outils à ta disposition :
+- "lister_produits" : pour renseigner le visiteur sur les produits et leurs tarifs (prix HT/TTC). Ne donne JAMAIS de prix sans avoir appelé cet outil.
+- "lister_types_rdv" et "consulter_disponibilites" : pour proposer de vrais créneaux disponibles.
+- "reserver_rdv" : pour réserver un rendez-vous une fois le créneau choisi ET toutes les coordonnées recueillies.
+- "enregistrer_rdv" : pour capturer un lead à rappeler si le visiteur ne veut pas choisir de créneau maintenant.
 
-const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'enregistrer_rdv',
-      description:
-        "Enregistre la demande de rendez-vous du visiteur une fois ses coordonnées et son besoin recueillis. À appeler dès qu'on dispose du nom et d'un email ou téléphone.",
-      parameters: {
-        type: 'object',
-        properties: {
-          nom: { type: 'string', description: 'Prénom et nom du visiteur' },
-          email: { type: 'string', description: 'Adresse email du visiteur' },
-          telephone: { type: 'string', description: 'Numéro de téléphone du visiteur' },
-          besoin: {
-            type: 'string',
-            description: 'Résumé du besoin ou projet domotique du visiteur',
-          },
-          creneau_souhaite: {
-            type: 'string',
-            description: 'Créneau ou disponibilités indiqués par le visiteur',
-          },
-        },
-        required: ['nom', 'besoin'],
-      },
-    },
-  },
-];
+Réservation d'un rendez-vous (objectif principal) :
+- Pour réserver, tu dois OBLIGATOIREMENT recueillir : le type de RDV, un créneau (date + heure issus de "consulter_disponibilites"), le prénom, le nom, l'email, le téléphone, et l'adresse complète (rue, code postal à 5 chiffres, ville).
+- Recueille ces informations progressivement, une question à la fois, sans noyer le visiteur.
+- Propose des créneaux réels via "consulter_disponibilites" et laisse le visiteur en choisir un.
+- Quand TOUTES les informations sont réunies, appelle "reserver_rdv". Un email de confirmation est alors envoyé automatiquement.
+- Après la réservation, confirme chaleureusement le créneau et indique qu'un email de confirmation vient d'être envoyé.
+- Ne donne jamais de prix ni de créneau inventés : utilise toujours les outils.`;
 
 const CORRECTION_PROMPT = `Tu corriges l'orthographe, la grammaire, la ponctuation et les accents d'un message écrit par un conseiller commercial, en français.
 Règles STRICTES :
@@ -131,13 +112,14 @@ export async function generateBotReply(
   ];
 
   let capturedRdv = false;
+  const toolDefinitions = getToolDefinitions();
 
   // Boucle outil bornée pour éviter toute boucle infinie.
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const completion = await client.chat.completions.create({
       model: env.OPENROUTER_MODEL,
       messages,
-      tools,
+      tools: toolDefinitions,
       tool_choice: 'auto',
       temperature: 0.6,
       max_tokens: 512,
@@ -154,18 +136,20 @@ export async function generateBotReply(
     messages.push(choice);
 
     for (const call of toolCalls) {
-      let result: chatbotService.CaptureRdvResult;
-      if (call.type === 'function' && call.function.name === 'enregistrer_rdv') {
-        let args: chatbotService.CaptureRdvInput = {};
-        try {
-          args = JSON.parse(call.function.arguments || '{}');
-        } catch {
-          args = {};
-        }
-        result = await chatbotService.captureRdv(sessionId, args);
-        if (result.success) capturedRdv = true;
-      } else {
-        result = { success: false, message: 'Outil inconnu' };
+      if (call.type !== 'function') continue;
+      const result = await executeTool(
+        { sessionId },
+        call.function.name,
+        call.function.arguments
+      );
+      if (
+        (call.function.name === 'reserver_rdv' ||
+          call.function.name === 'enregistrer_rdv') &&
+        result &&
+        typeof result === 'object' &&
+        (result as { success?: boolean }).success === true
+      ) {
+        capturedRdv = true;
       }
       messages.push({
         role: 'tool',

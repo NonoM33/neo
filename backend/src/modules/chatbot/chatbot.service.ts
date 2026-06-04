@@ -97,6 +97,28 @@ export async function addMessage(
   return message;
 }
 
+/**
+ * Met à jour les coordonnées du visiteur sur la session, sans créer de lead.
+ * Utilisé après une réservation de RDV (qui crée déjà son propre lead) pour que
+ * la console staff affiche le nom/email/téléphone du visiteur.
+ */
+export async function updateSessionContact(
+  sessionId: string,
+  contact: { name?: string | null; email?: string | null; phone?: string | null }
+): Promise<void> {
+  const session = await getSession(sessionId);
+  if (!session) return;
+  await db
+    .update(chatbotSessions)
+    .set({
+      visitorName: contact.name?.trim() || session.visitorName,
+      visitorEmail: contact.email?.trim() || session.visitorEmail,
+      visitorPhone: contact.phone?.trim() || session.visitorPhone,
+      updatedAt: new Date(),
+    })
+    .where(eq(chatbotSessions.id, sessionId));
+}
+
 /** Marque une session comme lue par le staff (compteur non-lu remis à zéro). */
 export async function markRead(sessionId: string): Promise<void> {
   await db
