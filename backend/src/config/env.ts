@@ -64,6 +64,18 @@ const envSchema = z.object({
   // Nom d'affichage du bot qui poste le message.
   MATTERMOST_USERNAME: z.string().default('Neo Feedback'),
 
+  // Mattermost via compte bot (API REST) — utilisé pour notifier l'équipe
+  // commerciale à l'ouverture d'une conversation chatbot.
+  // URL du serveur Mattermost (ex: https://mattermost.exemple.com).
+  MATTERMOST_URL: z.string().url().optional(),
+  // Token du compte bot (Authorization: Bearer ...). Secret : jamais commité.
+  MATTERMOST_BOT_TOKEN: z.string().optional(),
+  // Équipe Mattermost (slug) pour résoudre un canal par son nom.
+  MATTERMOST_TEAM: z.string().optional(),
+  // Canal des commerciaux : ID explicite (prioritaire) ou nom à résoudre.
+  MATTERMOST_COMMERCIAL_CHANNEL_ID: z.string().optional(),
+  MATTERMOST_COMMERCIAL_CHANNEL: z.string().default('commercial'),
+
   // SMS Gateway
   SMS_API_URL: z.string().default('https://api.sms-gate.app/3rdparty/v1/messages'),
   SMS_API_USER: z.string().default('EZMOAP'),
@@ -125,6 +137,11 @@ export const isGitlabEnabled = Boolean(env.GITLAB_TOKEN && env.GITLAB_PROJECT_ID
 
 // La notification Mattermost n'est active que si un webhook entrant est configure.
 export const isMattermostEnabled = Boolean(env.MATTERMOST_WEBHOOK_URL);
+
+// La notification via compte bot (API REST) requiert l'URL du serveur + le token bot.
+export const isMattermostBotEnabled = Boolean(
+  env.MATTERMOST_URL && env.MATTERMOST_BOT_TOKEN
+);
 
 // Le chatbot du site vitrine ne répond automatiquement que si une clé OpenRouter est fournie.
 export const isChatbotEnabled = Boolean(env.OPENROUTER_API_KEY);

@@ -60,6 +60,8 @@ const SCRIPT = `
   var lastTypingSent = 0; // throttle de l'indicateur de saisie sortant
   var typingTimer = null; // masque l'indicateur du visiteur après un délai
   var lastRowRole = null; // dernier émetteur rendu (regroupe les libellés)
+  var autoOpenId = null; // session à ouvrir automatiquement (lien Mattermost ?session=...)
+  try { autoOpenId = new URLSearchParams(location.search).get('session'); } catch(e) {}
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmtTime(t){try{return new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
@@ -74,8 +76,8 @@ const SCRIPT = `
   function sendAction(obj){ if(ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
 
   function handle(d){
-    if(d.type==='init'){ sessions={}; d.sessions.forEach(function(s){sessions[s.id]=s;}); renderList(); }
-    else if(d.type==='session_upsert'){ sessions[d.session.id]=d.session; renderList(); if(current===d.session.id) renderHead(); }
+    if(d.type==='init'){ sessions={}; d.sessions.forEach(function(s){sessions[s.id]=s;}); renderList(); maybeAutoOpen(); }
+    else if(d.type==='session_upsert'){ sessions[d.session.id]=d.session; renderList(); if(current===d.session.id) renderHead(); maybeAutoOpen(); }
     else if(d.type==='session_closed'){ delete sessions[d.session]; if(current===d.sessionId) current=null; renderList(); renderMain(); }
     else if(d.type==='history'){ if(d.sessionId===current){ renderThread(d.messages); } }
     else if(d.type==='message'){
@@ -104,6 +106,15 @@ const SCRIPT = `
     Array.prototype.forEach.call(body.querySelectorAll('.chat-item'), function(it){
       it.addEventListener('click', function(){ openSession(it.getAttribute('data-id')); });
     });
+  }
+
+  // Ouverture auto via lien Mattermost (?session=...) dès que la session est connue.
+  function maybeAutoOpen(){
+    if(!autoOpenId) return;
+    if(!sessions[autoOpenId]) return;
+    var id = autoOpenId;
+    autoOpenId = null;
+    openSession(id);
   }
 
   function openSession(id){

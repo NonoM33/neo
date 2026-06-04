@@ -2,6 +2,7 @@ import type { WSContext } from 'hono/ws';
 import { isChatbotEnabled } from '../../config/env';
 import * as service from './chatbot.service';
 import { generateBotReply, correctText } from './chatbot.llm';
+import { notifyNewConversation } from './chatbot.notify';
 import type { ChatbotMessage, ChatbotSession } from '../../db/schema';
 
 // ─── Registre des connexions (en mémoire, mono-process) ─────────────────────
@@ -143,12 +144,23 @@ export async function handleVisitorMessage(
   const session = await service.getSession(sessionId);
   if (!session || session.status !== 'active') return;
 
+  // Première prise de parole du visiteur : on notifie l'équipe commerciale.
+  const prior = await service.getMessages(sessionId);
+  const isFirstVisitorMessage = !prior.some((m) => m.role === 'visitor');
+
   const visitorMsg = await service.addMessage(sessionId, 'visitor', trimmed);
 
   // Diffusion immédiate aux consoles staff.
   sendToStaff({ type: 'message', sessionId, message: serializeMessage(visitorMsg) });
   const refreshed = await service.getSession(sessionId);
   if (refreshed) await pushSessionToStaff(refreshed, trimmed);
+
+  if (isFirstVisitorMessage) {
+    // Best-effort : la notification ne doit jamais bloquer la conversation.
+    void notifyNewConversation(refreshed ?? session, trimmed).catch((err) =>
+      console.error('[chatbot] notification commerciale échouée:', err)
+    );
+  }
 
   // En mode humain, le bot ne répond pas : un agent gère la conversation.
   if (session.mode !== 'bot') return;
