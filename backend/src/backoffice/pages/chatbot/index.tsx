@@ -42,6 +42,7 @@ const SCRIPT = `
   var sessions = {};
   var current = null;
   var ws = null;
+  var seen = {}; // ids des messages déjà rendus dans le fil courant (anti-doublon)
   var statusEl = document.getElementById('ws-status');
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -108,6 +109,7 @@ const SCRIPT = `
       var inp = document.getElementById('chat-input');
       var txt = (inp.value||'').trim(); if(!txt) return;
       inp.value='';
+      appendOptimisticStaff(txt);
       sendAction({type:'message', sessionId:current, content:txt});
     });
     document.getElementById('chat-input').addEventListener('keydown', function(e){
@@ -136,13 +138,32 @@ const SCRIPT = `
   function renderThread(messages){
     var thread = document.getElementById('chat-thread'); if(!thread) return;
     thread.innerHTML='';
+    seen = {};
     messages.forEach(appendMsg);
   }
   function appendMsg(m){
     var thread = document.getElementById('chat-thread'); if(!thread) return;
+    if(m.id){ if(seen[m.id]) return; seen[m.id]=true; }
+    // Confirme un message staff déjà affiché en optimiste (même contenu en attente)
+    // au lieu d'en créer un doublon quand l'écho serveur revient.
+    if(m.role==='staff'){
+      var pend = thread.querySelector('.cm.staff[data-pending]');
+      if(pend && pend.getAttribute('data-pending')===m.content){ pend.removeAttribute('data-pending'); return; }
+    }
     var div = document.createElement('div');
     div.className = 'cm ' + m.role;
     div.textContent = m.content;
+    thread.appendChild(div);
+    thread.scrollTop = thread.scrollHeight;
+  }
+  // Affiche immédiatement le message du conseiller (optimiste) ; l'écho serveur
+  // viendra confirmer ce nœud plutôt que d'en ajouter un second.
+  function appendOptimisticStaff(content){
+    var thread = document.getElementById('chat-thread'); if(!thread) return;
+    var div = document.createElement('div');
+    div.className = 'cm staff';
+    div.setAttribute('data-pending', content);
+    div.textContent = content;
     thread.appendChild(div);
     thread.scrollTop = thread.scrollHeight;
   }
