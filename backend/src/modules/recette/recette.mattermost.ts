@@ -41,9 +41,18 @@ function excerpt(text: string, max = 280): string {
   return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
 }
 
+// Base URL publique du back-office pour les liens cliquables (Mattermost…).
+// BACKOFFICE_BASE_URL prioritaire ; sinon PUBLIC_URL. Le slash final est normalisé
+// par l'appelant.
+function backofficeBaseUrl(): string {
+  return env.BACKOFFICE_BASE_URL ?? env.PUBLIC_URL;
+}
+
 // Construit le message Markdown Mattermost (logique pure, testable).
+// `baseUrl` est injectable pour les tests ; par défaut l'URL publique du back-office.
 export function buildFeedbackMattermostMessage(
-  input: FeedbackCreatedNotification
+  input: FeedbackCreatedNotification,
+  baseUrl: string = backofficeBaseUrl()
 ): string {
   const kind = recetteKindLabels[input.kind].label;
   const severity = recetteSeverityLabels[input.severity].label;
@@ -65,7 +74,7 @@ export function buildFeedbackMattermostMessage(
   }
   lines.push(meta.join(' · '));
 
-  const recetteUrl = `${env.PUBLIC_URL.replace(/\/$/, '')}/backoffice/recette`;
+  const recetteUrl = `${baseUrl.replace(/\/$/, '')}/backoffice/recette`;
   lines.push(`🔗 [Ouvrir dans le centre de recette](${recetteUrl})`);
 
   return lines.join('\n');

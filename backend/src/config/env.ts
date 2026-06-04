@@ -90,6 +90,13 @@ const envSchema = z.object({
   // Tracking
   TRACKING_EXPIRY_HOURS: z.coerce.number().default(4),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
+  // URL publique du back-office pour les liens cliquables externes (Mattermost,
+  // emails…). Defaut = PUBLIC_URL. Indispensable quand PUBLIC_URL sert un domaine
+  // interne (sslip.io) non joignable depuis l'exterieur. Empty = absent.
+  BACKOFFICE_BASE_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional()
+  ),
   // Base URL du site vitrine (où vit /configurateur) — sert à construire les
   // liens de reprise + QR code des configurations sauvegardées.
   SITE_BASE_URL: z.string().default('https://neo-domotique.fr'),

@@ -76,4 +76,22 @@ describe('buildFeedbackMattermostMessage', () => {
     const msg = buildFeedbackMattermostMessage(notif());
     expect(msg).toContain('/backoffice/recette');
   });
+
+  it('construit le lien recette sur la base URL fournie (domaine public joignable)', () => {
+    const msg = buildFeedbackMattermostMessage(
+      notif(),
+      'https://stg.api.neo-domotique.fr'
+    );
+    expect(msg).toContain(
+      '(https://stg.api.neo-domotique.fr/backoffice/recette)'
+    );
+    // Régression : ne doit JAMAIS pointer vers le domaine interne sslip.io (503).
+    expect(msg).not.toContain('sslip.io');
+  });
+
+  it('normalise le slash final de la base URL (pas de double slash)', () => {
+    const msg = buildFeedbackMattermostMessage(notif(), 'https://x.fr/');
+    expect(msg).toContain('(https://x.fr/backoffice/recette)');
+    expect(msg).not.toContain('//backoffice');
+  });
 });
