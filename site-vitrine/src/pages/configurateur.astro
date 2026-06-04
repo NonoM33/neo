@@ -134,6 +134,36 @@ const schema = {
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
   .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
   .cfg-stage-hint b { color: #cfe0ff; font-weight: 700; }
+  /* Barre « Mes pièces » */
+  .cfg-rooms-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+  .cfg-rooms-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8a8f98; font-weight: 700; margin-right: 2px; }
+  .cfg-roomchip { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255,255,255,.1)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, rgba(255,255,255,.03)), rgba(255,255,255,.02)); overflow: hidden; }
+  .cfg-roomchip__open { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px 7px 12px; background: none; border: none; color: #e4ebff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .cfg-roomchip__open b { color: color-mix(in srgb, var(--accent) 80%, #fff); }
+  .cfg-roomchip__emoji { font-size: 15px; }
+  .cfg-roomchip__x { padding: 0 10px; align-self: stretch; background: none; border: none; border-left: 1px solid rgba(255,255,255,.1); color: #9aa1ad; font-size: 16px; cursor: pointer; transition: color .15s, background .15s; }
+  .cfg-roomchip__x:hover { color: #ff8a8a; background: rgba(255,122,122,.12); }
+  .cfg-roomadd { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.28); background: rgba(255,255,255,.03); color: #cfe0ff; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s, background .15s, transform .12s; }
+  .cfg-roomadd:hover { border-color: #6ea8fe; background: rgba(110,168,254,.12); transform: translateY(-1px); }
+  /* Modale d'ajout de pièce */
+  .cfg-addroom { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; padding: 20px; background: rgba(4,6,10,.6); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+  .cfg-addroom.open { opacity: 1; pointer-events: auto; }
+  .cfg-addroom__sheet { width: 100%; max-width: 460px; border-radius: 20px; border: 1px solid rgba(255,255,255,.12); background: #0e1118; padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,.6); transform: translateY(10px) scale(.98); transition: transform .22s ease; }
+  .cfg-addroom.open .cfg-addroom__sheet { transform: translateY(0) scale(1); }
+  .cfg-addroom__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .cfg-addroom__head h3 { margin: 0; font-size: 18px; color: #eef3ff; }
+  .cfg-addroom__x { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #cfd6e4; font-size: 18px; cursor: pointer; }
+  .cfg-addroom__x:hover { background: rgba(255,255,255,.1); color: #fff; }
+  .cfg-addroom__sub { margin: 14px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #8a8f98; font-weight: 700; }
+  .cfg-addroom__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .cfg-addroom-opt { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 40%, rgba(255,255,255,.1)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, rgba(255,255,255,.03)), rgba(255,255,255,.02)); color: #e4ebff; font-size: 13px; font-weight: 600; cursor: pointer; transition: transform .12s, border-color .15s; }
+  .cfg-addroom-opt:hover { border-color: color-mix(in srgb, var(--accent) 70%, transparent); transform: translateY(-1px); }
+  .cfg-addroom-opt__emoji { font-size: 16px; }
+  .cfg-addroom__form { display: flex; gap: 8px; }
+  .cfg-addroom__input { flex: 1; padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); color: #eef3ff; font-size: 14px; }
+  .cfg-addroom__input:focus { outline: none; border-color: #6ea8fe; }
+  .cfg-addroom__add { flex: none; padding: 11px 16px; border-radius: 12px; border: none; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .cfg-addroom__add:hover { filter: brightness(1.05); }
   /* Palette glisser-déposer */
   .cfg-palette { display: flex; gap: 10px; overflow-x: auto; padding: 12px 2px 4px; margin-top: 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
   .cfg-palette::-webkit-scrollbar { height: 6px; }
@@ -234,12 +264,29 @@ const schema = {
       <section class="cfg-panel" data-panel="2">
         <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
         <div id="cfg-builder" class="cfg-builder" hidden>
+          <div id="cfg-rooms-bar" class="cfg-rooms-bar"></div>
           <div id="cfg-stage" class="cfg-stage"></div>
           <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
           <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
         </div>
         <!-- Overlay équipements d'une pièce -->
         <div id="cfg-roompanel" class="cfg-roompanel" hidden aria-hidden="true"></div>
+        <!-- Modale d'ajout de pièce -->
+        <div id="cfg-addroom" class="cfg-addroom" hidden aria-hidden="true">
+          <div class="cfg-addroom__sheet" role="dialog" aria-modal="true" aria-label="Ajouter une pièce">
+            <div class="cfg-addroom__head">
+              <h3>Ajouter une pièce</h3>
+              <button type="button" id="cfg-addroom-close" class="cfg-addroom__x" aria-label="Fermer">✕</button>
+            </div>
+            <p class="cfg-addroom__sub">Cochez une pièce courante…</p>
+            <div id="cfg-addroom-grid" class="cfg-addroom__grid"></div>
+            <p class="cfg-addroom__sub">…ou créez la vôtre :</p>
+            <div id="cfg-addroom-form" class="cfg-addroom__form">
+              <input id="cfg-addroom-name" class="cfg-addroom__input" type="text" placeholder="ex : Buanderie, Bureau…" maxlength="40" autocomplete="off" />
+              <button type="button" id="cfg-addroom-add" class="cfg-addroom__add">＋ Créer</button>
+            </div>
+          </div>
+        </div>
         <!-- Vignette fantôme suivie pendant le glisser -->
         <div id="cfg-ghost" class="cfg-ghost" hidden aria-hidden="true"></div>
         <!-- Confirmation de dépôt -->
@@ -887,6 +934,7 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
   function scheduleEstimate() {
     updateCount();
     refreshBadges();
+    renderRoomsBar();
     if (estTimer) clearTimeout(estTimer);
     estTimer = setTimeout(runEstimate, 400);
   }
@@ -1070,9 +1118,31 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
   // Échap ferme l'overlay pièce (ou la modale code)
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
+    var addroom = document.getElementById('cfg-addroom');
+    if (addroom && !addroom.hidden) { closeAddRoom(); return; }
     if (openRoomKey) { closeRoom(); return; }
     if (modal.style.display !== 'none') modal.style.display = 'none';
   });
+  // Ajout de pièce : formulaire sur-mesure + fermeture de la modale
+  (function () {
+    var addBtn = document.getElementById('cfg-addroom-add');
+    var addInput = document.getElementById('cfg-addroom-name');
+    var addClose = document.getElementById('cfg-addroom-close');
+    var addModal = document.getElementById('cfg-addroom');
+    function submitCustom() {
+      var input = document.getElementById('cfg-addroom-name');
+      addCustomRoom(input ? input.value : '');
+      closeAddRoom();
+    }
+    if (addBtn) addBtn.addEventListener('click', submitCustom);
+    if (addInput) addInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitCustom(); }
+    });
+    if (addClose) addClose.addEventListener('click', closeAddRoom);
+    if (addModal) addModal.addEventListener('click', function (e) {
+      if (e.target === addModal) closeAddRoom();
+    });
+  })();
   document.getElementById('cfg-copy').addEventListener('click', function () {
     var input = document.getElementById('cfg-link');
     input.select();
