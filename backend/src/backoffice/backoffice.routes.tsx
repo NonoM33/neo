@@ -52,6 +52,7 @@ import { SignaturesListPage } from './pages/signatures';
 import * as quotesService from '../modules/quotes/quotes.service';
 import { RecettePage, RecetteContent } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
+import { WidgetFeedbackPanel } from './pages/recette/widget-feedback';
 import * as recetteService from '../modules/recette/recette.service';
 import { NewsletterPage, CampaignPage } from './pages/newsletter';
 import {
@@ -3485,28 +3486,43 @@ const loadRecetteData = async (c: any) => {
     summary = await recetteService.getSummary();
   }
 
-  const features = await recetteService.getCatalogueWithFeedback({
-    app: appParam || undefined,
-    status: statusParam || undefined,
-    severity: severityParam || undefined,
-    validation: validationParam,
-  });
+  const [features, widgetFeedback] = await Promise.all([
+    recetteService.getCatalogueWithFeedback({
+      app: appParam || undefined,
+      status: statusParam || undefined,
+      severity: severityParam || undefined,
+      validation: validationParam,
+    }),
+    recetteService.getWidgetFeedback(),
+  ]);
 
   return {
     features,
     summary,
+    widgetFeedback,
     filters: { app: appParam, status: statusParam, severity: severityParam, validation: validationParam },
   };
 };
 
+const renderWidgetPanelFragment = async (c: any) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const items = await recetteService.getWidgetFeedback();
+  return c.html(
+    <WidgetFeedbackPanel
+      items={items}
+      currentUserName={`${adminUser.firstName} ${adminUser.lastName}`}
+    />,
+  );
+};
+
 backofficeRouter.get('/recette', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
-  const { features, summary, filters } = await loadRecetteData(c);
+  const { features, summary, widgetFeedback, filters } = await loadRecetteData(c);
 
   // Filtrage HTMX : on ne renvoie que le bloc filtrable, jamais toute la page.
   if (c.req.header('HX-Request')) {
     return c.html(
-      <RecetteContent features={features} summary={summary} filters={filters} user={adminUser} />,
+      <RecetteContent features={features} summary={summary} widgetFeedback={widgetFeedback} filters={filters} user={adminUser} />,
     );
   }
 
@@ -3514,6 +3530,7 @@ backofficeRouter.get('/recette', async (c) => {
     <RecettePage
       features={features}
       summary={summary}
+      widgetFeedback={widgetFeedback}
       filters={filters}
       user={adminUser}
       success={c.req.query('success')}
@@ -3544,9 +3561,9 @@ backofficeRouter.post('/recette/seed', async (c) => {
   const { count } = await recetteService.seedCatalogue();
   // Resync HTMX : on re-rend le bloc filtrable en place, sans recharger la page.
   if (c.req.header('HX-Request')) {
-    const { features, summary, filters } = await loadRecetteData(c);
+    const { features, summary, widgetFeedback, filters } = await loadRecetteData(c);
     return c.html(
-      <RecetteContent features={features} summary={summary} filters={filters} user={adminUser} />,
+      <RecetteContent features={features} summary={summary} widgetFeedback={widgetFeedback} filters={filters} user={adminUser} />,
     );
   }
   return c.redirect(`/backoffice/recette?success=Catalogue+resynchronise+(${count}+features)`);
@@ -3618,7 +3635,7 @@ backofficeRouter.post('/recette/feedback/:id/status', async (c) => {
   await recetteService.updateFeedbackStatus(id, statusRaw);
   if (c.req.header('HX-Request')) {
     const fb = await recetteService.getFeedbackById(id);
-    if (fb) return renderRecetteFeatureFragment(c, fb.featureId);
+    if (fb?.featureId) return renderRecetteFeatureFragment(c, fb.featureId);
   }
   return c.redirect('/backoffice/recette?success=Statut+mis+a+jour');
 });
@@ -3634,7 +3651,7 @@ backofficeRouter.post('/recette/feedback/:id/comment', async (c) => {
   await recetteService.addComment(id, author, commentBody);
   if (c.req.header('HX-Request')) {
     const fb = await recetteService.getFeedbackById(id);
-    if (fb) return renderRecetteFeatureFragment(c, fb.featureId);
+    if (fb?.featureId) return renderRecetteFeatureFragment(c, fb.featureId);
   }
   return c.redirect('/backoffice/recette?success=Commentaire+ajoute');
 });
@@ -3643,10 +3660,39 @@ backofficeRouter.post('/recette/feedback/:id/delete', async (c) => {
   const id = c.req.param('id');
   const fb = await recetteService.getFeedbackById(id);
   await recetteService.deleteFeedback(id);
-  if (c.req.header('HX-Request') && fb) {
+  if (c.req.header('HX-Request') && fb?.featureId) {
     return renderRecetteFeatureFragment(c, fb.featureId);
   }
   return c.redirect('/backoffice/recette?success=Retour+supprime');
+});
+
+// ---- Actions staff sur les retours widget (terrain, sans feature rattachee) ----
+
+backofficeRouter.post('/recette/widget-feedback/:id/status', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+  const statusRaw = body.status as RecetteFeedback['status'];
+  if (!RECETTE_STATUSES.includes(statusRaw)) {
+    return c.redirect('/backoffice/recette?error=Statut+invalide');
+  }
+  // Passe le retour au statut choisi ; "valide" notifie le rapporteur par email.
+  await recetteService.updateFeedbackStatus(id, statusRaw);
+  if (c.req.header('HX-Request')) return renderWidgetPanelFragment(c);
+  return c.redirect('/backoffice/recette?success=Statut+mis+a+jour');
+});
+
+backofficeRouter.post('/recette/widget-feedback/:id/comment', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+  const author = (body.author as string)?.trim() || 'Equipe';
+  const commentBody = (body.body as string)?.trim();
+  if (!commentBody) {
+    if (c.req.header('HX-Request')) return renderWidgetPanelFragment(c);
+    return c.redirect('/backoffice/recette?error=Commentaire+vide');
+  }
+  await recetteService.addComment(id, author, commentBody);
+  if (c.req.header('HX-Request')) return renderWidgetPanelFragment(c);
+  return c.redirect('/backoffice/recette?success=Reponse+ajoutee');
 });
 
 backofficeRouter.get('/recette/screenshot/:id', async (c) => {

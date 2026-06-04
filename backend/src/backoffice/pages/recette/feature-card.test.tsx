@@ -84,6 +84,7 @@ async function renderContent(): Promise<string> {
   const node = RecetteContent({
     features: [baseFeature],
     summary: emptySummary,
+    widgetFeedback: [],
     filters: { app: 'admin' },
     user: adminUser,
   }) as unknown as { toString(): Promise<string> | string };

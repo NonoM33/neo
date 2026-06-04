@@ -230,6 +230,7 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
           </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/feedback-widget.js" data-app="admin" data-email={user?.email ?? ''}></script>
       </body>
     </html>
   );

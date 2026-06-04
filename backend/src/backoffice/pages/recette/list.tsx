@@ -12,12 +12,15 @@ import type {
   FeatureWithFeedback,
   RecetteSummary,
 } from '../../../modules/recette/recette.service';
+import type { FeedbackWithComments } from '../../../modules/recette/recette.service';
 import { SummaryBar } from './summary';
 import { FeatureCard } from './feature-card';
+import { WidgetFeedbackPanel } from './widget-feedback';
 
 interface RecetteContentProps {
   features: FeatureWithFeedback[];
   summary: RecetteSummary;
+  widgetFeedback: FeedbackWithComments[];
   filters: { app?: string; status?: string; severity?: string; validation?: string };
   user: AdminUser;
 }
@@ -51,6 +54,7 @@ const swapContent = {
 export const RecetteContent: FC<RecetteContentProps> = ({
   features,
   summary,
+  widgetFeedback,
   filters,
   user,
 }) => {
@@ -69,6 +73,11 @@ export const RecetteContent: FC<RecetteContentProps> = ({
   return (
     <div id="recette-content">
       <SummaryBar summary={summary} />
+
+      <WidgetFeedbackPanel
+        items={widgetFeedback}
+        currentUserName={`${user.firstName} ${user.lastName}`}
+      />
 
       {/* Filtres (HTMX, sans rechargement de page) */}
       <div class="card mb-4">
@@ -219,6 +228,7 @@ export const RecetteContent: FC<RecetteContentProps> = ({
 export const RecettePage: FC<RecettePageProps> = ({
   features,
   summary,
+  widgetFeedback,
   filters,
   user,
   success,
@@ -239,7 +249,7 @@ export const RecettePage: FC<RecettePageProps> = ({
         </div>
       </div>
 
-      <RecetteContent features={features} summary={summary} filters={filters} user={user} />
+      <RecetteContent features={features} summary={summary} widgetFeedback={widgetFeedback} filters={filters} user={user} />
     </Layout>
   );
 };

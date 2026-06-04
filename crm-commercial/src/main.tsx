@@ -10,3 +10,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>
 );
+
+// Widget de feedback terrain (bouton flottant) servi par le backend.
+const feedbackApiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const feedbackScript = document.createElement('script');
+feedbackScript.src = `${feedbackApiBase}/feedback-widget.js`;
+feedbackScript.setAttribute('data-app', 'crm');
+feedbackScript.setAttribute('data-api', feedbackApiBase);
+document.body.appendChild(feedbackScript);

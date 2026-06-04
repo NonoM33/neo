@@ -1,0 +1,332 @@
+/* Neo Feedback Widget — bouton flottant + modale guidee, auto-contenu.
+ * Embarquable sur n'importe quelle page (backoffice, CRM, site vitrine).
+ * Capture automatiquement URL/route, navigateur, viewport et logs console
+ * pour que l'equipe puisse traiter le retour sans aller-retour. */
+(function () {
+  'use strict';
+  if (window.__neoFeedbackLoaded) return;
+  window.__neoFeedbackLoaded = true;
+
+  var script = document.currentScript;
+  var cfg = {
+    app: (script && script.getAttribute('data-app')) || 'site',
+    api:
+      (script && script.getAttribute('data-api')) ||
+      (script && script.src ? new URL(script.src).origin : ''),
+    email: (script && script.getAttribute('data-email')) || '',
+  };
+  var API = cfg.api.replace(/\/$/, '');
+
+  /* ---- Capture des logs console (ring buffer) ---- */
+  var LOGS = [];
+  function pushLog(level, args) {
+    try {
+      var msg = Array.prototype.map
+        .call(args, function (a) {
+          if (a instanceof Error) return a.stack || a.message;
+          if (typeof a === 'object') {
+            try {
+              return JSON.stringify(a);
+            } catch (e) {
+              return String(a);
+            }
+          }
+          return String(a);
+        })
+        .join(' ');
+      LOGS.push({ level: level, message: msg.slice(0, 1000), at: new Date().toISOString() });
+      if (LOGS.length > 40) LOGS.shift();
+    } catch (e) {
+      /* ne jamais casser l'app hote */
+    }
+  }
+  ['log', 'warn', 'error', 'info'].forEach(function (level) {
+    var orig = console[level];
+    console[level] = function () {
+      pushLog(level, arguments);
+      if (orig) orig.apply(console, arguments);
+    };
+  });
+  window.addEventListener('error', function (e) {
+    pushLog('error', [e.message + ' @ ' + (e.filename || '') + ':' + (e.lineno || '')]);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    pushLog('error', ['Unhandled promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)]);
+  });
+
+  function buildContext() {
+    return {
+      url: location.href,
+      route: location.pathname + location.search + location.hash,
+      referrer: document.referrer || undefined,
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      screen: { width: screen.width, height: screen.height },
+      devicePixelRatio: window.devicePixelRatio || 1,
+      capturedAt: new Date().toISOString(),
+      logs: LOGS.slice(),
+    };
+  }
+
+  /* ---- Styles ---- */
+  var css =
+    '#nf-root{position:fixed;z-index:2147483000;bottom:20px;right:20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}' +
+    '#nf-fab{width:56px;height:56px;border-radius:50%;background:#1565C0;color:#fff;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(21,101,192,.45);display:flex;align-items:center;justify-content:center;transition:transform .15s ease}' +
+    '#nf-fab:hover{transform:scale(1.06)}' +
+    '#nf-fab svg{width:26px;height:26px;fill:#fff}' +
+    '.nf-overlay{position:fixed;inset:0;background:rgba(15,20,25,.55);z-index:2147483001;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px}' +
+    '.nf-modal{background:#fff;color:#1a1d21;width:420px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column;overflow:hidden}' +
+    '.nf-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #eef0f3}' +
+    '.nf-head h3{margin:0;font-size:16px;font-weight:700}' +
+    '.nf-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#888;padding:4px 8px}' +
+    '.nf-tabs{display:flex;border-bottom:1px solid #eef0f3}' +
+    '.nf-tab{flex:1;padding:11px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#6c757d;border-bottom:2px solid transparent}' +
+    '.nf-tab.active{color:#1565C0;border-bottom-color:#1565C0}' +
+    '.nf-body{padding:16px 18px;overflow-y:auto}' +
+    '.nf-field{margin-bottom:13px}' +
+    '.nf-field label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#374151}' +
+    '.nf-field input,.nf-field textarea,.nf-field select{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;color:#1a1d21}' +
+    '.nf-field textarea{resize:vertical;min-height:62px}' +
+    '.nf-field .nf-hint{font-size:11px;color:#9ca3af;margin-top:3px}' +
+    '.nf-kinds{display:flex;gap:8px}' +
+    '.nf-kind{flex:1;border:1.5px solid #d1d5db;border-radius:10px;padding:10px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;color:#374151;background:#fff}' +
+    '.nf-kind.active{border-color:#1565C0;background:#e9f1fb;color:#1565C0}' +
+    '.nf-ctx{border:1px solid #eef0f3;border-radius:9px;margin-top:4px;font-size:12px}' +
+    '.nf-ctx summary{cursor:pointer;padding:9px 11px;color:#6c757d;font-weight:600}' +
+    '.nf-ctx .nf-ctx-in{padding:0 11px 10px;color:#6b7280;word-break:break-all}' +
+    '.nf-ctx code{background:#f5f7fa;padding:1px 4px;border-radius:4px}' +
+    '.nf-submit{width:100%;background:#1565C0;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer}' +
+    '.nf-submit:disabled{opacity:.6;cursor:progress}' +
+    '.nf-msg{padding:10px 12px;border-radius:9px;font-size:13px;margin-bottom:12px}' +
+    '.nf-msg.ok{background:#e7f6ec;color:#1d6f3a}' +
+    '.nf-msg.err{background:#fbeaea;color:#b42318}' +
+    '.nf-list-item{border:1px solid #eef0f3;border-radius:10px;padding:11px 12px;margin-bottom:10px}' +
+    '.nf-list-item .nf-it-top{display:flex;justify-content:space-between;align-items:center;gap:8px}' +
+    '.nf-list-item h4{margin:0;font-size:13px;font-weight:600}' +
+    '.nf-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}' +
+    '.nf-st-ouvert{background:#fbeaea;color:#b42318}.nf-st-corrige{background:#e7f1fb;color:#1565C0}.nf-st-valide{background:#e7f6ec;color:#1d6f3a}.nf-st-a_revoir{background:#fef3e2;color:#b06a00}' +
+    '.nf-reply{background:#f5f7fa;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#374151;white-space:pre-wrap}' +
+    '.nf-reply .nf-reply-author{font-weight:700;color:#1565C0;display:block;margin-bottom:2px}' +
+    '.nf-empty{text-align:center;color:#9ca3af;font-size:13px;padding:24px 0}';
+
+  function el(tag, attrs, html) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function mount() {
+    var style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    var root = el('div', { id: 'nf-root' });
+    var fab = el(
+      'button',
+      { id: 'nf-fab', 'aria-label': 'Donner mon avis / signaler un probleme', title: 'Feedback' },
+      '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>'
+    );
+    root.appendChild(fab);
+    document.body.appendChild(root);
+    fab.addEventListener('click', openModal);
+  }
+
+  var overlay = null;
+  function closeModal() {
+    if (overlay) {
+      overlay.remove();
+      overlay = null;
+    }
+  }
+
+  function statusClass(s) {
+    return 'nf-badge nf-st-' + s;
+  }
+
+  function openModal() {
+    if (overlay) return;
+    overlay = el('div', { class: 'nf-overlay' });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeModal();
+    });
+    var modal = el('div', { class: 'nf-modal' });
+    modal.innerHTML =
+      '<div class="nf-head"><h3>Votre retour</h3><button class="nf-close" aria-label="Fermer">&times;</button></div>' +
+      '<div class="nf-tabs"><button class="nf-tab active" data-tab="report">Signaler</button><button class="nf-tab" data-tab="mine">Mes retours</button></div>' +
+      '<div class="nf-body" id="nf-body"></div>';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    modal.querySelector('.nf-close').addEventListener('click', closeModal);
+    var tabs = modal.querySelectorAll('.nf-tab');
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        tabs.forEach(function (x) {
+          x.classList.remove('active');
+        });
+        t.classList.add('active');
+        if (t.getAttribute('data-tab') === 'mine') renderMine();
+        else renderReport();
+      });
+    });
+    renderReport();
+  }
+
+  var state = { kind: 'bug' };
+
+  function renderReport() {
+    var body = document.getElementById('nf-body');
+    var ctx = buildContext();
+    var savedEmail = cfg.email || localStorage.getItem('nf_email') || '';
+    body.innerHTML =
+      '<div id="nf-msg"></div>' +
+      '<div class="nf-field"><label>Type de retour</label><div class="nf-kinds">' +
+      '<div class="nf-kind' + (state.kind === 'bug' ? ' active' : '') + '" data-kind="bug">🐞 Un bug</div>' +
+      '<div class="nf-kind' + (state.kind === 'amelioration' ? ' active' : '') + '" data-kind="amelioration">💡 Une idee</div>' +
+      '</div></div>' +
+      '<div class="nf-field"><label>Resume *</label><input id="nf-title" maxlength="300" placeholder="' +
+      (state.kind === 'bug' ? 'Ex : Le bouton Enregistrer ne repond pas' : 'Ex : Ajouter un export PDF du devis') +
+      '"/></div>' +
+      '<div class="nf-field" id="nf-sev-wrap"' + (state.kind === 'amelioration' ? ' style="display:none"' : '') + '><label>Gravite</label><select id="nf-sev">' +
+      '<option value="bloquant">Bloquant — je ne peux pas continuer</option>' +
+      '<option value="majeur" selected>Majeur — ca gene fortement</option>' +
+      '<option value="mineur">Mineur — desagreable mais contournable</option>' +
+      '<option value="cosmetique">Cosmetique — detail visuel</option>' +
+      '</select></div>' +
+      '<div class="nf-field"><label>' + (state.kind === 'bug' ? "Que s'est-il passe ? *" : 'Decrivez votre idee *') + '</label><textarea id="nf-desc" placeholder="' +
+      (state.kind === 'bug' ? 'Decrivez precisement ce que vous avez vu (message d\'erreur, comportement inattendu...)' : 'Quel besoin cela couvre-t-il ? Comment l\'imaginez-vous ?') +
+      '"></textarea></div>' +
+      (state.kind === 'bug'
+        ? '<div class="nf-field"><label>Etapes pour reproduire</label><textarea id="nf-steps" placeholder="1. Je vais sur...\n2. Je clique sur...\n3. ..."></textarea></div>' +
+          '<div class="nf-field"><label>Ce que vous attendiez</label><textarea id="nf-exp" placeholder="Le resultat normal aurait du etre..."></textarea></div>'
+        : '') +
+      '<div class="nf-field"><label>Votre email (pour le suivi) *</label><input id="nf-email" type="email" value="' + escapeAttr(savedEmail) + '" placeholder="vous@exemple.fr"/><div class="nf-hint">Nous vous repondrons et vous previendrons a la cloture.</div></div>' +
+      '<details class="nf-ctx"><summary>🔧 Infos techniques jointes automatiquement</summary><div class="nf-ctx-in">' +
+      'Page : <code>' + escapeHtml(ctx.route) + '</code><br/>' +
+      'Ecran : ' + ctx.viewport.width + '×' + ctx.viewport.height + '<br/>' +
+      'Navigateur : ' + escapeHtml((ctx.userAgent || '').slice(0, 80)) + '<br/>' +
+      'Logs captures : ' + ctx.logs.length + ' ligne(s)' +
+      '</div></details>' +
+      '<button class="nf-submit" id="nf-send">Envoyer mon retour</button>';
+
+    body.querySelectorAll('.nf-kind').forEach(function (k) {
+      k.addEventListener('click', function () {
+        state.kind = k.getAttribute('data-kind');
+        renderReport();
+      });
+    });
+    document.getElementById('nf-send').addEventListener('click', submit);
+  }
+
+  function submit() {
+    var msg = document.getElementById('nf-msg');
+    var title = (document.getElementById('nf-title').value || '').trim();
+    var email = (document.getElementById('nf-email').value || '').trim();
+    var desc = (document.getElementById('nf-desc').value || '').trim();
+    if (title.length < 3) return showMsg(msg, 'err', 'Merci de resumer votre retour en quelques mots.');
+    if (!desc) return showMsg(msg, 'err', 'Merci de decrire un peu plus votre retour.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return showMsg(msg, 'err', 'Merci d\'indiquer un email valide pour le suivi.');
+
+    localStorage.setItem('nf_email', email);
+    var payload = {
+      app: cfg.app,
+      kind: state.kind,
+      title: title,
+      severity: state.kind === 'bug' ? document.getElementById('nf-sev').value : 'mineur',
+      description: desc,
+      reporterEmail: email,
+      context: buildContext(),
+    };
+    var stepsEl = document.getElementById('nf-steps');
+    var expEl = document.getElementById('nf-exp');
+    if (stepsEl && stepsEl.value.trim()) payload.stepsToReproduce = stepsEl.value.trim();
+    if (expEl && expEl.value.trim()) payload.expectedResult = expEl.value.trim();
+
+    var btn = document.getElementById('nf-send');
+    btn.disabled = true;
+    btn.textContent = 'Envoi...';
+    fetch(API + '/feedback-api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function () {
+        var body = document.getElementById('nf-body');
+        body.innerHTML =
+          '<div class="nf-msg ok">✅ Merci ! Votre retour a bien ete enregistre. Vous pouvez suivre son avancement dans « Mes retours ».</div>' +
+          '<button class="nf-submit" id="nf-again">Envoyer un autre retour</button>';
+        document.getElementById('nf-again').addEventListener('click', renderReport);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = 'Envoyer mon retour';
+        showMsg(msg, 'err', "L'envoi a echoue. Verifiez votre connexion et reessayez.");
+      });
+  }
+
+  function renderMine() {
+    var body = document.getElementById('nf-body');
+    var email = cfg.email || localStorage.getItem('nf_email') || '';
+    if (!email) {
+      body.innerHTML = '<div class="nf-empty">Envoyez d\'abord un retour pour suivre vos demandes ici.</div>';
+      return;
+    }
+    body.innerHTML = '<div class="nf-empty">Chargement...</div>';
+    fetch(API + '/feedback-api/mine?email=' + encodeURIComponent(email))
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var items = (data && data.items) || [];
+        if (!items.length) {
+          body.innerHTML = '<div class="nf-empty">Aucun retour pour ' + escapeHtml(email) + '.</div>';
+          return;
+        }
+        body.innerHTML = items
+          .map(function (it) {
+            var replies = (it.comments || [])
+              .map(function (c) {
+                return '<div class="nf-reply"><span class="nf-reply-author">' + escapeHtml(c.author) + '</span>' + escapeHtml(c.body) + '</div>';
+              })
+              .join('');
+            return (
+              '<div class="nf-list-item"><div class="nf-it-top"><h4>' +
+              escapeHtml(it.title) +
+              '</h4><span class="' + statusClass(it.status) + '">' + escapeHtml(it.statusLabel) + '</span></div>' +
+              '<div class="nf-hint" style="margin-top:4px">' + escapeHtml(it.kindLabel) + ' · ' + new Date(it.createdAt).toLocaleDateString('fr-FR') + '</div>' +
+              replies +
+              '</div>'
+            );
+          })
+          .join('');
+      })
+      .catch(function () {
+        body.innerHTML = '<div class="nf-msg err">Impossible de charger vos retours.</div>';
+      });
+  }
+
+  function showMsg(node, type, text) {
+    node.className = 'nf-msg ' + type;
+    node.textContent = text;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else {
+    mount();
+  }
+})();

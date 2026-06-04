@@ -3,10 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/services/feedback_log_buffer.dart';
 import 'core/storage/hive_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Mirror logs into the feedback buffer so reports carry recent context.
+  FeedbackLogBuffer.install();
 
   // Initialize Hive for local storage
   await HiveStorage.init();

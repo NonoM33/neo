@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 
 import { errorHandler } from './middleware/error.middleware';
+import { blockUiOnApiHost } from './middleware/api-host-only.middleware';
 
 import { authRoutes } from './modules/auth';
 import { usersRoutes } from './modules/users';
@@ -41,6 +42,7 @@ import { scanSessionsRoutes } from './modules/scan-sessions';
 import adminRoutes from './admin/admin.routes';
 import backofficeRoutes from './backoffice/backoffice.routes';
 import { recetteExportRoutes } from './modules/recette';
+import { feedbackApiRoutes, feedbackWidgetRoutes } from './modules/feedback';
 import swaggerRoutes from './swagger/swagger.routes';
 
 const app = new Hono();
@@ -48,6 +50,8 @@ const app = new Hono();
 // Middleware
 app.use('*', logger());
 app.use('*', secureHeaders());
+// Sur les hôtes "API seule", masque les interfaces HTML (back-office/admin/swagger).
+app.use('*', blockUiOnApiHost);
 app.use(
   '/api/*',
   cors({
@@ -55,6 +59,16 @@ app.use(
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     exposeHeaders: ['Content-Length'],
+    maxAge: 86400,
+  })
+);
+// Widget de feedback : appele en cross-origin depuis le CRM, le site et l'app.
+app.use(
+  '/feedback-api/*',
+  cors({
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type'],
     maxAge: 86400,
   })
 );
@@ -140,6 +154,10 @@ app.route('/admin', adminRoutes);
 // Backoffice routes
 app.route('/backoffice', backofficeRoutes);
 app.route('/recette-api', recetteExportRoutes);
+
+// Widget de feedback terrain (bouton flottant) — public, CORS ouvert.
+app.route('/feedback-api', feedbackApiRoutes);
+app.route('/', feedbackWidgetRoutes);
 
 // 404
 app.notFound((c) => {

@@ -7,6 +7,7 @@ import 'core/di/providers.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/blocs/auth/auth_event.dart';
 import 'presentation/blocs/sync/sync_bloc.dart';
+import 'presentation/widgets/feedback/feedback_overlay.dart';
 import 'routes/app_router.dart';
 
 /// Main application widget
@@ -65,7 +66,7 @@ class _NeoIntegrateurAppState extends ConsumerState<NeoIntegrateurApp> {
               MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
             ),
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: FeedbackOverlay(child: child ?? const SizedBox.shrink()),
         );
       },
     );

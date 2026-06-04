@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../../config/database';
 import {
   recetteFeatures,
@@ -7,8 +7,10 @@ import {
   type RecetteFeature,
   type RecetteFeedback,
   type RecetteFeedbackComment,
+  type RecetteFeedbackContext,
 } from '../../db/schema';
 import { recetteCatalogue } from './recette.catalogue';
+import { sendFeedbackClosureEmail } from './recette.notify';
 
 // Seed idempotent du catalogue (upsert par code).
 export async function seedCatalogue(): Promise<{ count: number }> {
@@ -97,6 +99,7 @@ export async function getCatalogueWithFeedback(
 
   const feedbackByFeature = new Map<string, FeedbackWithComments[]>();
   for (const fb of allFeedback) {
+    if (!fb.featureId) continue; // retours widget : pas de feature rattachee
     if (filters.status && fb.status !== filters.status) continue;
     if (filters.severity && fb.severity !== filters.severity) continue;
     const list = feedbackByFeature.get(fb.featureId) ?? [];
@@ -170,7 +173,7 @@ export async function getSummary(): Promise<RecetteSummary> {
   for (const fb of feedback) {
     byStatus[fb.status] += 1;
     bySeverity[fb.severity] += 1;
-    if (fb.status === 'ouvert' || fb.status === 'a_revoir') {
+    if (fb.featureId && (fb.status === 'ouvert' || fb.status === 'a_revoir')) {
       featuresWithOpen.add(fb.featureId);
     }
   }
@@ -249,6 +252,82 @@ export async function createFeedback(
   return created!;
 }
 
+export interface SubmitWidgetFeedbackInput {
+  app: RecetteFeedback['app'];
+  kind: RecetteFeedback['kind'];
+  title: string;
+  severity: RecetteFeedback['severity'];
+  description?: string;
+  expectedResult?: string;
+  stepsToReproduce?: string;
+  reporterEmail?: string;
+  reporterName?: string;
+  context?: RecetteFeedbackContext;
+}
+
+// Retour remonte depuis le widget terrain (bouton flottant). Non rattache a une
+// feature du catalogue : on stocke l'app + le contexte technique pour que Claude
+// puisse traiter sans aller-retour (chemin, logs, environnement).
+export async function submitWidgetFeedback(
+  input: SubmitWidgetFeedbackInput
+): Promise<RecetteFeedback> {
+  const author =
+    input.reporterName?.trim() ||
+    input.reporterEmail?.trim() ||
+    'Anonyme';
+  const [created] = await db
+    .insert(recetteFeedback)
+    .values({
+      featureId: null,
+      app: input.app,
+      kind: input.kind,
+      source: 'widget',
+      title: input.title,
+      severity: input.severity,
+      actualResult: input.description ?? null,
+      expectedResult: input.expectedResult ?? null,
+      stepsToReproduce: input.stepsToReproduce ?? null,
+      author,
+      reporterEmail: input.reporterEmail?.trim() || null,
+      context: input.context ?? null,
+    })
+    .returning();
+  return created!;
+}
+
+// Retours d'un rapporteur (onglet "Mes retours" du widget), avec leur fil
+// de commentaires (notamment les reponses de l'equipe / Claude).
+export async function getFeedbackByReporter(
+  email: string
+): Promise<FeedbackWithComments[]> {
+  const items = await db
+    .select()
+    .from(recetteFeedback)
+    .where(eq(recetteFeedback.reporterEmail, email.trim().toLowerCase()))
+    .orderBy(desc(recetteFeedback.createdAt));
+
+  const ids = items.map((i) => i.id);
+  const comments = ids.length
+    ? await db
+        .select()
+        .from(recetteFeedbackComments)
+        .where(inArray(recetteFeedbackComments.feedbackId, ids))
+        .orderBy(asc(recetteFeedbackComments.createdAt))
+    : [];
+
+  const byFeedback = new Map<string, RecetteFeedbackComment[]>();
+  for (const c of comments) {
+    const list = byFeedback.get(c.feedbackId) ?? [];
+    list.push(c);
+    byFeedback.set(c.feedbackId, list);
+  }
+
+  return items.map((fb) => ({
+    ...fb,
+    comments: byFeedback.get(fb.id) ?? [],
+  }));
+}
+
 export async function getFeedbackById(
   id: string
 ): Promise<RecetteFeedback | undefined> {
@@ -279,6 +358,41 @@ export async function updateFeedbackStatus(
     .update(recetteFeedback)
     .set({ status, updatedAt: new Date() })
     .where(eq(recetteFeedback.id, id));
+
+  // A la cloture (statut "valide"), notifier une seule fois le rapporteur.
+  if (status === 'valide') {
+    await notifyReporterOnClosure(id);
+  }
+}
+
+// Envoie l'email de cloture au rapporteur (retours widget uniquement) si un
+// email est connu et qu'aucune notification n'a deja ete envoyee.
+export async function notifyReporterOnClosure(id: string): Promise<void> {
+  const fb = await getFeedbackById(id);
+  if (!fb || !fb.reporterEmail || fb.notifiedAt) return;
+
+  const lastComments = await db
+    .select()
+    .from(recetteFeedbackComments)
+    .where(eq(recetteFeedbackComments.feedbackId, id))
+    .orderBy(desc(recetteFeedbackComments.createdAt))
+    .limit(1);
+
+  try {
+    await sendFeedbackClosureEmail({
+      to: fb.reporterEmail,
+      title: fb.title,
+      kind: fb.kind,
+      resolution: lastComments[0]?.body ?? null,
+    });
+    await db
+      .update(recetteFeedback)
+      .set({ notifiedAt: new Date() })
+      .where(eq(recetteFeedback.id, id));
+  } catch (error) {
+    // Best-effort : un email rate ne doit pas bloquer la cloture du retour.
+    console.error('[recette] Email de cloture non envoye:', error);
+  }
 }
 
 export async function deleteFeedback(id: string): Promise<void> {
@@ -300,10 +414,12 @@ export async function addComment(
 // Vue plate destinee a l'export JSON (lecture par Claude pour corriger les retours).
 export interface ExportedFeedback {
   id: string;
-  featureCode: string;
-  featureTitle: string;
-  app: RecetteFeature['app'];
-  module: string;
+  source: RecetteFeedback['source'];
+  kind: RecetteFeedback['kind'];
+  featureCode: string | null;
+  featureTitle: string | null;
+  app: RecetteFeature['app'] | null;
+  module: string | null;
   route: string | null;
   title: string;
   severity: RecetteFeedback['severity'];
@@ -312,44 +428,100 @@ export interface ExportedFeedback {
   expectedResult: string | null;
   actualResult: string | null;
   author: string;
+  reporterEmail: string | null;
+  context: RecetteFeedbackContext | null;
   createdAt: Date;
   updatedAt: Date;
   comments: { author: string; body: string; createdAt: Date }[];
 }
 
+// Exporte TOUS les retours (recette catalogue + widget terrain) a plat.
+// Inclut le contexte technique des retours widget (URL, route, logs) pour que
+// Claude puisse traiter le retour de bout en bout sans information manquante.
 export async function exportFeedback(
   onlyOpen = false
 ): Promise<ExportedFeedback[]> {
-  const catalogue = await getCatalogueWithFeedback();
+  const allFeedback = await db
+    .select()
+    .from(recetteFeedback)
+    .orderBy(desc(recetteFeedback.createdAt));
+
+  const features = await db.select().from(recetteFeatures);
+  const featureById = new Map(features.map((f) => [f.id, f]));
+
+  const ids = allFeedback.map((f) => f.id);
+  const comments = ids.length
+    ? await db
+        .select()
+        .from(recetteFeedbackComments)
+        .where(inArray(recetteFeedbackComments.feedbackId, ids))
+        .orderBy(asc(recetteFeedbackComments.createdAt))
+    : [];
+  const commentsByFeedback = new Map<string, RecetteFeedbackComment[]>();
+  for (const c of comments) {
+    const list = commentsByFeedback.get(c.feedbackId) ?? [];
+    list.push(c);
+    commentsByFeedback.set(c.feedbackId, list);
+  }
+
   const result: ExportedFeedback[] = [];
-  for (const feature of catalogue) {
-    for (const fb of feature.feedback) {
-      if (onlyOpen && fb.status !== 'ouvert' && fb.status !== 'a_revoir') {
-        continue;
-      }
-      result.push({
-        id: fb.id,
-        featureCode: feature.code,
-        featureTitle: feature.title,
-        app: feature.app,
-        module: feature.module,
-        route: feature.route,
-        title: fb.title,
-        severity: fb.severity,
-        status: fb.status,
-        stepsToReproduce: fb.stepsToReproduce,
-        expectedResult: fb.expectedResult,
-        actualResult: fb.actualResult,
-        author: fb.author,
-        createdAt: fb.createdAt,
-        updatedAt: fb.updatedAt,
-        comments: fb.comments.map((c) => ({
-          author: c.author,
-          body: c.body,
-          createdAt: c.createdAt,
-        })),
-      });
+  for (const fb of allFeedback) {
+    if (onlyOpen && fb.status !== 'ouvert' && fb.status !== 'a_revoir') {
+      continue;
     }
+    const feature = fb.featureId ? featureById.get(fb.featureId) : undefined;
+    result.push({
+      id: fb.id,
+      source: fb.source,
+      kind: fb.kind,
+      featureCode: feature?.code ?? null,
+      featureTitle: feature?.title ?? null,
+      app: feature?.app ?? fb.app ?? null,
+      module: feature?.module ?? null,
+      route: feature?.route ?? fb.context?.route ?? fb.context?.url ?? null,
+      title: fb.title,
+      severity: fb.severity,
+      status: fb.status,
+      stepsToReproduce: fb.stepsToReproduce,
+      expectedResult: fb.expectedResult,
+      actualResult: fb.actualResult,
+      author: fb.author,
+      reporterEmail: fb.reporterEmail,
+      context: fb.context ?? null,
+      createdAt: fb.createdAt,
+      updatedAt: fb.updatedAt,
+      comments: (commentsByFeedback.get(fb.id) ?? []).map((c) => ({
+        author: c.author,
+        body: c.body,
+        createdAt: c.createdAt,
+      })),
+    });
   }
   return result;
+}
+
+// Retours widget (terrain) avec commentaires, pour affichage dans le centre de
+// recette cote staff.
+export async function getWidgetFeedback(): Promise<FeedbackWithComments[]> {
+  const items = await db
+    .select()
+    .from(recetteFeedback)
+    .where(isNull(recetteFeedback.featureId))
+    .orderBy(desc(recetteFeedback.createdAt));
+
+  const ids = items.map((i) => i.id);
+  const comments = ids.length
+    ? await db
+        .select()
+        .from(recetteFeedbackComments)
+        .where(inArray(recetteFeedbackComments.feedbackId, ids))
+        .orderBy(asc(recetteFeedbackComments.createdAt))
+    : [];
+  const byFeedback = new Map<string, RecetteFeedbackComment[]>();
+  for (const c of comments) {
+    const list = byFeedback.get(c.feedbackId) ?? [];
+    list.push(c);
+    byFeedback.set(c.feedbackId, list);
+  }
+  return items.map((fb) => ({ ...fb, comments: byFeedback.get(fb.id) ?? [] }));
 }

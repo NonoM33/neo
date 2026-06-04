@@ -6,6 +6,7 @@ import {
   integer,
   timestamp,
   pgEnum,
+  jsonb,
   index,
 } from 'drizzle-orm/pg-core';
 
@@ -16,6 +17,27 @@ export const recetteAppEnum = pgEnum('recette_app', [
   'flutter',
   'site',
 ]);
+
+// Nature d'un retour : bug a corriger ou suggestion d'amelioration
+export const recetteKindEnum = pgEnum('recette_kind', ['bug', 'amelioration']);
+
+// Contexte technique capture automatiquement par le widget de feedback.
+// Permet a Claude de traiter le retour sans aller-retour (chemin, logs, env).
+export interface RecetteFeedbackContext {
+  url?: string;
+  route?: string;
+  referrer?: string;
+  userAgent?: string;
+  platform?: string;
+  language?: string;
+  viewport?: { width: number; height: number };
+  screen?: { width: number; height: number };
+  devicePixelRatio?: number;
+  appVersion?: string;
+  capturedAt?: string;
+  // Derniers logs/erreurs console captures avant l'envoi du retour.
+  logs?: { level: string; message: string; at: string }[];
+}
 
 // Severite d'un retour de recette
 export const recetteSeverityEnum = pgEnum('recette_severity', [
@@ -72,9 +94,16 @@ export const recetteFeedback = pgTable(
   'recette_feedback',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    featureId: uuid('feature_id')
-      .notNull()
-      .references(() => recetteFeatures.id, { onDelete: 'cascade' }),
+    // Nullable : les retours remontes via le widget terrain ne sont pas
+    // forcement rattaches a une feature du catalogue.
+    featureId: uuid('feature_id').references(() => recetteFeatures.id, {
+      onDelete: 'cascade',
+    }),
+    // App d'origine pour les retours widget (sans feature rattachee).
+    app: recetteAppEnum('app'),
+    kind: recetteKindEnum('kind').notNull().default('bug'),
+    // 'recette' (centre de recette interne) ou 'widget' (bouton terrain).
+    source: varchar('source', { length: 20 }).notNull().default('recette'),
     title: varchar('title', { length: 300 }).notNull(),
     severity: recetteSeverityEnum('severity').notNull().default('majeur'),
     status: recetteStatusEnum('status').notNull().default('ouvert'),
@@ -83,8 +112,13 @@ export const recetteFeedback = pgTable(
     actualResult: text('actual_result'),
     screenshotKey: varchar('screenshot_key', { length: 300 }),
     author: varchar('author', { length: 120 }).notNull(),
+    // Email du rapporteur (widget) pour le suivi + la notification de cloture.
+    reporterEmail: varchar('reporter_email', { length: 200 }),
+    context: jsonb('context').$type<RecetteFeedbackContext>(),
     gitlabIssueIid: integer('gitlab_issue_iid'),
     gitlabIssueUrl: varchar('gitlab_issue_url', { length: 500 }),
+    // Date d'envoi de l'email de cloture (evite les doublons de notification).
+    notifiedAt: timestamp('notified_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -92,6 +126,8 @@ export const recetteFeedback = pgTable(
     index('recette_feedback_feature_id_idx').on(table.featureId),
     index('recette_feedback_status_idx').on(table.status),
     index('recette_feedback_severity_idx').on(table.severity),
+    index('recette_feedback_reporter_email_idx').on(table.reporterEmail),
+    index('recette_feedback_source_idx').on(table.source),
   ]
 );
 
@@ -144,6 +180,14 @@ export const recetteStatusLabels: Record<
   corrige: { label: 'Corrige', color: 'info' },
   valide: { label: 'Valide', color: 'success' },
   a_revoir: { label: 'A revoir', color: 'warning' },
+};
+
+export const recetteKindLabels: Record<
+  'bug' | 'amelioration',
+  { label: string; color: string; icon: string }
+> = {
+  bug: { label: 'Bug', color: 'danger', icon: 'bi-bug' },
+  amelioration: { label: 'Amelioration', color: 'primary', icon: 'bi-lightbulb' },
 };
 
 export const recetteValidationLabels: Record<
