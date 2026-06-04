@@ -58,6 +58,7 @@ export class House3D {
 
   private hoverKey: string | null = null;
   private pointerDown: { x: number; y: number } | null = null;
+  private picking = true;
   private rafId = 0;
   private active = false;
   private clock = new THREE.Clock();
@@ -235,6 +236,7 @@ export class House3D {
   };
 
   private onPointerMove = (e: PointerEvent): void => {
+    if (!this.picking) return;
     this.setPointer(e);
     const key = this.pick();
     if (key !== this.hoverKey) {
@@ -245,9 +247,10 @@ export class House3D {
   };
 
   private onPointerUp = (e: PointerEvent): void => {
-    if (!this.pointerDown) return;
-    const moved = Math.hypot(e.clientX - this.pointerDown.x, e.clientY - this.pointerDown.y);
+    const down = this.pointerDown;
     this.pointerDown = null;
+    if (!down || !this.picking) return; // overlay ouvert/cooldown → on ignore
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
     if (moved > CLICK_TOLERANCE) return; // c'était un drag d'orbite
     this.setPointer(e);
     const key = this.pick();
@@ -266,6 +269,15 @@ export class House3D {
     if (count > room.count) room.pop = 1;
     room.count = count;
     room.badge.set(count, room.accent);
+  }
+
+  /** Active/désactive le picking des pièces (coupé quand l'overlay est ouvert). */
+  setPicking(enabled: boolean): void {
+    this.picking = enabled;
+    if (!enabled) {
+      this.hoverKey = null;
+      this.renderer.domElement.style.cursor = 'grab';
+    }
   }
 
   setActive(active: boolean): void {

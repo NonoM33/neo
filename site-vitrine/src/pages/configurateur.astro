@@ -132,9 +132,11 @@ const schema = {
   .cfg-stage:active { cursor: grabbing; }
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
   .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
-  .cfg-roompanel { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: rgba(8,10,14,.55); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
+  .cfg-roompanel { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: rgba(8,10,14,.9); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
   .cfg-roompanel.open { opacity: 1; pointer-events: auto; }
   .cfg-roompanel-total { margin-left: auto; text-align: right; display: flex; flex-direction: column; line-height: 1.1; }
+  .cfg-roompanel-x { width: 40px; height: 40px; flex: none; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #cfd6e4; font-size: 26px; line-height: 1; cursor: pointer; display: grid; place-items: center; transition: background .15s, border-color .15s; }
+  .cfg-roompanel-x:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.24); color: #fff; }
   .cfg-roompanel-total span { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8a8f98; }
   .cfg-roompanel-total b { font-size: 17px; color: #cfe0ff; }
   .cfg-roompanel-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px 16px; }
@@ -288,6 +290,7 @@ const schema = {
 
 <script>
 import { House3D } from '../configurateur/house3d';
+import { OverlayGate } from '../configurateur/overlay-gate';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -351,6 +354,7 @@ import { House3D } from '../configurateur/house3d';
   var house3d = null;           // instance Three.js (lazy)
   var builderFailed = false;    // bascule grille 2D si WebGL KO
   var openRoomKey = null;       // pièce ouverte dans l'overlay
+  var roomGate = new OverlayGate(); // garde anti-réouverture (click-through 3D)
 
   function getQty(room, pid) { return (selection[room] && selection[room][pid]) || 0; }
   function setQty(room, pid, q) {
@@ -482,7 +486,9 @@ import { House3D } from '../configurateur/house3d';
   function openRoom(roomKey) {
     var room = ROOM_BY_KEY[roomKey];
     if (!room) return;
+    if (!roomGate.open(roomKey, Date.now())) return; // déjà ouvert / cooldown
     openRoomKey = roomKey;
+    if (house3d) house3d.setPicking(false); // coupe le picking 3D tant que l'overlay est ouvert
     var panel = document.getElementById('cfg-roompanel');
     panel.hidden = false;
     panel.setAttribute('aria-hidden', 'false');
@@ -499,7 +505,10 @@ import { House3D } from '../configurateur/house3d';
     var totalMini = document.createElement('div');
     totalMini.className = 'cfg-roompanel-total';
     totalMini.innerHTML = '<span>Total TTC</span><b id="cfg-panel-total">' + EUR.format(lastEstimate.totalTTC || 0) + '</b>';
-    head.appendChild(back); head.appendChild(titleEl); head.appendChild(totalMini);
+    var closeX = document.createElement('button');
+    closeX.type = 'button'; closeX.className = 'cfg-roompanel-x'; closeX.setAttribute('aria-label', 'Fermer'); closeX.innerHTML = '&times;';
+    closeX.addEventListener('click', closeRoom);
+    head.appendChild(back); head.appendChild(titleEl); head.appendChild(totalMini); head.appendChild(closeX);
 
     var body = document.createElement('div');
     body.className = 'cfg-roompanel-body';
@@ -533,6 +542,8 @@ import { House3D } from '../configurateur/house3d';
     foot.appendChild(done);
 
     panel.appendChild(head); panel.appendChild(body); panel.appendChild(foot);
+    // clic sur le fond (hors contenu) = fermer
+    panel.onclick = function (e) { if (e.target === panel) closeRoom(); };
     requestAnimationFrame(function () { panel.classList.add('open'); });
   }
 
@@ -542,7 +553,11 @@ import { House3D } from '../configurateur/house3d';
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
     openRoomKey = null;
-    setTimeout(function () { if (!panel.classList.contains('open')) panel.hidden = true; }, 240);
+    roomGate.close(Date.now()); // arme le cooldown anti-réouverture
+    setTimeout(function () {
+      if (!panel.classList.contains('open')) panel.hidden = true;
+      if (house3d) house3d.setPicking(true); // réactive le picking une fois refermé
+    }, 260);
     if (builderFailed) renderHouseGrid();
   }
 
@@ -782,6 +797,12 @@ import { House3D } from '../configurateur/house3d';
   var saveBtn = document.getElementById('cfg-save');
   document.getElementById('cfg-modal-close').addEventListener('click', function () { modal.style.display = 'none'; });
   modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
+  // Échap ferme l'overlay pièce (ou la modale code)
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (openRoomKey) { closeRoom(); return; }
+    if (modal.style.display !== 'none') modal.style.display = 'none';
+  });
   document.getElementById('cfg-copy').addEventListener('click', function () {
     var input = document.getElementById('cfg-link');
     input.select();
