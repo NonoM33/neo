@@ -544,25 +544,69 @@ export async function runConfiguratorAssistant(
     ...input.messages.map((m) => ({ role: m.role, content: m.content }) as const),
   ];
 
-  for (let i = 0; i < 5; i += 1) {
+  const createTurn: CreateTurn = async (msgs) => {
     const completion = await client.chat.completions.create({
       model: env.OPENROUTER_MODEL,
-      messages,
+      messages: msgs,
       tools,
       tool_choice: 'auto',
       temperature: 0.5,
       max_tokens: 600,
     });
+    return completion.choices[0]?.message ?? null;
+  };
 
-    const choice = completion.choices[0]?.message;
-    if (!choice) break;
+  return runAssistantLoop(ctx, messages, createTurn);
+}
 
-    const toolCalls = choice.tool_calls ?? [];
+/** Repli affiché quand le modèle agit mais ne formule aucune phrase. */
+const FALLBACK_REPLY =
+  "J'ai mis à jour votre configuration. Souhaitez-vous que je vous aide sur autre chose ?";
+
+/** Un tour de réponse du modèle (texte éventuel + appels d'outils éventuels). */
+export type AssistantTurn = Pick<
+  OpenAI.Chat.Completions.ChatCompletionMessage,
+  'content' | 'tool_calls'
+>;
+
+/** Produit le prochain tour du modèle à partir de l'historique courant. */
+export type CreateTurn = (
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+) => Promise<AssistantTurn | null>;
+
+/**
+ * Boucle de raisonnement du guide : enchaîne les tours du modèle, exécute les
+ * outils demandés, et s'arrête au premier tour sans appel d'outil.
+ *
+ * Subtilité (régression « Désolé, je n'ai pas pu répondre ») : le modèle écrit
+ * souvent sa réponse EN MÊME TEMPS qu'un appel d'outil (ex : proposer_choix),
+ * puis le tour suivant n'a plus rien à ajouter et renvoie un texte vide. On
+ * mémorise donc le dernier texte non vide pour ne jamais répondre « vide ».
+ */
+export async function runAssistantLoop(
+  ctx: ToolContext,
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+  createTurn: CreateTurn,
+  maxIterations = 5,
+): Promise<AssistantReply> {
+  let lastText = '';
+  for (let i = 0; i < maxIterations; i += 1) {
+    const turn = await createTurn(messages);
+    if (!turn) break;
+
+    const content = (turn.content ?? '').trim();
+    if (content) lastText = content;
+
+    const toolCalls = turn.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      return { reply: (choice.content ?? '').trim(), actions: ctx.actions, choices: ctx.choices ?? [] };
+      return {
+        reply: content || lastText || FALLBACK_REPLY,
+        actions: ctx.actions,
+        choices: ctx.choices ?? [],
+      };
     }
 
-    messages.push(choice);
+    messages.push({ role: 'assistant', content: turn.content ?? '', tool_calls: toolCalls });
     for (const call of toolCalls) {
       if (call.type !== 'function') continue;
       const result = await runTool(ctx, call.function.name, call.function.arguments);
@@ -575,8 +619,7 @@ export async function runConfiguratorAssistant(
   }
 
   return {
-    reply:
-      "J'ai mis à jour votre configuration. Souhaitez-vous que je vous aide sur autre chose ?",
+    reply: lastText || FALLBACK_REPLY,
     actions: ctx.actions,
     choices: ctx.choices ?? [],
   };

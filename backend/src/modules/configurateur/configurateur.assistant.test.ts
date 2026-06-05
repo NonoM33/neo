@@ -4,7 +4,9 @@ import {
   buildContextMessage,
   normalizeChoices,
   resolveRoom,
+  runAssistantLoop,
   runTool,
+  type AssistantTurn,
   type ToolContext,
 } from './configurateur.assistant';
 import type { SuggestProduct } from './configurateur.suggest';
@@ -215,6 +217,66 @@ describe('runTool · gestion des pièces', () => {
     expect(out.ok).toBe(true);
     expect(c.actions).toEqual([{ type: 'set_room_floor', room: 'salon', floor: 2 }]);
     expect(c.rooms.find((r) => r.key === 'salon')?.floor).toBe(2);
+  });
+});
+
+describe('runAssistantLoop', () => {
+  // Enchaîne des tours de modèle scriptés sans appeler le vrai LLM.
+  function scripted(turns: AssistantTurn[]): () => Promise<AssistantTurn | null> {
+    let i = 0;
+    return () => Promise.resolve(turns[i++] ?? null);
+  }
+
+  it('conserve le texte du message quand le modèle l’écrit en même temps qu’un appel d’outil, puis renvoie un tour final vide', async () => {
+    // Régression EXACTE du bug remonté : « Désolé, je n'ai pas pu répondre. »
+    // Le modèle dit sa réponse ET appelle proposer_choix dans le même tour,
+    // puis le tour suivant n'a plus rien à ajouter (content vide). Le reply ne
+    // doit PAS être vide : on garde le dernier texte non vide.
+    const c: ToolContext = { catalog, rooms: [], actions: [], choices: [] };
+    const create = scripted([
+      {
+        content: 'Voici 3 capteurs Ajax adaptés à ton alarme.',
+        tool_calls: [
+          {
+            id: 't1',
+            type: 'function',
+            function: {
+              name: 'proposer_choix',
+              arguments: JSON.stringify({
+                choices: [
+                  { label: 'Détecteurs de mouvement', send: 'Ajoute des MotionProtect' },
+                  { label: 'Capteurs d’ouverture', send: 'Ajoute des DoorProtect' },
+                ],
+              }),
+            },
+          },
+        ],
+      },
+      { content: '', tool_calls: [] },
+    ]);
+
+    const out = await runAssistantLoop(c, [], create);
+    expect(out.reply).toBe('Voici 3 capteurs Ajax adaptés à ton alarme.');
+    expect(out.choices.map((x) => x.label)).toEqual([
+      'Détecteurs de mouvement',
+      'Capteurs d’ouverture',
+    ]);
+  });
+
+  it('renvoie directement le texte quand il n’y a aucun appel d’outil', async () => {
+    const c: ToolContext = { catalog, rooms: [], actions: [], choices: [] };
+    const out = await runAssistantLoop(
+      c,
+      [],
+      scripted([{ content: 'Bonjour, comment puis-je aider ?', tool_calls: [] }]),
+    );
+    expect(out.reply).toBe('Bonjour, comment puis-je aider ?');
+  });
+
+  it('retombe sur un texte de repli si le modèle ne dit jamais rien', async () => {
+    const c: ToolContext = { catalog, rooms: [], actions: [], choices: [] };
+    const out = await runAssistantLoop(c, [], scripted([{ content: '', tool_calls: [] }]));
+    expect(out.reply.length).toBeGreaterThan(0);
   });
 });
 
