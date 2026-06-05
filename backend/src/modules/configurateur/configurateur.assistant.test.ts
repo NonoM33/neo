@@ -21,7 +21,7 @@ const rooms = [
 ];
 
 function ctx(): ToolContext {
-  return { catalog, rooms, actions: [] };
+  return { catalog, rooms: rooms.map((r) => ({ ...r })), actions: [] };
 }
 
 describe('resolveRoom', () => {
@@ -77,7 +77,7 @@ describe('runTool · ajouter_equipement', () => {
       'ajouter_equipement',
       JSON.stringify({ productId: 'cam-eco', room: 'salon', quantity: 0 }),
     );
-    expect(c.actions[0]?.quantity).toBe(1);
+    expect(c.actions[0]).toMatchObject({ type: 'add', quantity: 1 });
   });
 
   it('refuse un produit inconnu sans rien ajouter', async () => {
@@ -125,6 +125,95 @@ describe('runTool · retirer_equipement', () => {
       JSON.stringify({ productId: 'cam-pro', room: 'salon' }),
     );
     expect(c.actions[0]).toMatchObject({ type: 'remove', quantity: 0 });
+  });
+});
+
+describe('runTool · gestion des pièces', () => {
+  it('ajoute une pièce sur-mesure et la rend disponible dans le même tour', async () => {
+    // L'utilisateur veut que Léo contrôle TOUT le configurateur, y compris créer
+    // les pièces. Après création, le bot doit pouvoir y placer un équipement.
+    const c = ctx();
+    const out = (await runTool(
+      c,
+      'ajouter_piece',
+      JSON.stringify({ name: 'Buanderie', floor: 1 }),
+    )) as { ok: boolean; room: { key: string; label: string; floor?: number } };
+
+    expect(out.ok).toBe(true);
+    expect(out.room.label).toBe('Buanderie');
+    expect(out.room.floor).toBe(1);
+    expect(c.actions).toEqual([
+      { type: 'add_room', room: out.room.key, label: 'Buanderie', floor: 1 },
+    ]);
+    // La pièce est immédiatement résolvable pour un ajout d'équipement.
+    expect(resolveRoom(c, out.room.key)).toBe(out.room.key);
+  });
+
+  it('évite les collisions de clé avec une pièce existante', async () => {
+    const c = ctx();
+    const out = (await runTool(
+      c,
+      'ajouter_piece',
+      JSON.stringify({ name: 'Salon' }),
+    )) as { ok: boolean; room: { key: string } };
+    expect(out.ok).toBe(true);
+    expect(out.room.key).not.toBe('salon');
+  });
+
+  it('refuse une pièce au nom vide', async () => {
+    const c = ctx();
+    const out = (await runTool(c, 'ajouter_piece', JSON.stringify({ name: '   ' }))) as {
+      ok: boolean;
+    };
+    expect(out.ok).toBe(false);
+    expect(c.actions).toHaveLength(0);
+  });
+
+  it('renomme une pièce existante', async () => {
+    const c = ctx();
+    const out = (await runTool(
+      c,
+      'renommer_piece',
+      JSON.stringify({ room: 'salon', name: 'Salon TV' }),
+    )) as { ok: boolean };
+    expect(out.ok).toBe(true);
+    expect(c.actions).toEqual([{ type: 'rename_room', room: 'salon', label: 'Salon TV' }]);
+    expect(c.rooms.find((r) => r.key === 'salon')?.label).toBe('Salon TV');
+  });
+
+  it('refuse de renommer une pièce inconnue', async () => {
+    const c = ctx();
+    const out = (await runTool(
+      c,
+      'renommer_piece',
+      JSON.stringify({ room: 'cave', name: 'Cellier' }),
+    )) as { ok: boolean };
+    expect(out.ok).toBe(false);
+    expect(c.actions).toHaveLength(0);
+  });
+
+  it('supprime une pièce existante', async () => {
+    const c = ctx();
+    const out = (await runTool(
+      c,
+      'supprimer_piece',
+      JSON.stringify({ room: 'Entrée' }),
+    )) as { ok: boolean };
+    expect(out.ok).toBe(true);
+    expect(c.actions).toEqual([{ type: 'remove_room', room: 'entree' }]);
+    expect(c.rooms.find((r) => r.key === 'entree')).toBeUndefined();
+  });
+
+  it('change l’étage d’une pièce', async () => {
+    const c = ctx();
+    const out = (await runTool(
+      c,
+      'changer_etage_piece',
+      JSON.stringify({ room: 'salon', floor: 2 }),
+    )) as { ok: boolean };
+    expect(out.ok).toBe(true);
+    expect(c.actions).toEqual([{ type: 'set_room_floor', room: 'salon', floor: 2 }]);
+    expect(c.rooms.find((r) => r.key === 'salon')?.floor).toBe(2);
   });
 });
 

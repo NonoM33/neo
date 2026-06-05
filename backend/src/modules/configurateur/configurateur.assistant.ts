@@ -31,7 +31,8 @@ Ta mission :
 - L'aider à bâtir une configuration adaptée à SON projet et à SON budget, simplement.
 - Expliquer les dépendances : pourquoi certains équipements nécessitent un bridge/une passerelle (les capteurs Zigbee/Z-Wave ne communiquent pas seuls — le bridge fait le lien avec internet et l'app). Un seul bridge couvre souvent plusieurs équipements.
 - Proposer des produits équivalents moins chers quand c'est trop cher, ou pour éviter d'acheter un bridge si le visiteur n'en veut pas (alternative Wi-Fi autonome par exemple).
-- Tu peux AGIR sur le panier : ajoute ou retire des équipements toi-même quand le visiteur est d'accord.
+- Tu peux AGIR sur TOUT le configurateur : ajoute/retire des équipements, mais aussi CRÉE, RENOMME, DÉPLACE (étage) ou SUPPRIME des pièces toi-même quand le visiteur est d'accord.
+- Gère les étages : si le visiteur parle d'un « 1er étage », d'un « sous-sol », crée les pièces avec le bon étage (floor : 0 = rez-de-chaussée, 1 = 1er, -1 = sous-sol).
 
 Style :
 - Réponds en français, ton amical et concret, 1 à 4 phrases. Pas de jargon inutile.
@@ -133,11 +134,94 @@ function buildToolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'ajouter_piece',
+        description:
+          'Crée une nouvelle pièce dans la maison du visiteur (ex : « Buanderie »). Renvoie sa clé, utilisable ensuite pour y placer des équipements.',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Nom lisible de la pièce.' },
+            floor: { type: 'number', description: 'Étage (0 = rez-de-chaussée). Optionnel.' },
+          },
+          required: ['name'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'renommer_piece',
+        description: 'Renomme une pièce existante (identifiée par sa clé ou son libellé).',
+        parameters: {
+          type: 'object',
+          properties: {
+            room: { type: 'string', description: 'Clé ou libellé de la pièce à renommer.' },
+            name: { type: 'string', description: 'Nouveau nom.' },
+          },
+          required: ['room', 'name'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'changer_etage_piece',
+        description: 'Déplace une pièce vers un autre étage (0 = rez-de-chaussée).',
+        parameters: {
+          type: 'object',
+          properties: {
+            room: { type: 'string', description: 'Clé ou libellé de la pièce.' },
+            floor: { type: 'number', description: 'Étage cible.' },
+          },
+          required: ['room', 'floor'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'supprimer_piece',
+        description: 'Retire une pièce de la maison du visiteur (et ses équipements).',
+        parameters: {
+          type: 'object',
+          properties: {
+            room: { type: 'string', description: 'Clé ou libellé de la pièce à retirer.' },
+          },
+          required: ['room'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'lister_pieces',
+        description: 'Liste les pièces actuelles de la maison avec leur étage.',
+        parameters: { type: 'object', properties: {} },
+      },
+    },
   ];
 }
 
 function findProduct(catalog: SuggestProduct[], id: string): SuggestProduct | undefined {
   return catalog.find((p) => p.id === id);
+}
+
+/** Translitère un nom de pièce en clé stable, unique parmi `existing`. */
+export function slugifyRoomKey(name: string, existing: readonly string[]): string {
+  const base =
+    name
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'piece';
+  if (!existing.includes(base)) return base;
+  let i = 2;
+  while (existing.includes(`${base}-${i}`)) i += 1;
+  return `${base}-${i}`;
 }
 
 export function resolveRoom(ctx: ToolContext, room: string): string | null {
@@ -242,6 +326,65 @@ export async function runTool(
       return { ok: true, removed: { name: product.name, room } };
     }
 
+    case 'ajouter_piece': {
+      const label = String(args.name ?? '').trim();
+      if (!label) return { ok: false, error: 'Donne un nom de pièce.' };
+      const key = slugifyRoomKey(
+        label,
+        ctx.rooms.map((r) => r.key),
+      );
+      const floor =
+        typeof args.floor === 'number' && Number.isFinite(args.floor)
+          ? Math.trunc(args.floor)
+          : undefined;
+      const action: AssistantAction =
+        floor === undefined
+          ? { type: 'add_room', room: key, label }
+          : { type: 'add_room', room: key, label, floor };
+      ctx.actions.push(action);
+      ctx.rooms.push(floor === undefined ? { key, label } : { key, label, floor });
+      return { ok: true, room: { key, label, floor } };
+    }
+
+    case 'renommer_piece': {
+      const key = resolveRoom(ctx, String(args.room ?? ''));
+      if (!key) return { ok: false, error: 'Pièce inconnue.' };
+      const label = String(args.name ?? '').trim();
+      if (!label) return { ok: false, error: 'Donne un nouveau nom.' };
+      ctx.actions.push({ type: 'rename_room', room: key, label });
+      const target = ctx.rooms.find((r) => r.key === key);
+      if (target) target.label = label;
+      return { ok: true, room: { key, label } };
+    }
+
+    case 'changer_etage_piece': {
+      const key = resolveRoom(ctx, String(args.room ?? ''));
+      if (!key) return { ok: false, error: 'Pièce inconnue.' };
+      const floor = Number(args.floor);
+      if (!Number.isFinite(floor)) return { ok: false, error: 'Étage invalide.' };
+      const value = Math.trunc(floor);
+      ctx.actions.push({ type: 'set_room_floor', room: key, floor: value });
+      const target = ctx.rooms.find((r) => r.key === key);
+      if (target) target.floor = value;
+      return { ok: true, room: { key, floor: value } };
+    }
+
+    case 'supprimer_piece': {
+      const key = resolveRoom(ctx, String(args.room ?? ''));
+      if (!key) return { ok: false, error: 'Pièce inconnue.' };
+      ctx.actions.push({ type: 'remove_room', room: key });
+      const idx = ctx.rooms.findIndex((r) => r.key === key);
+      if (idx !== -1) ctx.rooms.splice(idx, 1);
+      return { ok: true, removed: key };
+    }
+
+    case 'lister_pieces': {
+      return {
+        count: ctx.rooms.length,
+        rooms: ctx.rooms.map((r) => ({ key: r.key, label: r.label, floor: r.floor ?? 0 })),
+      };
+    }
+
     default:
       return { error: `Outil inconnu : ${name}` };
   }
@@ -273,7 +416,9 @@ export function buildContextMessage(
   const byId = new Map(catalog.map((p) => [p.id, p]));
   const lines: string[] = [];
   const rooms = input.rooms.length
-    ? input.rooms.map((r) => `${r.key} (« ${r.label} »)`).join(', ')
+    ? input.rooms
+        .map((r) => `${r.key} (« ${r.label} », étage ${r.floor ?? 0})`)
+        .join(', ')
     : 'aucune pièce déclarée pour le moment';
   lines.push(`Pièces de la maison : ${rooms}.`);
   if (input.budget) lines.push(`Budget TTC visé : ${EUR.format(input.budget)}.`);

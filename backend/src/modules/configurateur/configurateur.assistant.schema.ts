@@ -11,6 +11,8 @@ export const assistantMessageSchema = z.object({
 export const assistantRoomSchema = z.object({
   key: z.string().min(1).max(100),
   label: z.string().min(1).max(120),
+  /** Étage de la pièce (0 = rez-de-chaussée). Optionnel. */
+  floor: z.coerce.number().int().min(-5).max(50).optional(),
 });
 
 export const assistantSchema = z.object({
@@ -27,13 +29,14 @@ export const assistantSchema = z.object({
 export type AssistantMessageInput = z.infer<typeof assistantMessageSchema>;
 export type AssistantInput = z.infer<typeof assistantSchema>;
 
-/** Action que l'IA demande d'appliquer au panier, exécutée côté front. */
-export interface AssistantAction {
-  type: 'add' | 'remove';
-  productId: string;
-  room: string;
-  quantity: number;
-}
+/** Action que l'IA demande d'appliquer côté front (panier ET pièces). */
+export type AssistantAction =
+  | { type: 'add'; productId: string; room: string; quantity: number }
+  | { type: 'remove'; productId: string; room: string; quantity: number }
+  | { type: 'add_room'; room: string; label: string; floor?: number }
+  | { type: 'rename_room'; room: string; label: string }
+  | { type: 'set_room_floor'; room: string; floor: number }
+  | { type: 'remove_room'; room: string };
 
 export interface AssistantReply {
   reply: string;
