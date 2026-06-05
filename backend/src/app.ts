@@ -48,6 +48,7 @@ import { feedbackApiRoutes, feedbackWidgetRoutes } from './modules/feedback';
 import { chatbotRoutes } from './modules/chatbot';
 import templatesRoutes from './modules/templates/templates.routes';
 import { marketingRoutes, marketingPublicRoutes } from './modules/marketing';
+import { createMcpRoutes } from './modules/mcp-api';
 import swaggerRoutes from './swagger/swagger.routes';
 
 const app = new Hono();
@@ -157,6 +158,10 @@ app.route('/suivi-commande', publicOrderTrackingRouter);
 
 // Authenticated endpoint to mint a tracking URL for a given order
 app.route('/api/commandes', orderTrackingMintRouter);
+
+// Serveur MCP (Streamable HTTP) : expose toute l'API aux clients MCP via le
+// jeton système. Forwarde les appels d'outils in-process à `app` (RBAC réutilisé).
+app.route('/mcp', createMcpRoutes(app));
 
 // Swagger
 app.route('/swagger', swaggerRoutes);
