@@ -400,6 +400,7 @@ import { House3D } from '../configurateur/house3d';
 import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
 import { addRoom, removeRoom, roomCategories, slugifyRoomKey } from '../configurateur/rooms';
 import { filterProducts } from '../configurateur/search';
+import { floorLabel } from '../configurateur/floors';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -1116,12 +1117,6 @@ import { filterProducts } from '../configurateur/search';
     aiGreeted = true;
     aiAppend('bot', 'Bonjour 👋 Je suis Léo, votre guide. Dites-moi votre projet ou votre budget, et je compose votre installation avec vous — j’explique tout (même les fameux bridges 😉).');
     aiRenderSuggestions();
-  }
-
-  function floorLabel(floor) {
-    if (!floor) return 'RDC';
-    if (floor < 0) return 'Sous-sol ' + Math.abs(floor);
-    return 'Étage ' + floor;
   }
 
   function aiApplyActions(actions) {
