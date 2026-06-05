@@ -164,13 +164,11 @@ const schema = {
   .cfg-addroom__input:focus { outline: none; border-color: #6ea8fe; }
   .cfg-addroom__add { flex: none; padding: 11px 16px; border-radius: 12px; border: none; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-size: 14px; font-weight: 800; cursor: pointer; }
   .cfg-addroom__add:hover { filter: brightness(1.05); }
-  /* Guide IA — bouton flottant + panneau */
-  .cfg-ai-fab { position: fixed; right: 18px; bottom: 18px; z-index: 220; display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; border: none; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 30px rgba(110,168,254,.45); transition: transform .14s, box-shadow .14s; }
-  .cfg-ai-fab:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(110,168,254,.55); }
-  .cfg-ai-fab__ic { font-size: 18px; }
-  .cfg-ai-fab.hide { display: none; }
-  .cfg-ai { position: fixed; right: 18px; bottom: 18px; z-index: 221; width: min(380px, calc(100vw - 32px)); height: min(560px, calc(100vh - 100px)); display: flex; flex-direction: column; border-radius: 20px; border: 1px solid rgba(255,255,255,.12); background: #0e1118; box-shadow: 0 24px 70px rgba(0,0,0,.6); overflow: hidden; opacity: 0; transform: translateY(14px) scale(.98); transition: opacity .2s ease, transform .2s ease; pointer-events: none; }
-  .cfg-ai.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  /* Guide IA — chat embarqué à côté du configurateur */
+  .cfg-shell { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 28px; align-items: start; }
+  .cfg-wizard { min-width: 0; }
+  .cfg-chat { position: sticky; top: 84px; }
+  .cfg-ai { display: flex; flex-direction: column; height: min(78vh, 660px); min-height: 480px; border-radius: 20px; border: 1px solid rgba(110,168,254,.28); background: #11151d; box-shadow: 0 24px 70px rgba(0,0,0,.45), 0 0 0 1px rgba(110,168,254,.08); overflow: hidden; }
   .cfg-ai__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; background: linear-gradient(135deg, rgba(110,168,254,.18), rgba(169,142,255,.14)); border-bottom: 1px solid rgba(255,255,255,.08); }
   .cfg-ai__id { display: flex; align-items: center; gap: 10px; }
   .cfg-ai__avatar { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; background: rgba(0,0,0,.25); }
@@ -192,8 +190,10 @@ const schema = {
   .cfg-ai__input:focus { outline: none; border-color: #6ea8fe; }
   .cfg-ai__send { flex: none; width: 44px; border-radius: 12px; border: none; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-size: 16px; font-weight: 800; cursor: pointer; }
   .cfg-ai__send:disabled { opacity: .5; cursor: default; }
-  @media (max-width: 640px) {
-    .cfg-ai { right: 8px; left: 8px; bottom: 8px; width: auto; height: min(72vh, calc(100vh - 80px)); }
+  @media (max-width: 980px) {
+    .cfg-shell { grid-template-columns: 1fr; gap: 22px; padding: 0 18px; }
+    .cfg-chat { position: static; }
+    .cfg-ai { height: min(72vh, 560px); }
   }
   /* Palette glisser-déposer */
   .cfg-palette { display: flex; gap: 10px; overflow-x: auto; padding: 12px 2px 4px; margin-top: 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
@@ -253,7 +253,8 @@ const schema = {
 </nav>
 
 <main class="cfg-main" data-api={SITE_CONFIG.apiBaseUrl}>
-  <div class="narrow">
+  <div class="cfg-shell">
+   <div class="cfg-wizard">
     <div class="cfg-head">
       <span class="eyebrow">Configurateur · estimation instantanée</span>
       <h1 class="scene-title">Composez votre <span class="serif grad">maison connectée</span></h1>
@@ -368,6 +369,27 @@ const schema = {
         <button type="button" class="btn" id="cfg-next">Continuer</button>
       </div>
     </form>
+   </div>
+   <aside class="cfg-chat">
+    <div id="cfg-ai" class="cfg-ai">
+      <div class="cfg-ai__head">
+        <div class="cfg-ai__id">
+          <span class="cfg-ai__avatar" aria-hidden="true">🤖</span>
+          <div>
+            <b>Léo, votre guide domotique</b>
+            <span class="cfg-ai__sub">Conseils, budget &amp; dépendances</span>
+          </div>
+        </div>
+      </div>
+      <div id="cfg-ai-log" class="cfg-ai__log" aria-live="polite"></div>
+      <div class="cfg-ai__suggest" id="cfg-ai-suggest"></div>
+      <form id="cfg-ai-form" class="cfg-ai__form">
+        <input id="cfg-ai-input" class="cfg-ai__input" type="text" autocomplete="off"
+          placeholder="Ex : j'ai 800 € pour sécuriser ma maison…" maxlength="500" />
+        <button type="submit" id="cfg-ai-send" class="cfg-ai__send" aria-label="Envoyer">➤</button>
+      </form>
+    </div>
+   </aside>
   </div>
 </main>
 
@@ -393,31 +415,6 @@ const schema = {
     <div class="total">Estimation TTC<b id="cfg-total">—</b></div>
     <div class="cfg-step-hint" style="font-size:13px;color:#8a8f98" id="cfg-count">0 équipement</div>
   </div>
-</div>
-
-<!-- Guide IA -->
-<button type="button" id="cfg-ai-fab" class="cfg-ai-fab" aria-label="Ouvrir le guide IA">
-  <span class="cfg-ai-fab__ic" aria-hidden="true">💬</span>
-  <span class="cfg-ai-fab__txt">Besoin d'aide&nbsp;?</span>
-</button>
-<div id="cfg-ai" class="cfg-ai" hidden aria-hidden="true">
-  <div class="cfg-ai__head">
-    <div class="cfg-ai__id">
-      <span class="cfg-ai__avatar" aria-hidden="true">🤖</span>
-      <div>
-        <b>Léo, votre guide domotique</b>
-        <span class="cfg-ai__sub">Conseils, budget &amp; dépendances</span>
-      </div>
-    </div>
-    <button type="button" id="cfg-ai-close" class="cfg-ai__x" aria-label="Fermer">✕</button>
-  </div>
-  <div id="cfg-ai-log" class="cfg-ai__log" aria-live="polite"></div>
-  <div class="cfg-ai__suggest" id="cfg-ai-suggest"></div>
-  <form id="cfg-ai-form" class="cfg-ai__form">
-    <input id="cfg-ai-input" class="cfg-ai__input" type="text" autocomplete="off"
-      placeholder="Ex : j'ai 800 € pour sécuriser ma maison…" maxlength="500" />
-    <button type="submit" id="cfg-ai-send" class="cfg-ai__send" aria-label="Envoyer">➤</button>
-  </form>
 </div>
 
 <script>
@@ -1021,12 +1018,27 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
   var aiHistory = [];      // [{role:'user'|'assistant', content}]
   var aiBusy = false;
   var aiGreeted = false;
-  var AI_SUGGESTIONS = [
-    'J’ai un budget de 800 €, par où commencer ?',
-    'C’est quoi un bridge et pourquoi j’en ai besoin ?',
-    'Sécurise mon entrée et mon salon',
-    'Une caméra moins chère ?',
-  ];
+
+  // Suggestions contextuelles : dépendent de l'étape et du panier réel.
+  function aiSuggestionsForState() {
+    var hasItems = selectionItems().length > 0;
+    if (current === 1) {
+      return [
+        'Quelles pièces équiper en premier ?',
+        'J’ai un budget de 800 €, par où commencer ?',
+        'Maison ou appartement, ça change quoi ?',
+      ];
+    }
+    if (current === 2) {
+      return hasItems
+        ? ['Optimise mon panier', 'Que me manque-t-il ?', 'Explique les dépendances']
+        : ['Sécurise mon entrée et mon salon', 'C’est quoi un bridge ?', 'Une caméra pas chère ?'];
+    }
+    if (current === 3) {
+      return ['Comment réduire la facture ?', 'Pourquoi ce total ?', 'Une alternative moins chère ?'];
+    }
+    return ['Un conseiller peut-il me rappeler ?', 'Mes données sont-elles protégées ?'];
+  }
 
   function aiLog() { return document.getElementById('cfg-ai-log'); }
 
@@ -1044,7 +1056,8 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     var host = document.getElementById('cfg-ai-suggest');
     if (!host) return;
     host.innerHTML = '';
-    AI_SUGGESTIONS.forEach(function (s) {
+    if (aiBusy) return;
+    aiSuggestionsForState().forEach(function (s) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'cfg-ai__chip'; b.textContent = s;
       b.addEventListener('click', function () { aiSubmit(s); });
@@ -1052,29 +1065,12 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     });
   }
 
-  function aiOpen() {
-    var panel = document.getElementById('cfg-ai');
-    var fab = document.getElementById('cfg-ai-fab');
-    if (!panel) return;
-    panel.hidden = false;
-    fab.classList.add('hide');
-    setTimeout(function () { panel.classList.add('open'); }, 10);
-    if (!aiGreeted) {
-      aiGreeted = true;
-      aiAppend('bot', 'Bonjour 👋 Je suis Léo, votre guide. Dites-moi votre projet ou votre budget, et je compose votre installation avec vous — j’explique tout (même les fameux bridges 😉).');
-      aiRenderSuggestions();
-    }
-    var input = document.getElementById('cfg-ai-input');
-    setTimeout(function () { if (input) input.focus(); }, 200);
-  }
-
-  function aiClose() {
-    var panel = document.getElementById('cfg-ai');
-    var fab = document.getElementById('cfg-ai-fab');
-    if (!panel) return;
-    panel.classList.remove('open');
-    fab.classList.remove('hide');
-    setTimeout(function () { if (!panel.classList.contains('open')) panel.hidden = true; }, 220);
+  // Chat embarqué : on accueille une seule fois, au chargement de la page.
+  function aiGreetOnce() {
+    if (aiGreeted) return;
+    aiGreeted = true;
+    aiAppend('bot', 'Bonjour 👋 Je suis Léo, votre guide. Dites-moi votre projet ou votre budget, et je compose votre installation avec vous — j’explique tout (même les fameux bridges 😉).');
+    aiRenderSuggestions();
   }
 
   function aiApplyActions(actions) {
@@ -1111,6 +1107,7 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     aiHistory.push({ role: 'user', content: clean });
     if (aiHistory.length > 16) aiHistory = aiHistory.slice(-16);
     aiBusy = true;
+    aiRenderSuggestions();
     var sendBtn = document.getElementById('cfg-ai-send');
     if (sendBtn) sendBtn.disabled = true;
     var typing = aiAppend('bot', 'Léo réfléchit…', 'typing');
@@ -1134,6 +1131,7 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
       .then(function () {
         aiBusy = false;
         if (sendBtn) sendBtn.disabled = false;
+        aiRenderSuggestions();
       });
   }
 
@@ -1216,6 +1214,7 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     prevBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
     nextBtn.textContent = step === 4 ? 'Envoyer ma demande' : 'Continuer';
     updateCount();
+    aiRenderSuggestions();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1294,25 +1293,20 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
   // Échap ferme l'overlay pièce (ou la modale code)
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    var aiPanel = document.getElementById('cfg-ai');
-    if (aiPanel && !aiPanel.hidden) { aiClose(); return; }
     var addroom = document.getElementById('cfg-addroom');
     if (addroom && !addroom.hidden) { closeAddRoom(); return; }
     if (openRoomKey) { closeRoom(); return; }
     if (modal.style.display !== 'none') modal.style.display = 'none';
   });
-  // Guide IA : ouverture/fermeture + envoi de message
+  // Guide IA embarqué : accueil au chargement + envoi de message
   (function () {
-    var fab = document.getElementById('cfg-ai-fab');
-    var close = document.getElementById('cfg-ai-close');
     var aiForm = document.getElementById('cfg-ai-form');
-    if (fab) fab.addEventListener('click', aiOpen);
-    if (close) close.addEventListener('click', aiClose);
     if (aiForm) aiForm.addEventListener('submit', function (e) {
       e.preventDefault();
       var input = document.getElementById('cfg-ai-input');
       aiSubmit(input ? input.value : '');
     });
+    aiGreetOnce();
   })();
   // Ajout de pièce : formulaire sur-mesure + fermeture de la modale
   (function () {
