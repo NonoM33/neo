@@ -60,19 +60,19 @@ const schema = {
 
   /* ── Étape 2 : maison par pièces ── */
   .cfg-room-intro { text-align: center; color: #8a8f98; font-size: 14px; margin: 0 0 22px; }
-  .cfg-house { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; }
-  .cfg-room { position: relative; aspect-ratio: 1 / 0.82; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: rgba(255,255,255,.03); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; transition: transform .15s, border-color .15s, background .15s; }
-  .cfg-room:hover { border-color: rgba(110,168,254,.6); transform: translateY(-3px); background: rgba(110,168,254,.06); }
-  .cfg-room.has { border-color: rgba(110,168,254,.5); background: rgba(110,168,254,.06); }
-  .cfg-room .emoji { font-size: 42px; line-height: 1; }
-  .cfg-room .rn { font-weight: 600; font-size: 15px; }
-  .cfg-room .rb { position: absolute; top: 10px; right: 10px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: linear-gradient(135deg,#6ea8fe,#a98eff); color: #0b0d12; font-size: 12px; font-weight: 700; display: none; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
-  .cfg-room.has .rb { display: flex; }
-  .cfg-roomview-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; z-index: 3; }
-  .cfg-back { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg,#6ea8fe,#a98eff); border: none; color: #0b0d12; border-radius: 12px; padding: 11px 16px; cursor: pointer; font-size: 14px; font-weight: 700; font-family: inherit; box-shadow: 0 6px 18px rgba(110,168,254,.35); white-space: nowrap; }
-  .cfg-back:hover { filter: brightness(1.08); transform: translateY(-1px); }
-  .cfg-back:active { transform: translateY(0); }
-  .cfg-roomview-title { font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  /* Barre de recherche produit (étape 2) */
+  .cfg-search { position: relative; display: flex; align-items: center; margin-bottom: 14px; }
+  .cfg-search__ic { position: absolute; left: 14px; width: 18px; height: 18px; color: #8a8f98; pointer-events: none; }
+  .cfg-search__input { width: 100%; box-sizing: border-box; padding: 13px 14px 13px 42px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #f3f6fb; font-size: 15px; font-family: inherit; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .cfg-search__input::placeholder { color: #8a8f98; }
+  .cfg-search__input:focus { outline: none; border-color: rgba(110,168,254,.7); background: rgba(110,168,254,.06); box-shadow: 0 0 0 3px rgba(110,168,254,.18); }
+  /* Panneau produits inline (remplace l'ancienne modale) */
+  .cfg-roominline { margin-top: 18px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 16px; }
+  .cfg-roominline__head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+  .cfg-roominline__title { font-size: 19px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .cfg-roominline__total { margin-left: auto; text-align: right; display: flex; flex-direction: column; }
+  .cfg-roominline__total span { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #8a8f98; }
+  .cfg-roominline__total b { font-size: 17px; color: #cfe0ff; }
   .cfg-catlabel { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #8a8f98; margin: 22px 0 12px; display: flex; align-items: center; gap: 7px; }
   .cfg-catlabel-ic { width: 16px; height: 16px; }
   .cfg-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px,1fr)); gap: 16px; }
@@ -129,7 +129,7 @@ const schema = {
   .cfg-linkrow input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 13px; }
   /* ── Builder 3D ── */
   .cfg-builder { position: relative; }
-  .cfg-stage { width: 100%; height: min(62vh, 500px); min-height: 320px; border-radius: 20px; overflow: hidden; background: radial-gradient(120% 120% at 50% 0%, rgba(110,168,254,.12), rgba(11,13,18,0) 60%), #0b0d12; border: 1px solid rgba(255,255,255,.08); touch-action: none; cursor: grab; }
+  .cfg-stage { width: 100%; height: min(38vh, 340px); min-height: 240px; border-radius: 20px; overflow: hidden; background: radial-gradient(120% 120% at 50% 0%, rgba(110,168,254,.12), rgba(11,13,18,0) 60%), #0b0d12; border: 1px solid rgba(255,255,255,.08); touch-action: none; cursor: grab; }
   .cfg-stage:active { cursor: grabbing; }
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
   .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
@@ -138,6 +138,7 @@ const schema = {
   .cfg-rooms-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
   .cfg-rooms-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8a8f98; font-weight: 700; margin-right: 2px; }
   .cfg-roomchip { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255,255,255,.1)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, rgba(255,255,255,.03)), rgba(255,255,255,.02)); overflow: hidden; }
+  .cfg-roomchip.active { border-color: color-mix(in srgb, var(--accent) 85%, #fff); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
   .cfg-roomchip__open { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px 7px 12px; background: none; border: none; color: #e4ebff; font-size: 13px; font-weight: 600; cursor: pointer; }
   .cfg-roomchip__open b { color: color-mix(in srgb, var(--accent) 80%, #fff); }
   .cfg-roomchip__emoji { font-size: 15px; }
@@ -221,24 +222,6 @@ const schema = {
   /* Toast de confirmation de dépôt */
   .cfg-toast { position: fixed; z-index: 75; left: 50%; bottom: 84px; transform: translate(-50%, 14px); opacity: 0; pointer-events: none; padding: 10px 16px; border-radius: 999px; background: rgba(18,22,30,.96); border: 1px solid rgba(95,224,176,.5); color: #d8ffe9; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.45); transition: opacity .22s ease, transform .22s ease; }
   .cfg-toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .cfg-roompanel { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; background: rgba(8,10,14,.94); backdrop-filter: blur(16px); opacity: 0; pointer-events: none; transition: opacity .24s ease; }
-  .cfg-roompanel.open { opacity: 1; pointer-events: auto; }
-  .cfg-roompanel-total { margin-left: auto; text-align: right; display: flex; flex-direction: column; line-height: 1.1; }
-  .cfg-roompanel-x { width: 40px; height: 40px; flex: none; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #cfd6e4; font-size: 26px; line-height: 1; cursor: pointer; display: grid; place-items: center; transition: background .15s, border-color .15s; }
-  .cfg-roompanel-x:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.24); color: #fff; }
-  .cfg-roompanel-total span { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8a8f98; }
-  .cfg-roompanel-total b { font-size: 17px; color: #cfe0ff; }
-  .cfg-roompanel-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px 16px; }
-  .cfg-roompanel-foot { padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
-  .cfg-roompanel-foot .btn { width: 100%; }
-  .cfg-roompanel > * { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
-  .cfg-roompanel { padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom)); }
-  .cfg-roompanel .cfg-roomview-head { transform: translateY(-8px); transition: transform .28s ease; }
-  .cfg-roompanel.open .cfg-roomview-head { transform: translateY(0); }
-  @media (max-width: 640px) {
-    .cfg-roompanel { inset: auto 0 0 0; height: 88vh; border-radius: 22px 22px 0 0; background: #0e1118; border: 1px solid rgba(255,255,255,.1); transform: translateY(100%); transition: transform .28s ease, opacity .24s ease; }
-    .cfg-roompanel.open { transform: translateY(0); }
-  }
 </style>
 </head>
 <body>
@@ -300,13 +283,18 @@ const schema = {
       <section class="cfg-panel" data-panel="2">
         <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
         <div id="cfg-builder" class="cfg-builder" hidden>
+          <div class="cfg-search">
+            <svg class="cfg-search__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+            <input id="cfg-search" class="cfg-search__input" type="search" autocomplete="off" placeholder="Rechercher un équipement (caméra, ampoule, thermostat…)" />
+          </div>
           <div id="cfg-rooms-bar" class="cfg-rooms-bar"></div>
+          <!-- Produits de la pièce sélectionnée, toujours affichés (sans modale) -->
+          <div id="cfg-roominline" class="cfg-roominline"></div>
+          <!-- Vue 3D + glisser-déposer, en complément, sous les produits -->
           <div id="cfg-stage" class="cfg-stage"></div>
           <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
           <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
         </div>
-        <!-- Overlay équipements d'une pièce -->
-        <div id="cfg-roompanel" class="cfg-roompanel" hidden aria-hidden="true"></div>
         <!-- Modale d'ajout de pièce -->
         <div id="cfg-addroom" class="cfg-addroom" hidden aria-hidden="true">
           <div class="cfg-addroom__sheet" role="dialog" aria-modal="true" aria-label="Ajouter une pièce">
@@ -423,9 +411,9 @@ const schema = {
 
 <script>
 import { House3D } from '../configurateur/house3d';
-import { OverlayGate } from '../configurateur/overlay-gate';
 import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
 import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
+import { filterProducts } from '../configurateur/search';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -488,8 +476,8 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
   var catalogLoaded = false;
   var house3d = null;           // instance Three.js (lazy)
   var builderFailed = false;    // bascule grille 2D si WebGL KO
-  var openRoomKey = null;       // pièce ouverte dans l'overlay
-  var roomGate = new OverlayGate(); // garde anti-réouverture (click-through 3D)
+  var openRoomKey = null;       // pièce sélectionnée (produits affichés inline)
+  var searchQuery = '';         // filtre de la barre de recherche produit
   var activeRoomKeys = null;    // pièces présentes dans la maison (lazy: toutes au départ)
   var customRooms = [];         // pièces sur-mesure ajoutées par le client
 
@@ -578,11 +566,41 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     var builder = document.getElementById('cfg-builder');
     loading.hidden = true;
     builder.hidden = false; // démasquer avant de construire pour que #cfg-stage ait une taille
-    if (builderFailed || !initBuilder()) { builder.hidden = true; renderHouseGrid(); return; }
-    house3d.setActive(true);
+    // Si la 3D échoue, on bascule en mode « plat » : on cache juste la scène,
+    // mais la barre de pièces + le panneau produits restent pleinement utilisables.
+    if (builderFailed || !initBuilder()) { enableFlatMode(); }
+    else { house3d.setActive(true); }
     refreshBadges();
     renderPalette();
+    // Sélectionne la première pièce par défaut pour que les produits soient
+    // visibles immédiatement (sans clic), puis affiche le panneau inline.
+    if (!openRoomKey) { var first = houseRooms()[0]; openRoomKey = first ? first.key : null; }
     renderRoomsBar();
+    renderRoomInline();
+    wireSearchInput();
+  }
+
+  // Mode plat (WebGL indisponible) : masque la scène 3D et son indice de
+  // manipulation. La sélection de pièce se fait alors via la barre de puces.
+  function enableFlatMode() {
+    builderFailed = true;
+    var stage = document.getElementById('cfg-stage');
+    if (stage) stage.style.display = 'none';
+    var hint = document.querySelector('.cfg-stage-hint');
+    if (hint) hint.style.display = 'none';
+  }
+
+  // Branche la barre de recherche une seule fois (filtre live du catalogue).
+  var searchWired = false;
+  function wireSearchInput() {
+    if (searchWired) return;
+    var input = document.getElementById('cfg-search');
+    if (!input) return;
+    searchWired = true;
+    input.addEventListener('input', function () {
+      searchQuery = input.value;
+      renderRoomInline();
+    });
   }
 
   function initBuilder() {
@@ -609,13 +627,14 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
 
   // Reconstruit la scène 3D quand la liste des pièces change (dispose + recrée).
   function rebuildHouse() {
-    if (!house3d) { renderRoomsBar(); return; }
+    if (!house3d) { renderRoomsBar(); renderRoomInline(); return; }
     try { house3d.dispose(); } catch (_e) { /* noop */ }
     house3d = null;
-    if (!initBuilder()) { builderFailed = true; renderHouseGrid(); return; }
+    if (!initBuilder()) { enableFlatMode(); renderRoomsBar(); renderRoomInline(); return; }
     house3d.setActive(true);
     refreshBadges();
     renderRoomsBar();
+    renderRoomInline();
   }
 
   // ── Barre « Mes pièces » + ajout de pièce (sur-mesure ou prédéfinie) ──
@@ -629,7 +648,7 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     bar.appendChild(label);
     houseRooms().forEach(function (room) {
       var chip = document.createElement('span');
-      chip.className = 'cfg-roomchip';
+      chip.className = 'cfg-roomchip' + (room.key === openRoomKey ? ' active' : '');
       chip.style.setProperty('--accent', room.accent || '#6ea8fe');
       var n = roomCount(room.key);
       var floorTag = room.floor ? ' <i class="cfg-roomchip__floor">' + esc(floorLabel(room.floor)) + '</i>' : '';
@@ -864,112 +883,99 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
     }, 1600);
   }
 
-  // ── Fallback grille 2D (WebGL indisponible) ──
-  function renderHouseGrid() {
-    var host = document.getElementById('cfg-catalog');
-    var builder = document.getElementById('cfg-builder');
-    if (builder) builder.hidden = true;
-    host.hidden = false;
-    host.className = '';
-    if (!Object.keys(PRODUCTS_BY_CAT).length) { host.textContent = 'Aucun équipement disponible.'; return; }
-    host.innerHTML = '';
-    var intro = document.createElement('p');
-    intro.className = 'cfg-room-intro';
-    intro.textContent = 'Cliquez sur une pièce pour ajouter vos équipements.';
-    host.appendChild(intro);
-    var grid = document.createElement('div');
-    grid.className = 'cfg-house';
-    availableRooms().forEach(function (room) {
-      var n = roomCount(room.key);
-      var tile = document.createElement('div');
-      tile.className = 'cfg-room' + (n > 0 ? ' has' : '');
-      tile.innerHTML = '<span class="rb">' + n + '</span>' +
-        '<span class="emoji">' + room.emoji + '</span>' +
-        '<span class="rn">' + esc(room.label) + '</span>';
-      tile.addEventListener('click', function () { openRoom(room.key); });
-      grid.appendChild(tile);
-    });
-    host.appendChild(grid);
+  // ── Produits inline (sans modale) ──
+  // Sélectionner une pièce = afficher ses équipements dans le panneau de gauche,
+  // sous la 3D, en permanence (à côté du chat). Aucune modale, rien ne masque.
+  function allCatalogProducts() {
+    return Object.keys(PRODUCTS_BY_ID).map(function (id) { return PRODUCTS_BY_ID[id]; });
   }
 
-  // ── Overlay équipements d'une pièce ──
   function openRoom(roomKey) {
-    var room = ROOM_BY_KEY[roomKey];
-    if (!room) return;
-    if (!roomGate.open(roomKey, Date.now())) return; // déjà ouvert / cooldown
+    if (!ROOM_BY_KEY[roomKey]) return;
     openRoomKey = roomKey;
-    if (house3d) house3d.setPicking(false); // coupe le picking 3D tant que l'overlay est ouvert
-    var panel = document.getElementById('cfg-roompanel');
-    panel.hidden = false;
-    panel.setAttribute('aria-hidden', 'false');
-    panel.innerHTML = '';
+    renderRoomsBar();      // met à jour la puce active
+    renderRoomInline();
+    var host = document.getElementById('cfg-roominline');
+    if (host && typeof host.scrollIntoView === 'function') {
+      host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // « Fermer » = effacer le filtre de recherche (la pièce reste sélectionnée).
+  function closeRoom() {
+    if (!searchQuery) return;
+    searchQuery = '';
+    var input = document.getElementById('cfg-search');
+    if (input) input.value = '';
+    renderRoomInline();
+  }
+
+  // Rendu du panneau produits : résultats de recherche (transversaux) si une
+  // requête est saisie, sinon les équipements de la pièce sélectionnée groupés
+  // par catégorie. L'ajout cible toujours la pièce courante.
+  function renderRoomInline() {
+    var host = document.getElementById('cfg-roominline');
+    if (!host) return;
+    if (!openRoomKey || !ROOM_BY_KEY[openRoomKey]) {
+      var first = houseRooms()[0];
+      openRoomKey = first ? first.key : null;
+    }
+    var room = openRoomKey ? ROOM_BY_KEY[openRoomKey] : null;
+    host.innerHTML = '';
 
     var head = document.createElement('div');
-    head.className = 'cfg-roomview-head';
-    var back = document.createElement('button');
-    back.type = 'button'; back.className = 'cfg-back';
-    back.innerHTML = '<span aria-hidden="true">←</span> Retour à la maison 3D';
-    back.addEventListener('click', closeRoom);
-    var titleEl = document.createElement('div');
-    titleEl.className = 'cfg-roomview-title';
-    titleEl.innerHTML = '<span>' + room.emoji + '</span><span>' + esc(room.label) + '</span>';
-    var totalMini = document.createElement('div');
-    totalMini.className = 'cfg-roompanel-total';
-    totalMini.innerHTML = '<span>Total TTC</span><b id="cfg-panel-total">' + EUR.format(lastEstimate.totalTTC || 0) + '</b>';
-    var closeX = document.createElement('button');
-    closeX.type = 'button'; closeX.className = 'cfg-roompanel-x'; closeX.setAttribute('aria-label', 'Fermer'); closeX.innerHTML = '&times;';
-    closeX.addEventListener('click', closeRoom);
-    head.appendChild(back); head.appendChild(titleEl); head.appendChild(totalMini); head.appendChild(closeX);
+    head.className = 'cfg-roominline__head';
+    var title = document.createElement('div');
+    title.className = 'cfg-roominline__title';
+    if (searchQuery) {
+      title.innerHTML = '<span aria-hidden="true">🔎</span><span>Résultats pour « ' + esc(searchQuery) + ' »' +
+        (room ? ' → ' + esc(room.label) : '') + '</span>';
+    } else if (room) {
+      title.innerHTML = '<span aria-hidden="true">' + (room.emoji || '🏠') + '</span><span>' + esc(room.label) + '</span>';
+    } else {
+      title.innerHTML = '<span aria-hidden="true">🏠</span><span>Mes équipements</span>';
+    }
+    var total = document.createElement('div');
+    total.className = 'cfg-roominline__total';
+    total.innerHTML = '<span>Total TTC</span><b id="cfg-panel-total">' +
+      EUR.format((lastEstimate && lastEstimate.totalTTC) || 0) + '</b>';
+    head.appendChild(title); head.appendChild(total);
+    host.appendChild(head);
 
     var body = document.createElement('div');
-    body.className = 'cfg-roompanel-body';
-    var rendered = 0;
-    room.cats.forEach(function (catName) {
-      var prods = PRODUCTS_BY_CAT[catName] || [];
-      if (!prods.length) return;
-      rendered += 1;
-      var label = document.createElement('div');
-      label.className = 'cfg-catlabel';
-      label.innerHTML = '<span style="color:' + catAccent(catName) + '">' +
-        catSvg(catName, 'cfg-catlabel-ic') + '</span><span>' + esc(catName) + '</span>';
-      body.appendChild(label);
-      var grid = document.createElement('div');
-      grid.className = 'cfg-cards';
-      prods.forEach(function (p) { grid.appendChild(productCard(p, roomKey)); });
-      body.appendChild(grid);
-    });
-    if (!rendered) {
-      var none = document.createElement('p');
-      none.className = 'cfg-room-intro';
-      none.textContent = 'Aucun équipement pour cette pièce pour le moment.';
-      body.appendChild(none);
+    body.className = 'cfg-roominline__body';
+
+    if (searchQuery) {
+      var matches = filterProducts(allCatalogProducts(), searchQuery);
+      if (!matches.length) {
+        body.innerHTML = '<p class="cfg-room-intro">Aucun équipement ne correspond à votre recherche.</p>';
+      } else {
+        var sgrid = document.createElement('div');
+        sgrid.className = 'cfg-cards';
+        matches.forEach(function (p) { sgrid.appendChild(productCard(p, openRoomKey)); });
+        body.appendChild(sgrid);
+      }
+    } else if (room) {
+      var rendered = 0;
+      room.cats.forEach(function (catName) {
+        var prods = PRODUCTS_BY_CAT[catName] || [];
+        if (!prods.length) return;
+        rendered += 1;
+        var label = document.createElement('div');
+        label.className = 'cfg-catlabel';
+        label.innerHTML = '<span style="color:' + catAccent(catName) + '">' +
+          catSvg(catName, 'cfg-catlabel-ic') + '</span><span>' + esc(catName) + '</span>';
+        body.appendChild(label);
+        var grid = document.createElement('div');
+        grid.className = 'cfg-cards';
+        prods.forEach(function (p) { grid.appendChild(productCard(p, openRoomKey)); });
+        body.appendChild(grid);
+      });
+      if (!rendered) body.innerHTML = '<p class="cfg-room-intro">Aucun équipement pour cette pièce pour le moment.</p>';
+    } else {
+      body.innerHTML = '<p class="cfg-room-intro">Ajoutez une pièce pour commencer.</p>';
     }
-
-    var foot = document.createElement('div');
-    foot.className = 'cfg-roompanel-foot';
-    var done = document.createElement('button');
-    done.type = 'button'; done.className = 'btn'; done.textContent = 'Terminé';
-    done.addEventListener('click', closeRoom);
-    foot.appendChild(done);
-
-    panel.appendChild(head); panel.appendChild(body); panel.appendChild(foot);
-    // clic sur le fond (hors contenu) = fermer
-    panel.onclick = function (e) { if (e.target === panel) closeRoom(); };
-    requestAnimationFrame(function () { panel.classList.add('open'); });
-  }
-
-  function closeRoom() {
-    var panel = document.getElementById('cfg-roompanel');
-    if (!panel) return;
-    panel.classList.remove('open');
-    panel.setAttribute('aria-hidden', 'true');
-    openRoomKey = null;
-    roomGate.close(Date.now()); // arme le cooldown anti-réouverture
-    setTimeout(function () {
-      if (!panel.classList.contains('open')) panel.hidden = true;
-      if (house3d) house3d.setPicking(true); // réactive le picking une fois refermé
-    }, 260);
-    if (builderFailed) renderHouseGrid();
+    host.appendChild(body);
   }
 
   function productCard(p, roomKey) {
