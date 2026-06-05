@@ -40,6 +40,26 @@ export function floorsOf(rooms: readonly RoomOnFloor[]): number[] {
 }
 
 /**
+ * Niveaux à proposer dans le sélecteur « Ajouter une pièce », du haut vers le
+ * bas. On part des niveaux présents et du niveau visé (`pendingFloor`), puis on
+ * offre toujours un cran de plus en haut et en bas : ainsi, sélectionner
+ * « Étage 1 + » débloque aussitôt « Étage 2 + », et de même vers les sous-sols.
+ * La plage est rendue contiguë pour ne jamais laisser de niveau intermédiaire
+ * inaccessible.
+ */
+export function floorPickerOptions(
+  presentFloors: readonly number[],
+  pendingFloor: number,
+): number[] {
+  const levels = [...presentFloors, pendingFloor, 0];
+  const top = Math.max(...levels) + 1;
+  const bottom = Math.min(...levels) - 1;
+  const options: number[] = [];
+  for (let f = top; f >= bottom; f -= 1) options.push(f);
+  return options;
+}
+
+/**
  * Regroupe les pièces par niveau, du plus haut au plus bas. L'ordre source des
  * pièces est préservé au sein de chaque étage. Un groupe RDC existe toujours.
  */

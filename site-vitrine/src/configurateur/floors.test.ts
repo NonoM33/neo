@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { floorLabel, floorsOf, groupRoomsByFloor, type RoomOnFloor } from './floors';
+import {
+  floorLabel,
+  floorPickerOptions,
+  floorsOf,
+  groupRoomsByFloor,
+  type RoomOnFloor,
+} from './floors';
 
 describe('floorLabel', () => {
   it('nomme le rez-de-chaussée', () => {
@@ -33,6 +39,34 @@ describe('floorsOf', () => {
   });
   it('traite un étage absent/0 comme RDC', () => {
     expect(floorsOf([{ key: 'a', floor: 0 }, { key: 'b' }])).toEqual([0]);
+  });
+});
+
+describe('floorPickerOptions', () => {
+  it('propose un étage au-dessus et un sous-sol en dessous du RDC seul', () => {
+    expect(floorPickerOptions([0], 0)).toEqual([1, 0, -1]);
+  });
+
+  it('étend vers le haut quand on sélectionne le nouvel étage du dessus', () => {
+    // L'utilisateur a cliqué « Étage 1 + » : on doit désormais offrir « Étage 2 + ».
+    expect(floorPickerOptions([0], 1)).toEqual([2, 1, 0, -1]);
+  });
+
+  it('étend vers le bas quand on sélectionne le nouveau sous-sol', () => {
+    expect(floorPickerOptions([0], -1)).toEqual([1, 0, -1, -2]);
+  });
+
+  it('conserve les niveaux existants et ajoute un cran de chaque côté', () => {
+    expect(floorPickerOptions([1, 0, -1], 0)).toEqual([2, 1, 0, -1, -2]);
+  });
+
+  it('comble les trous entre le pending et les niveaux présents', () => {
+    // Pièces à l'étage 2 et au RDC, l'utilisateur vise « Étage 3 + ».
+    expect(floorPickerOptions([2, 0], 3)).toEqual([4, 3, 2, 1, 0, -1]);
+  });
+
+  it('dédoublonne et reste trié du haut vers le bas', () => {
+    expect(floorPickerOptions([0, 0, 1], 1)).toEqual([2, 1, 0, -1]);
   });
 });
 

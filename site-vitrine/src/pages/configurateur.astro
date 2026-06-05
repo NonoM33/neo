@@ -526,7 +526,7 @@ const schema = {
 import { House3D } from '../configurateur/house3d';
 import { addRoom, removeRoom, resolveActiveRooms, roomCategories, slugifyRoomKey } from '../configurateur/rooms';
 import { filterProducts } from '../configurateur/search';
-import { floorLabel, floorsOf } from '../configurateur/floors';
+import { floorLabel, floorPickerOptions, floorsOf } from '../configurateur/floors';
 import { essentialPack } from '../configurateur/packs';
 import { roomLines, roomSubtotal } from '../configurateur/room-summary';
 import { createHistory, pushHistory, canUndo, canRedo, undo, redo, current as historyCurrent } from '../configurateur/history';
@@ -981,18 +981,17 @@ import { createHistory, pushHistory, canUndo, canRedo, undo, redo, current as hi
     return true;
   }
 
-  // Choix de l'étage dans la modale : niveaux existants + un cran au-dessus et
-  // un sous-sol, pour permettre d'étendre la maison vers le haut ou le bas.
+  // Choix de l'étage dans la modale : niveaux existants + le niveau visé, avec
+  // toujours un cran de plus en haut et en bas. Cliquer un niveau neuf débloque
+  // immédiatement le suivant (Étage 1 → 2 → …, Sous-sol 1 → 2 → …).
   function renderAddRoomFloors() {
     var host = document.getElementById('cfg-addroom-floors');
     if (!host) return;
     var present = houseFloors();          // déjà triés du haut vers le bas
-    var top = present.length ? present[0] : 0;
-    var bottom = present.length ? present[present.length - 1] : 0;
-    var options = present.slice();
-    if (options.indexOf(top + 1) === -1) options.unshift(top + 1);   // nouvel étage
-    if (options.indexOf(bottom - 1) === -1) options.push(bottom - 1); // nouveau sous-sol
-    if (options.indexOf(pendingFloor) === -1) pendingFloor = present.indexOf(0) !== -1 ? 0 : (present[0] || 0);
+    if (typeof pendingFloor !== 'number') pendingFloor = present.indexOf(0) !== -1 ? 0 : (present[0] || 0);
+    // Niveaux présents + le niveau visé, avec toujours un cran de plus en haut
+    // et en bas : sélectionner « Étage 1 + » débloque aussitôt « Étage 2 + ».
+    var options = floorPickerOptions(present, pendingFloor);
     host.innerHTML = options.map(function (f) {
       var isNew = present.indexOf(f) === -1;
       return '<button type="button" class="cfg-floorbtn' + (f === pendingFloor ? ' active' : '') + '" data-floor="' + f + '">' +
