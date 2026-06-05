@@ -3,8 +3,10 @@ import { db } from '../../config/database';
 import { quotes, quoteLines, projects, clients, products } from '../../db/schema';
 import { NotFoundError } from '../../lib/errors';
 import { paginate, getOffset, type PaginationParams } from '../../lib/pagination';
-import { sendEmail, renderQuoteSentEmail } from '../email';
-import { generateQuotePdf } from './quote-pdf.service';
+import { sendEmail } from '../email';
+import { validatePromoForOrder, recordRedemption } from '../marketing/promo-codes.service';
+import { renderQuoteDocumentPdf, renderQuoteEmail } from '../templates/render';
+import type { QuotePdfInput } from './quote-pdf.service';
 import type { CreateQuoteInput, UpdateQuoteInput, QuoteLineInput } from './quotes.schema';
 
 // Roles that may manage every quote regardless of project ownership.
@@ -183,6 +185,126 @@ function calculateTotals(lines: QuoteLineInput[], discount: number = 0, costMap?
   };
 }
 
+type QuoteTotals = ReturnType<typeof calculateTotals>;
+
+// Applique une remise promo (montant € HT) sur des totaux déjà calculés. La TVA
+// est réduite au prorata (approximation 20% cohérente avec la remise %), et le
+// coût d'achat reste inchangé : la remise promo ampute donc la marge réelle.
+function applyPromoToTotals(totals: QuoteTotals, promoDiscount: number): QuoteTotals {
+  const totalHT = totals.totalHT - promoDiscount;
+  const totalTVA = totals.totalTVA - promoDiscount * 0.2;
+  const totalTTC = totalHT + totalTVA;
+  const totalMarginHT = totalHT - totals.totalCostHT;
+  const marginPercent = totalHT > 0 ? (totalMarginHT / totalHT) * 100 : 0;
+  return { ...totals, totalHT, totalTVA, totalTTC, totalMarginHT, marginPercent };
+}
+
+interface ResolvedPromo {
+  code: string;
+  promoId: string;
+  discount: number;
+  clientId: string | null;
+  email: string | undefined;
+}
+
+// Calcule les totaux finaux d'un devis à partir de totaux de base et d'un code
+// promo effectif (null = aucun/retiré), écrit le résultat dans `updateData`, et
+// comptabilise une nouvelle utilisation seulement si le code a réellement changé.
+async function applyPromoToUpdateData(params: {
+  quoteId: string;
+  projectId: string;
+  baseTotals: QuoteTotals;
+  effectiveCode: string | null;
+  existingPromoCode: string | null;
+  updateData: Record<string, any>;
+}): Promise<void> {
+  const { quoteId, projectId, baseTotals, effectiveCode, existingPromoCode, updateData } = params;
+
+  const promo = effectiveCode
+    ? await resolvePromoForProject(projectId, effectiveCode, baseTotals.totalHT)
+    : null;
+  const totals = promo ? applyPromoToTotals(baseTotals, promo.discount) : baseTotals;
+
+  updateData.promoCode = promo?.code ?? null;
+  updateData.promoDiscount = (promo?.discount ?? 0).toFixed(2);
+  updateData.totalHT = totals.totalHT.toFixed(2);
+  updateData.totalTVA = totals.totalTVA.toFixed(2);
+  updateData.totalTTC = totals.totalTTC.toFixed(2);
+  updateData.totalCostHT = totals.totalCostHT.toFixed(2);
+  updateData.totalMarginHT = totals.totalMarginHT.toFixed(2);
+  updateData.marginPercent = totals.marginPercent.toFixed(2);
+
+  if (promo && promo.code !== existingPromoCode) {
+    await recordRedemption({
+      promoCodeId: promo.promoId,
+      quoteId,
+      clientId: promo.clientId ?? undefined,
+      email: promo.email,
+      discountAmount: promo.discount,
+    });
+  }
+}
+
+// Reconstruit les lignes d'un devis (au format d'entrée) depuis la base, pour
+// recalculer les totaux sans que l'appelant ait à renvoyer les lignes.
+async function loadExistingLineInputs(quoteId: string): Promise<QuoteLineInput[]> {
+  const rows = await db
+    .select({
+      productId: quoteLines.productId,
+      description: quoteLines.description,
+      quantity: quoteLines.quantity,
+      unitPriceHT: quoteLines.unitPriceHT,
+      tvaRate: quoteLines.tvaRate,
+      clientOwned: quoteLines.clientOwned,
+      clientOwnedPhotoUrl: quoteLines.clientOwnedPhotoUrl,
+    })
+    .from(quoteLines)
+    .where(eq(quoteLines.quoteId, quoteId))
+    .orderBy(quoteLines.sortOrder);
+
+  return rows.map((r) => ({
+    productId: r.productId ?? undefined,
+    description: r.description,
+    quantity: r.quantity,
+    unitPriceHT: Number(r.unitPriceHT),
+    tvaRate: Number(r.tvaRate),
+    clientOwned: r.clientOwned,
+    clientOwnedPhotoUrl: r.clientOwnedPhotoUrl ?? undefined,
+  }));
+}
+
+// Valide un code promo pour le devis d'un projet (en s'appuyant sur l'identité
+// client pour la règle "une fois par client") et renvoie la remise applicable.
+async function resolvePromoForProject(
+  projectId: string,
+  promoCode: string,
+  baseTotalHT: number,
+): Promise<ResolvedPromo> {
+  const [project] = await db
+    .select({ clientId: projects.clientId })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  let email: string | undefined;
+  const clientId = project?.clientId ?? null;
+  if (clientId) {
+    const [client] = await db
+      .select({ email: clients.email })
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .limit(1);
+    email = client?.email ?? undefined;
+  }
+
+  const { promo, discountAmount } = await validatePromoForOrder(promoCode, baseTotalHT, {
+    email,
+    clientId: clientId ?? undefined,
+  });
+
+  return { code: promo.code, promoId: promo.id, discount: discountAmount, clientId, email };
+}
+
 async function buildCostMap(productIds: string[]): Promise<Map<string, number>> {
   if (productIds.length === 0) return new Map();
   const productsData = await db
@@ -285,7 +407,14 @@ export async function createQuote(
     .map(l => l.productId!);
   const costMap = await buildCostMap(productIds);
 
-  const { lines, totalHT, totalTVA, totalTTC, totalCostHT, totalMarginHT, marginPercent } = calculateTotals(input.lines, input.discount, costMap);
+  const baseTotals = calculateTotals(input.lines, input.discount, costMap);
+  const lines = baseTotals.lines;
+
+  // Code promo : validé sur le total HT après remise %, puis appliqué.
+  const promo = input.promoCode
+    ? await resolvePromoForProject(projectId, input.promoCode, baseTotals.totalHT)
+    : null;
+  const totals = promo ? applyPromoToTotals(baseTotals, promo.discount) : baseTotals;
 
   const [quote] = await db
     .insert(quotes)
@@ -295,18 +424,30 @@ export async function createQuote(
       status: 'brouillon',
       validUntil: input.validUntil,
       discount: input.discount?.toString(),
+      promoCode: promo?.code ?? null,
+      promoDiscount: (promo?.discount ?? 0).toFixed(2),
       notes: input.notes,
-      totalHT: totalHT.toFixed(2),
-      totalTVA: totalTVA.toFixed(2),
-      totalTTC: totalTTC.toFixed(2),
-      totalCostHT: totalCostHT.toFixed(2),
-      totalMarginHT: totalMarginHT.toFixed(2),
-      marginPercent: marginPercent.toFixed(2),
+      totalHT: totals.totalHT.toFixed(2),
+      totalTVA: totals.totalTVA.toFixed(2),
+      totalTTC: totals.totalTTC.toFixed(2),
+      totalCostHT: totals.totalCostHT.toFixed(2),
+      totalMarginHT: totals.totalMarginHT.toFixed(2),
+      marginPercent: totals.marginPercent.toFixed(2),
     })
     .returning();
 
   if (!quote) {
     throw new NotFoundError('Devis');
+  }
+
+  if (promo) {
+    await recordRedemption({
+      promoCodeId: promo.promoId,
+      quoteId: quote.id,
+      clientId: promo.clientId ?? undefined,
+      email: promo.email,
+      discountAmount: promo.discount,
+    });
   }
 
   // Insert lines
@@ -337,7 +478,13 @@ export async function updateQuote(
   userId: string,
   userRole: string
 ) {
-  await verifyQuoteAccess(id, userId, userRole);
+  const existing = await verifyQuoteAccess(id, userId, userRole);
+  const [{ promoCode: existingPromoCode, discount: existingDiscount } = { promoCode: null, discount: null }] =
+    await db
+      .select({ promoCode: quotes.promoCode, discount: quotes.discount })
+      .from(quotes)
+      .where(eq(quotes.id, id))
+      .limit(1);
 
   const updateData: Record<string, any> = { updatedAt: new Date() };
 
@@ -355,19 +502,22 @@ export async function updateQuote(
       .map(l => l.productId!);
     const costMap = await buildCostMap(productIds);
 
-    // Recalculate totals
-    const { lines, totalHT, totalTVA, totalTTC, totalCostHT, totalMarginHT, marginPercent } = calculateTotals(
-      input.lines,
-      input.discount ?? 0,
-      costMap
-    );
+    // Recalculate base totals (lignes + remise %)
+    const baseTotals = calculateTotals(input.lines, input.discount ?? 0, costMap);
+    const lines = baseTotals.lines;
 
-    updateData.totalHT = totalHT.toFixed(2);
-    updateData.totalTVA = totalTVA.toFixed(2);
-    updateData.totalTTC = totalTTC.toFixed(2);
-    updateData.totalCostHT = totalCostHT.toFixed(2);
-    updateData.totalMarginHT = totalMarginHT.toFixed(2);
-    updateData.marginPercent = marginPercent.toFixed(2);
+    // Code promo effectif : null = retiré, string = nouveau, undefined = conservé.
+    const effectiveCode =
+      input.promoCode === null ? null : input.promoCode ?? existingPromoCode;
+
+    await applyPromoToUpdateData({
+      quoteId: id,
+      projectId: existing.projectId,
+      baseTotals,
+      effectiveCode,
+      existingPromoCode,
+      updateData,
+    });
 
     if (input.discount !== undefined) {
       updateData.discount = input.discount.toFixed(2);
@@ -391,6 +541,31 @@ export async function updateQuote(
         clientOwnedPhotoUrl: inputLine?.clientOwnedPhotoUrl,
       });
     }
+  } else if (input.promoCode !== undefined) {
+    // Application/retrait d'un code promo sans renvoyer les lignes : on recalcule
+    // les totaux à partir des lignes déjà enregistrées.
+    const existingLines = await loadExistingLineInputs(id);
+    const productIds = existingLines.filter((l) => l.productId).map((l) => l.productId!);
+    const costMap = await buildCostMap(productIds);
+    const baseTotals = calculateTotals(
+      existingLines,
+      input.discount ?? Number(existingDiscount ?? 0),
+      costMap,
+    );
+    const effectiveCode = input.promoCode === null ? null : input.promoCode;
+
+    await applyPromoToUpdateData({
+      quoteId: id,
+      projectId: existing.projectId,
+      baseTotals,
+      effectiveCode,
+      existingPromoCode,
+      updateData,
+    });
+
+    if (input.discount !== undefined) {
+      updateData.discount = input.discount.toFixed(2);
+    }
   }
 
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
@@ -408,16 +583,12 @@ export interface SendQuoteOptions {
   salesPersonName?: string;
 }
 
-// Render a quote PDF from its id. Shared by the JWT API route and the
-// session-authenticated backoffice route so the admin preview works without
-// an Authorization header.
-export async function generateQuotePdfById(
-  id: string,
-  userId: string,
-  userRole: string,
-): Promise<{ pdfBytes: Uint8Array; number: string }> {
-  const fullQuote = await getQuoteWithProjectDetails(id, userId, userRole);
-  const pdfBytes = await generateQuotePdf({
+// Build the shared PDF/email input from a fully-loaded quote (project + client
+// + lines). Used by both the preview/render path and the send path.
+function toQuotePdfInput(
+  fullQuote: Awaited<ReturnType<typeof getQuoteWithProjectDetails>>,
+): QuotePdfInput {
+  return {
     quote: {
       number: fullQuote.number,
       createdAt: fullQuote.createdAt,
@@ -450,7 +621,19 @@ export async function generateQuotePdfById(
       totalHT: line.totalHT ?? '0',
       clientOwned: line.clientOwned ?? false,
     })),
-  });
+  };
+}
+
+// Render a quote PDF from its id. Shared by the JWT API route and the
+// session-authenticated backoffice route so the admin preview works without
+// an Authorization header.
+export async function generateQuotePdfById(
+  id: string,
+  userId: string,
+  userRole: string,
+): Promise<{ pdfBytes: Uint8Array; number: string }> {
+  const fullQuote = await getQuoteWithProjectDetails(id, userId, userRole);
+  const pdfBytes = await renderQuoteDocumentPdf(toQuotePdfInput(fullQuote));
   return { pdfBytes, number: fullQuote.number ?? '' };
 }
 
@@ -468,44 +651,11 @@ export async function sendQuote(
     throw new Error("Le client n'a pas d'adresse email");
   }
 
-  // Render the PDF
-  const pdfBytes = await generateQuotePdf({
-    quote: {
-      number: fullQuote.number,
-      createdAt: fullQuote.createdAt,
-      validUntil: fullQuote.validUntil,
-      totalHT: fullQuote.totalHT,
-      totalTVA: fullQuote.totalTVA,
-      totalTTC: fullQuote.totalTTC,
-      discount: fullQuote.discount,
-      notes: fullQuote.notes,
-    },
-    client: {
-      firstName: fullQuote.client.firstName ?? '',
-      lastName: fullQuote.client.lastName ?? '',
-      email: fullQuote.client.email,
-      address: fullQuote.client.address ?? null,
-      postalCode: fullQuote.client.postalCode ?? null,
-      city: fullQuote.client.city ?? null,
-    },
-    project: {
-      name: fullQuote.project?.name ?? '',
-      address: fullQuote.project?.address ?? null,
-      city: fullQuote.project?.city ?? null,
-      postalCode: fullQuote.project?.postalCode ?? null,
-    },
-    lines: fullQuote.lines.map((line) => ({
-      description: line.description,
-      quantity: line.quantity ?? 1,
-      unitPriceHT: line.unitPriceHT ?? '0',
-      tvaRate: line.tvaRate ?? '0',
-      totalHT: line.totalHT ?? '0',
-      clientOwned: line.clientOwned ?? false,
-    })),
-  });
+  // Render the PDF (editable HTML template → Playwright, legacy pdf-lib fallback)
+  const pdfBytes = await renderQuoteDocumentPdf(toQuotePdfInput(fullQuote));
 
-  // Render the email body
-  const { subject, html, text } = renderQuoteSentEmail({
+  // Render the email body from the editable template
+  const { subject, html } = await renderQuoteEmail({
     clientFirstName: fullQuote.client.firstName ?? '',
     clientLastName: fullQuote.client.lastName ?? '',
     quoteNumber: fullQuote.number ?? '',
@@ -522,7 +672,6 @@ export async function sendQuote(
     to: fullQuote.client.email,
     subject,
     html,
-    text,
     tag: 'quote-sent',
     attachments: [
       {
@@ -564,6 +713,8 @@ export async function getQuoteWithProjectDetails(id: string, userId: string, use
       totalTVA: quotes.totalTVA,
       totalTTC: quotes.totalTTC,
       discount: quotes.discount,
+      promoCode: quotes.promoCode,
+      promoDiscount: quotes.promoDiscount,
       notes: quotes.notes,
       createdAt: quotes.createdAt,
       project: {

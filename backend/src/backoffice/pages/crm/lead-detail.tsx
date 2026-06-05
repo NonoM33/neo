@@ -326,7 +326,7 @@ export const LeadDetailPage: FC<LeadDetailPageProps> = ({
           />
 
           {/* Financial */}
-          <div class="card mb-4">
+          <div class="card mb-4 confidential">
             <div class="card-header">
               <i class="bi bi-currency-euro me-2"></i>Financier
             </div>

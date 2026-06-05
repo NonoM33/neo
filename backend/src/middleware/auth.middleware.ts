@@ -6,6 +6,7 @@ import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { UnauthorizedError } from '../lib/errors';
 import type { RoleType } from '../db/schema/users';
+import { authenticateApiToken, isApiTokenFormat } from '../modules/system-tokens/system-tokens.service';
 
 export interface JWTPayload {
   userId: string;
@@ -30,6 +31,19 @@ export async function authMiddleware(c: Context, next: Next) {
   }
 
   const token = authHeader.substring(7);
+
+  // Jeton API "système" (préfixe neo_sk_) : on le valide via la table dédiée
+  // plutôt que par vérification JWT. Le payload renvoyé est compatible staff.
+  if (isApiTokenFormat(token)) {
+    const apiPayload = await authenticateApiToken(token);
+    if (!apiPayload) {
+      throw new UnauthorizedError('Jeton API invalide ou révoqué');
+    }
+    c.set('user', apiPayload);
+    c.set('userId', apiPayload.userId);
+    await next();
+    return;
+  }
 
   try {
     const payload = verify(token, env.JWT_SECRET) as JWTPayload;

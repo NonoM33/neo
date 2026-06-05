@@ -32,6 +32,8 @@ export function DevisDetailPage() {
   const [quote, setQuote] = useState<QuoteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
 
   const loadQuote = useCallback(async () => {
     if (!id) return;
@@ -74,6 +76,37 @@ export function DevisDetailPage() {
       toast.error("Échec de l'envoi");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleApplyPromo = async () => {
+    if (!id || !promoInput.trim()) return;
+    setPromoBusy(true);
+    try {
+      const updated = await devisService.applyPromoCode(id, promoInput.trim());
+      setQuote(updated);
+      setPromoInput('');
+      toast.success('Code promo appliqué');
+    } catch (error) {
+      console.error('Failed to apply promo code:', error);
+      toast.error('Code promo invalide ou non applicable');
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
+  const handleRemovePromo = async () => {
+    if (!id) return;
+    setPromoBusy(true);
+    try {
+      const updated = await devisService.removePromoCode(id);
+      setQuote(updated);
+      toast.success('Code promo retiré');
+    } catch (error) {
+      console.error('Failed to remove promo code:', error);
+      toast.error('Suppression impossible');
+    } finally {
+      setPromoBusy(false);
     }
   };
 
@@ -193,11 +226,59 @@ export function DevisDetailPage() {
                     <dd className="col-6 text-end">{Number(quote.discount)} %</dd>
                   </>
                 )}
+                {quote.promoDiscount && Number(quote.promoDiscount) > 0 && (
+                  <>
+                    <dt className="col-6 text-secondary fw-normal">
+                      Code promo {quote.promoCode && <span className="badge bg-success ms-1">{quote.promoCode}</span>}
+                    </dt>
+                    <dd className="col-6 text-end text-success">
+                      −{currency.format(Number(quote.promoDiscount))}
+                    </dd>
+                  </>
+                )}
                 <dt className="col-6 fw-semibold">Total TTC</dt>
                 <dd className="col-6 text-end fw-semibold">
                   {currency.format(Number(quote.totalTTC))}
                 </dd>
               </dl>
+            </CardBody>
+          </Card>
+
+          <Card className="mb-4">
+            <CardBody>
+              <h2 className="card-title h5 mb-3">Code promo</h2>
+              {quote.promoCode ? (
+                <div className="d-flex align-items-center justify-content-between">
+                  <div>
+                    <span className="badge bg-success me-2">{quote.promoCode}</span>
+                    <span className="text-success">
+                      −{currency.format(Number(quote.promoDiscount ?? 0))}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    icon="bi-x-lg"
+                    loading={promoBusy}
+                    onClick={handleRemovePromo}
+                  >
+                    Retirer
+                  </Button>
+                </div>
+              ) : (
+                <div className="d-flex gap-2">
+                  <input
+                    className="form-control text-uppercase"
+                    placeholder="Ex. NOEL10"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                  />
+                  <Button loading={promoBusy} onClick={handleApplyPromo} disabled={!promoInput.trim()}>
+                    Appliquer
+                  </Button>
+                </div>
+              )}
             </CardBody>
           </Card>
 

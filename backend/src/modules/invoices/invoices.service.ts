@@ -10,8 +10,9 @@ import {
 } from '../../db/schema';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
 import { paginate, getOffset, type PaginationParams } from '../../lib/pagination';
-import { generateInvoicePdf, type InvoicePdfInput } from './invoice-pdf.service';
-import { sendEmail, renderInvoiceSentEmail } from '../email';
+import { type InvoicePdfInput } from './invoice-pdf.service';
+import { renderInvoiceDocumentPdf, renderInvoiceEmail } from '../templates/render';
+import { sendEmail } from '../email';
 import type {
   CreateInvoiceInput,
   CreateInvoiceFromOrderInput,
@@ -519,7 +520,7 @@ function toPdfInput(
 /** Render the PDF for an invoice. Used by GET /:id/pdf and sendInvoice. */
 export async function previewInvoicePdf(id: string): Promise<Uint8Array> {
   const invoice = await getInvoiceById(id);
-  return generateInvoicePdf(toPdfInput(invoice));
+  return renderInvoiceDocumentPdf(toPdfInput(invoice));
 }
 
 // ─── Email ─────────────────────────────────────────────────────────────
@@ -543,9 +544,9 @@ export async function sendInvoice(
     throw new ValidationError("Le client n'a pas d'adresse email");
   }
 
-  const pdfBytes = await generateInvoicePdf(toPdfInput(invoice));
+  const pdfBytes = await renderInvoiceDocumentPdf(toPdfInput(invoice));
 
-  const { subject, html, text } = renderInvoiceSentEmail({
+  const { subject, html } = await renderInvoiceEmail({
     clientFirstName: invoice.client.firstName ?? '',
     clientLastName: invoice.client.lastName ?? '',
     invoiceNumber: invoice.number,
@@ -559,7 +560,6 @@ export async function sendInvoice(
     to: invoice.client.email,
     subject,
     html,
-    text,
     tag: 'invoice-sent',
     attachments: [
       {

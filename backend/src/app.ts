@@ -46,6 +46,8 @@ import backofficeRoutes from './backoffice/backoffice.routes';
 import { recetteExportRoutes } from './modules/recette';
 import { feedbackApiRoutes, feedbackWidgetRoutes } from './modules/feedback';
 import { chatbotRoutes } from './modules/chatbot';
+import templatesRoutes from './modules/templates/templates.routes';
+import { marketingRoutes, marketingPublicRoutes } from './modules/marketing';
 import swaggerRoutes from './swagger/swagger.routes';
 
 const app = new Hono();
@@ -100,6 +102,8 @@ app.route('/api/public/booking', bookingRoutes);
 app.route('/api/public/devis', devisRoutes);
 // Public configurateur ("type IKEA") route (no auth required)
 app.route('/api/public/configurateur', configurateurRoutes);
+// Public marketing (bannière/popup site vitrine + validation code promo)
+app.route('/api/public/marketing', marketingPublicRoutes);
 
 // Calendar sync routes (mixed: token-based feed + JWT-authenticated management)
 app.route('/api/calendar', calendarSyncRoutes);
@@ -125,6 +129,8 @@ app.route('/api/factures', invoicesRoutes);
 app.route('/api/sync', syncRoutes);
 app.route('/api/tickets', ticketsRoutes.staffRoutes);
 app.route('/api/kb', kbRoutes.staffRoutes);
+app.route('/api/templates', templatesRoutes);
+app.route('/api/marketing', marketingRoutes);
 
 // CRM Routes
 app.route('/api/leads', leadsRoutes);

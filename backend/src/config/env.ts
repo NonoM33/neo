@@ -76,6 +76,10 @@ const envSchema = z.object({
   // Canal des commerciaux : ID explicite (prioritaire) ou nom à résoudre.
   MATTERMOST_COMMERCIAL_CHANNEL_ID: z.string().optional(),
   MATTERMOST_COMMERCIAL_CHANNEL: z.string().default('commercial'),
+  // Canal des notes de version (annonce à chaque release publiée) : ID explicite
+  // (prioritaire) ou nom à résoudre. ID par défaut = canal release-notes fourni.
+  MATTERMOST_RELEASE_CHANNEL_ID: z.string().default('wfa3rgs1qpb3xy6odfgwzcyyih'),
+  MATTERMOST_RELEASE_CHANNEL: z.string().default('release-notes'),
 
   // SMS Gateway
   SMS_API_URL: z.string().default('https://api.sms-gate.app/3rdparty/v1/messages'),
@@ -119,6 +123,16 @@ const envSchema = z.object({
   COMPANY_ADDRESS: z.string().default(''),
   COMPANY_SIRET: z.string().optional(),
   COMPANY_TVA: z.string().optional(),
+  COMPANY_IBAN: z.string().optional(),
+  COMPANY_BIC: z.string().optional(),
+
+  // Chemin de l'exécutable Chromium pour le rendu PDF (HTML → PDF via Playwright).
+  // Vide en dev (Playwright utilise son binaire téléchargé). En conteneur alpine :
+  // CHROMIUM_PATH=/usr/bin/chromium-browser. Empty traité comme absent.
+  CHROMIUM_PATH: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().optional()
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

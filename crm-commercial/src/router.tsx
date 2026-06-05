@@ -1,5 +1,6 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Layout, RoleRoute } from './components';
+import { Layout, RoleRoute, Spinner } from './components';
 import {
   LoginPage,
   DashboardPage,
@@ -34,8 +35,13 @@ import {
   TicketsPage,
   TicketDetailPage,
   TicketFormPage,
+  TemplatesPage,
+  MarketingPage,
 } from './pages';
 import { useAuthStore } from './stores';
+
+// L'éditeur GrapesJS est lourd : chargé à la demande pour alléger le bundle initial.
+const TemplateEditorPage = lazy(() => import('./pages/templates/TemplateEditorPage'));
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -267,6 +273,32 @@ export const router = createBrowserRouter([
       {
         path: 'cloud/:id',
         element: <CloudInstanceDetailPage />,
+      },
+      {
+        path: 'templates',
+        element: (
+          <RoleRoute feature="templates">
+            <TemplatesPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'templates/:key',
+        element: (
+          <RoleRoute feature="templates">
+            <Suspense fallback={<Spinner />}>
+              <TemplateEditorPage />
+            </Suspense>
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'marketing',
+        element: (
+          <RoleRoute feature="marketing">
+            <MarketingPage />
+          </RoleRoute>
+        ),
       },
       {
         path: 'users',

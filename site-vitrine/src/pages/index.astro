@@ -711,5 +711,13 @@ const localBusinessSchema = {
   data-api={SITE_CONFIG.apiBaseUrl}
   defer
 ></script>
+
+<!-- Widget de feedback (signalement) servi par le backend -->
+<script
+  is:inline
+  src={`${SITE_CONFIG.apiBaseUrl}/feedback-widget.js`}
+  data-api={SITE_CONFIG.apiBaseUrl}
+  defer
+></script>
 </body>
 </html>

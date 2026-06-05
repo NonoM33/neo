@@ -55,6 +55,8 @@ export interface QuoteDetail {
   totalTVA: string;
   totalTTC: string;
   discount: string | null;
+  promoCode: string | null;
+  promoDiscount: string | null;
   notes: string | null;
   pdfUrl: string | null;
   sentAt: string | null;

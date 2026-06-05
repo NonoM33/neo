@@ -16,6 +16,8 @@ export const quoteLineSchema = z.object({
 export const createQuoteSchema = z.object({
   validUntil: z.coerce.date().optional(),
   discount: z.coerce.number().min(0).max(100).default(0),
+  // Code promo optionnel : validé et appliqué côté service.
+  promoCode: z.string().min(1).max(40).optional(),
   notes: z.string().optional(),
   lines: z.array(quoteLineSchema).default([]),
 });
@@ -24,6 +26,8 @@ export const updateQuoteSchema = z.object({
   status: z.enum(['brouillon', 'envoye', 'accepte', 'refuse', 'expire']).optional(),
   validUntil: z.coerce.date().optional(),
   discount: z.coerce.number().min(0).max(100).optional(),
+  // null = retirer le code promo appliqué.
+  promoCode: z.string().min(1).max(40).nullable().optional(),
   notes: z.string().optional(),
   lines: z.array(quoteLineSchema).optional(),
 });

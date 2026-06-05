@@ -115,6 +115,39 @@ export async function listReleasesWithEntries(): Promise<ReleaseWithEntries[]> {
   }));
 }
 
+// Releases publiees uniquement, de la plus recente a la plus ancienne (par date
+// de publication). Sert a la page "Notes de version" et au CHANGELOG.md.
+export async function listPublishedReleasesWithEntries(): Promise<
+  ReleaseWithEntries[]
+> {
+  const releaseList = await db
+    .select()
+    .from(releases)
+    .where(eq(releases.status, 'publiee'))
+    .orderBy(desc(releases.releasedAt));
+
+  if (releaseList.length === 0) return [];
+
+  const releaseIds = releaseList.map((r) => r.id);
+  const entries = await db
+    .select()
+    .from(changelogEntries)
+    .where(inArray(changelogEntries.releaseId, releaseIds))
+    .orderBy(asc(changelogEntries.sortOrder));
+
+  const entriesByRelease = new Map<string, ChangelogEntry[]>();
+  for (const entry of entries) {
+    const list = entriesByRelease.get(entry.releaseId) ?? [];
+    list.push(entry);
+    entriesByRelease.set(entry.releaseId, list);
+  }
+
+  return releaseList.map((release) => ({
+    ...release,
+    entries: entriesByRelease.get(release.id) ?? [],
+  }));
+}
+
 export async function getReleaseWithEntries(
   releaseId: string
 ): Promise<ReleaseWithEntries | undefined> {
@@ -160,6 +193,15 @@ export async function updateRelease(
         input.status === 'publiee' ? new Date() : undefined,
       updatedAt: new Date(),
     })
+    .where(eq(releases.id, releaseId));
+}
+
+// Publie une release : statut "publiee" + date de publication figee maintenant.
+// Idempotent sur la date uniquement au premier passage (releasedAt re-fixe).
+export async function publishRelease(releaseId: string): Promise<void> {
+  await db
+    .update(releases)
+    .set({ status: 'publiee', releasedAt: new Date(), updatedAt: new Date() })
     .where(eq(releases.id, releaseId));
 }
 

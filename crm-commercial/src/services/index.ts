@@ -17,3 +17,5 @@ export { clientsService } from './clients.service';
 export { projectsService } from './projects.service';
 export { devisService } from './devis.service';
 export { ticketsService } from './tickets.service';
+export { templatesService } from './templates.service';
+export { marketingService } from './marketing.service';

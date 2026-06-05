@@ -29,6 +29,8 @@ export type Feature =
   | 'recette'
   | 'cloud'
   | 'objectives'
+  | 'templates'
+  | 'marketing'
   | 'users';
 
 const ALL_ROLES: RoleType[] = ['admin', 'integrateur', 'auditeur', 'commercial'];
@@ -69,6 +71,8 @@ export const featureRoles: Record<Feature, RoleType[]> = {
   newsletter: ['admin'],
   recette: ['admin', 'auditeur'],
   objectives: ['admin'],
+  templates: ['admin'],
+  marketing: ['admin'],
   users: ['admin'],
 };
 

@@ -29,6 +29,12 @@ import { LoginPage } from './pages/login';
 import { DashboardPage } from './pages/dashboard';
 import { UsersListPage, UserFormPage } from './pages/users';
 import { RolesListPage, RoleFormPage } from './pages/roles';
+import { ApiTokensListPage, ApiTokenFormPage } from './pages/api-tokens';
+import {
+  createToken,
+  listTokens,
+  revokeToken,
+} from '../modules/system-tokens/system-tokens.service';
 import { CreneauxPage } from './pages/creneaux';
 import { ChatbotLivePage } from './pages/chatbot';
 import { getAvailability, setAvailability } from '../modules/appointments/appointments.service';
@@ -76,10 +82,12 @@ import { RecettePage, RecetteContent } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
 import { WidgetFeedbackPanel } from './pages/recette/widget-feedback';
 import * as recetteService from '../modules/recette/recette.service';
-import { NewsletterPage, CampaignPage } from './pages/newsletter';
+import { NewsletterPage, CampaignPage, ReleaseNotesPage } from './pages/newsletter';
 import {
   changelogService,
   campaignService,
+  releaseNotify,
+  changelogMarkdown,
 } from '../modules/newsletter';
 import type { ChangelogEntry } from '../db/schema';
 import * as gitlabService from '../modules/gitlab/gitlab.service';
@@ -541,6 +549,68 @@ backofficeRouter.delete('/roles/:id', async (c) => {
     c.status(400);
     return c.text(error instanceof RoleValidationError ? error.message : 'Suppression impossible');
   }
+});
+
+// ============ Jetons API système (réservé admin) ============
+
+backofficeRouter.get('/api-tokens', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const tokens = await listTokens();
+  return c.html(
+    <ApiTokensListPage
+      tokens={tokens}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.get('/api-tokens/new', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const availableRoles = await listRoles();
+  return c.html(<ApiTokenFormPage availableRoles={availableRoles} user={adminUser} />);
+});
+
+backofficeRouter.post('/api-tokens', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody({ all: true });
+
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const roleIds = parseRoleIds(body.roleIds);
+
+  if (name.length === 0 || roleIds.length === 0) {
+    const availableRoles = await listRoles();
+    return c.html(
+      <ApiTokenFormPage
+        availableRoles={availableRoles}
+        error="Le nom et au moins un rôle sont requis."
+        user={adminUser}
+      />
+    );
+  }
+
+  const { raw } = await createToken({
+    name,
+    roleIds,
+    createdBy: adminUser.id,
+    createdByEmail: adminUser.email,
+  });
+
+  const tokens = await listTokens();
+  return c.html(
+    <ApiTokensListPage
+      tokens={tokens}
+      createdToken={{ name, raw }}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.post('/api-tokens/:id/revoke', async (c) => {
+  await revokeToken(c.req.param('id'));
+  c.header('HX-Redirect', '/backoffice/api-tokens?success=Jeton révoqué');
+  return c.text('');
 });
 
 // ============ Créneaux de disponibilité ============
@@ -4109,9 +4179,58 @@ backofficeRouter.post('/newsletter/release/:id/entry', async (c) => {
   return c.redirect('/backoffice/newsletter?success=Nouveaute+ajoutee');
 });
 
+// Publie une release : statut "publiee", puis (best-effort) annonce Mattermost
+// dans le canal des notes de version + regeneration du CHANGELOG.md. Aucune de
+// ces deux retombees ne bloque la publication si elle echoue.
+backofficeRouter.post('/newsletter/release/:id/publish', async (c) => {
+  const releaseId = c.req.param('id');
+  const release = await changelogService.getReleaseWithEntries(releaseId);
+  if (!release) {
+    return c.redirect('/backoffice/newsletter?error=Release+introuvable');
+  }
+
+  await changelogService.publishRelease(releaseId);
+
+  // Recharge la release publiee (releasedAt a jour) pour l'annonce.
+  const published = await changelogService.getReleaseWithEntries(releaseId);
+  if (published) {
+    await releaseNotify.notifyReleasePublished(published);
+  }
+  const allPublished = await changelogService.listPublishedReleasesWithEntries();
+  await changelogMarkdown.writeChangelogFile(allPublished);
+
+  return c.redirect(
+    '/backoffice/newsletter?success=Release+publiee+%28Mattermost+%2B+CHANGELOG.md%29',
+  );
+});
+
 backofficeRouter.post('/newsletter/release/:id/delete', async (c) => {
   await changelogService.deleteRelease(c.req.param('id'));
+  // La suppression peut concerner une release publiee : on resynchronise le .md.
+  const allPublished = await changelogService.listPublishedReleasesWithEntries();
+  await changelogMarkdown.writeChangelogFile(allPublished);
   return c.redirect('/backoffice/newsletter?success=Release+supprimee');
+});
+
+// Page "Notes de version" : timeline des releases publiees (vue lecture).
+backofficeRouter.get('/release-notes', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const releases = await changelogService.listPublishedReleasesWithEntries();
+  return c.html(
+    <ReleaseNotesPage
+      releases={releases}
+      user={adminUser}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+    />,
+  );
+});
+
+// CHANGELOG.md servi a la demande (source = releases publiees en base).
+backofficeRouter.get('/newsletter/changelog.md', async (c) => {
+  const releases = await changelogService.listPublishedReleasesWithEntries();
+  const markdown = changelogMarkdown.renderChangelogMarkdown(releases);
+  return c.text(markdown, 200, { 'Content-Type': 'text/markdown; charset=utf-8' });
 });
 
 backofficeRouter.post('/newsletter/entry/:id/delete', async (c) => {

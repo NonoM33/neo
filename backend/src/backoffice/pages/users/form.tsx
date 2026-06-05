@@ -162,20 +162,6 @@ export const UserFormPage: FC<UserFormPageProps> = ({
                     </select>
                   </div>
 
-                  {/* Role descriptions */}
-                  <div class="col-12">
-                    <div class="alert alert-light mb-0">
-                      <h6 class="alert-heading mb-2">
-                        <i class="bi bi-info-circle me-2"></i>Roles disponibles
-                      </h6>
-                      <ul class="mb-0 small">
-                        {roleOptions.map((option) => (
-                          <li><strong>{option.label}</strong>: {option.description}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
                   {/* Multi-role assignment (permissions du backoffice) */}
                   {availableRoles.length > 0 && (
                     <div class="col-12">

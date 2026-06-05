@@ -14,3 +14,5 @@ export * from './clients';
 export * from './projects';
 export * from './devis';
 export * from './tickets';
+export * from './templates';
+export * from './marketing';

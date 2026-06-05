@@ -66,6 +66,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'Communication',
     items: [
       { path: '/backoffice/newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', permission: 'newsletter.manage' },
+      { path: '/backoffice/release-notes', label: 'Notes de version', icon: 'bi-rocket-takeoff', permission: 'newsletter.manage' },
     ],
   },
   {
@@ -82,6 +83,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
     items: [
       { path: '/backoffice/users', label: 'Utilisateurs', icon: 'bi-people', permission: 'utilisateurs.manage' },
       { path: '/backoffice/roles', label: 'Roles & permissions', icon: 'bi-shield-lock', permission: 'roles.manage' },
+      { path: '/backoffice/api-tokens', label: 'Jetons API', icon: 'bi-key', permission: 'api-tokens.manage' },
     ],
   },
 ];

@@ -49,13 +49,18 @@ export const PERMISSIONS: Permission[] = [
   // Administration (réservé aux admins)
   { key: 'utilisateurs.manage', label: 'Utilisateurs', group: 'Administration', path: '/backoffice/users' },
   { key: 'roles.manage', label: 'Rôles & permissions', group: 'Administration', path: '/backoffice/roles' },
+  { key: 'api-tokens.manage', label: 'Jetons API', group: 'Administration', path: '/backoffice/api-tokens' },
 ];
 
 /**
  * Permissions that, even when ticked on a role, only ever apply to a
  * legacy super-admin. Managing accounts and roles stays admin-only.
  */
-export const ADMIN_ONLY_PERMISSIONS: readonly string[] = ['utilisateurs.manage', 'roles.manage'];
+export const ADMIN_ONLY_PERMISSIONS: readonly string[] = [
+  'utilisateurs.manage',
+  'roles.manage',
+  'api-tokens.manage',
+];
 
 export const PERMISSION_KEYS: readonly string[] = PERMISSIONS.map((p) => p.key);
 

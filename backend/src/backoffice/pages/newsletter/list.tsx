@@ -159,6 +159,16 @@ const ReleaseBlock: FC<{ release: ReleaseWithEntries }> = ({ release }) => {
           <span class={`badge bg-${statusLabel.color} ms-1`}>{statusLabel.label}</span>
         </div>
         <div class="d-flex gap-1">
+          {release.status === 'brouillon' && (
+            <a
+              href={`/backoffice/newsletter/release/${release.id}/publish`}
+              class="btn btn-sm btn-success btn-action"
+              onclick="event.preventDefault();if(confirm('Publier cette release ? Elle sera annoncee sur Mattermost et ajoutee au CHANGELOG.md.')){const f=document.createElement('form');f.method='post';f.action=this.getAttribute('href');document.body.appendChild(f);f.submit();}"
+              title="Publier (annonce Mattermost + CHANGELOG.md)"
+            >
+              <i class="bi bi-rocket-takeoff me-1"></i>Publier
+            </a>
+          )}
           <button
             type="button"
             class="btn btn-sm btn-outline-secondary btn-action"

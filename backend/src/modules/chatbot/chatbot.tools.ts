@@ -6,11 +6,8 @@ import {
   createPublicBooking,
 } from '../booking/booking.service';
 import { publicBookingSchema } from '../booking/booking.schema';
-import {
-  sendEmail,
-  renderBookingConfirmationEmail,
-  renderAccountWelcomeEmail,
-} from '../email';
+import { sendEmail } from '../email';
+import { renderBookingEmail, renderAccountWelcomeEmail } from '../templates/render';
 import { env } from '../../config/env';
 import * as chatbotService from './chatbot.service';
 import {
@@ -185,7 +182,7 @@ async function bookAppointment(
     ? `${env.SITE_BASE_URL}/rdv?t=${result.publicToken}`
     : undefined;
   try {
-    const mail = renderBookingConfirmationEmail({
+    const mail = await renderBookingEmail({
       clientFirstName: parsed.data.firstName,
       typeLabel: TYPE_LABELS[parsed.data.type] ?? parsed.data.type,
       date: parsed.data.date,
@@ -198,7 +195,6 @@ async function bookAppointment(
       to: parsed.data.email,
       subject: mail.subject,
       html: mail.html,
-      text: mail.text,
     });
   } catch (err) {
     console.error('[chatbot] booking confirmation email failed:', err);
@@ -297,13 +293,13 @@ async function createAccount(
   // Email best-effort avec les identifiants (mot de passe jamais exposé au modèle).
   if (result.tempPassword) {
     try {
-      const mail = renderAccountWelcomeEmail({
+      const mail = await renderAccountWelcomeEmail({
         clientFirstName: result.clientFirstName ?? asString(args.prenom) ?? 'client',
         email,
         tempPassword: result.tempPassword,
         loginUrl: CLIENT_PORTAL_URL,
       });
-      await sendEmail({ to: email, subject: mail.subject, html: mail.html, text: mail.text });
+      await sendEmail({ to: email, subject: mail.subject, html: mail.html });
     } catch (err) {
       console.error('[chatbot] account welcome email failed:', err);
     }

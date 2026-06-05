@@ -12,3 +12,5 @@ export * from './client.types';
 export * from './project.types';
 export * from './devis.types';
 export * from './ticket.types';
+export * from './template.types';
+export * from './marketing.types';

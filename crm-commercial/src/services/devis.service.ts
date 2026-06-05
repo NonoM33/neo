@@ -36,6 +36,16 @@ export const devisService = {
     return response.data;
   },
 
+  async applyPromoCode(id: string, promoCode: string): Promise<QuoteDetail> {
+    const response = await api.put<QuoteDetail>(`/api/devis/${id}`, { promoCode });
+    return response.data;
+  },
+
+  async removePromoCode(id: string): Promise<QuoteDetail> {
+    const response = await api.put<QuoteDetail>(`/api/devis/${id}`, { promoCode: null });
+    return response.data;
+  },
+
   async sendQuote(id: string, input: SendQuoteInput = {}): Promise<void> {
     await api.post(`/api/devis/${id}/envoyer`, input);
   },

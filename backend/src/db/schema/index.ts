@@ -25,3 +25,6 @@ export * from './newsletter';
 export * from './chatbot';
 export * from './configurator-drafts';
 export * from './comments';
+export * from './templates';
+export * from './marketing';
+export * from './system-tokens';

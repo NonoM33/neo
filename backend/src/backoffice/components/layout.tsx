@@ -195,7 +195,7 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
           form.htmx-request,
           button.htmx-request,
           .htmx-request button,
-          .htmx-request [type='submit'] {
+          .htmx-request [type=submit] {
             pointer-events: none;
             cursor: progress;
           }
@@ -203,7 +203,12 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
              quand l'écran est montré au client. */
           html.rdv-mode .confidential { display: none !important; }
         `}</style>
-        <script>{`
+        <script
+          // Hono échappe les quotes du contenu d'un <script>{`...`}</script>
+          // (' → &#39;), ce qui casse le JS inline. dangerouslySetInnerHTML
+          // rend le script tel quel.
+          dangerouslySetInnerHTML={{
+            __html: `
           (function () {
             try {
               if (localStorage.getItem('neoRdvMode') === '1') {
@@ -211,7 +216,9 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
               }
             } catch (e) {}
           })();
-        `}</script>
+        `,
+          }}
+        />
       </head>
       <body>
         <Sidebar currentPath={currentPath} permissions={user?.permissions} isSuperAdmin={user?.isSuperAdmin} />
@@ -256,9 +263,13 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
         <script src="/feedback-widget.js" data-app="admin" data-email={user?.email ?? ''}></script>
-        <script>{`
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
           (function () {
-            function sync(btn) {
+            function sync() {
+              var btn = document.getElementById('rdvToggle');
+              if (!btn) return;
               var on = document.documentElement.classList.contains('rdv-mode');
               btn.classList.toggle('btn-warning', on);
               btn.classList.toggle('btn-outline-secondary', !on);
@@ -267,18 +278,24 @@ export const Layout: FC<LayoutProps> = ({ title, children, currentPath, user }) 
               var label = btn.querySelector('.rdv-label');
               if (label) label.textContent = on ? 'Mode RDV activé' : 'Mode RDV';
             }
-            document.addEventListener('DOMContentLoaded', function () {
-              var btn = document.getElementById('rdvToggle');
+            // Délégation sur document : le bouton réagit quel que soit le moment
+            // où il entre dans le DOM (chargement complet, swap HTMX, etc.).
+            document.addEventListener('click', function (e) {
+              var btn = e.target.closest ? e.target.closest('#rdvToggle') : null;
               if (!btn) return;
-              sync(btn);
-              btn.addEventListener('click', function () {
-                var on = document.documentElement.classList.toggle('rdv-mode');
-                try { localStorage.setItem('neoRdvMode', on ? '1' : '0'); } catch (e) {}
-                sync(btn);
-              });
+              var on = document.documentElement.classList.toggle('rdv-mode');
+              try { localStorage.setItem('neoRdvMode', on ? '1' : '0'); } catch (err) {}
+              sync();
             });
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', sync);
+            } else {
+              sync();
+            }
           })();
-        `}</script>
+        `,
+          }}
+        />
       </body>
     </html>
   );

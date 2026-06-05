@@ -4,7 +4,8 @@ import { zValidator } from '@hono/zod-validator';
 import { createQuoteSchema, updateQuoteSchema } from './quotes.schema';
 import * as quotesService from './quotes.service';
 import * as productsService from '../products/products.service';
-import { generateQuotePdf, type QuotePdfInput } from './quote-pdf.service';
+import { type QuotePdfInput } from './quote-pdf.service';
+import { renderQuoteDocumentPdf } from '../templates/render';
 import { createQuoteFromChecklist } from './quote-from-checklist.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireCRMAccess } from '../../middleware/rbac.middleware';
@@ -184,7 +185,7 @@ quotesRouter.get('/devis/:id/pdf', async (c) => {
   const user = c.get('user');
   const quote = await quotesService.getQuoteWithProjectDetails(id, user.userId, user.role);
 
-  const pdfBytes = await generateQuotePdf(toPdfInput(quote));
+  const pdfBytes = await renderQuoteDocumentPdf(toPdfInput(quote));
 
   return new Response(new Uint8Array(pdfBytes), {
     headers: {

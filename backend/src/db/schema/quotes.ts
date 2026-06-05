@@ -22,6 +22,11 @@ export const quotes = pgTable('quotes', {
   totalTVA: decimal('total_tva', { precision: 12, scale: 2 }).notNull().default('0'),
   totalTTC: decimal('total_ttc', { precision: 12, scale: 2 }).notNull().default('0'),
   discount: decimal('discount', { precision: 5, scale: 2 }).default('0'),
+  // Code promo appliqué (chaîne brute, pour affichage) + remise € HT correspondante.
+  // Pas de FK vers promo_codes pour éviter un cycle d'import de schéma ; le lien
+  // traçable vit dans promo_redemptions (qui référence le devis).
+  promoCode: varchar('promo_code', { length: 40 }),
+  promoDiscount: decimal('promo_discount', { precision: 12, scale: 2 }).notNull().default('0'),
   totalCostHT: decimal('total_cost_ht', { precision: 12, scale: 2 }).default('0'),
   totalMarginHT: decimal('total_margin_ht', { precision: 12, scale: 2 }).default('0'),
   marginPercent: decimal('margin_percent', { precision: 5, scale: 2 }).default('0'),

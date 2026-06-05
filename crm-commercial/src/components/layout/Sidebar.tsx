@@ -67,7 +67,11 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Administration',
-    items: [{ to: '/users', label: 'Utilisateurs', icon: 'bi-person-gear', feature: 'users' }],
+    items: [
+      { to: '/marketing', label: 'Marketing', icon: 'bi-badge-ad', feature: 'marketing' },
+      { to: '/templates', label: 'Templates', icon: 'bi-palette', feature: 'templates' },
+      { to: '/users', label: 'Utilisateurs', icon: 'bi-person-gear', feature: 'users' },
+    ],
   },
 ];
 

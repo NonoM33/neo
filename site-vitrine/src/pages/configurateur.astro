@@ -182,6 +182,9 @@ const schema = {
   .cfg-ai__msg.user { align-self: flex-end; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-weight: 600; border-bottom-right-radius: 4px; }
   .cfg-ai__msg.act { align-self: stretch; max-width: 100%; background: rgba(95,224,176,.1); border: 1px solid rgba(95,224,176,.4); color: #c7ffe6; font-size: 13px; }
   .cfg-ai__msg.typing { color: #9aa1ad; font-style: italic; }
+  .cfg-ai__msg.bot strong { font-weight: 700; color: #fff; }
+  .cfg-ai__msg.bot em { font-style: italic; color: #eef3ff; }
+  .cfg-ai__msg.bot code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; padding: 1px 5px; border-radius: 6px; background: rgba(110,168,254,.16); color: #cfe0ff; }
   .cfg-ai__suggest { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
   .cfg-ai__chip { padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); color: #cfe0ff; font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s; }
   .cfg-ai__chip:hover { border-color: #6ea8fe; background: rgba(110,168,254,.12); }
@@ -1042,11 +1045,28 @@ import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
 
   function aiLog() { return document.getElementById('cfg-ai-log'); }
 
+  // Markdown minimal et sûr : on échappe d'abord, puis on applique le balisage.
+  function aiMarkdown(text) {
+    var html = String(text == null ? '' : text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = html
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+      .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
+    // Listes à puces : « - », « * » ou « • » en début de ligne → puce alignée.
+    // (le gras/italique a déjà été converti, il ne reste donc plus de '*' de balisage)
+    html = html.replace(/^[ \t]*[-•*]\s+/gm, '• ');
+    return html;
+  }
+
   function aiAppend(role, text, cls) {
     var log = aiLog(); if (!log) return null;
+    var kind = cls || role;
     var el = document.createElement('div');
-    el.className = 'cfg-ai__msg ' + (cls || role);
-    el.textContent = text;
+    el.className = 'cfg-ai__msg ' + kind;
+    if (kind === 'bot') el.innerHTML = aiMarkdown(text);
+    else el.textContent = text;
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return el;
