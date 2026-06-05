@@ -393,6 +393,35 @@ export async function getProductWithDependencies(id: string) {
  * Si on a 12 ampoules et 1 bridge → ceil(12/50)=1 bridge nécessaire, on en a 1 → OK.
  * Si on a 55 ampoules et 1 bridge → ceil(55/50)=2 bridges nécessaires, il en manque 1.
  */
+export interface DependencyDemand {
+  /** Produit dépendant (ex : une ampoule). */
+  productId: string;
+  /** Combien de dépendants une unité du produit requis couvre (ex : 1 bridge → 50 ampoules). */
+  coveredQuantity: number;
+}
+
+/**
+ * Quantité du produit requis (ex : bridge) manquante pour couvrir tous les
+ * dépendants. On somme la demande fractionnaire (quantité / couverture) puis on
+ * arrondit une seule fois au supérieur : un hub partagé entre plusieurs modèles
+ * n'est donc compté qu'une fois tant que sa capacité n'est pas dépassée.
+ */
+export function computeMissingRequiredQuantity(
+  deps: DependencyDemand[],
+  quantityByProductId: Map<string, number>,
+  currentRequiredQty: number,
+): number {
+  let demand = 0;
+  for (const dep of deps) {
+    const dependentQty = quantityByProductId.get(dep.productId) ?? 0;
+    if (dependentQty <= 0) continue;
+    const covered = dep.coveredQuantity > 0 ? dep.coveredQuantity : 1;
+    demand += dependentQty / covered;
+  }
+  if (demand <= 0) return 0;
+  return Math.max(0, Math.ceil(demand) - currentRequiredQty);
+}
+
 export async function checkMissingDependencies(
   lines: { productId: string; quantity: number }[]
 ) {
@@ -463,17 +492,17 @@ export async function checkMissingDependencies(
   const sourceMap = new Map(sourceProductsData.map(p => [p.id, p]));
 
   for (const [requiredProductId, depsForRequired] of depsByRequired) {
-    // Calculer la demande totale en "required" couvrant tous les dépendants
-    let totalNeeded = 0;
-    for (const dep of depsForRequired) {
-      const dependentQty = quantityByProductId.get(dep.productId) ?? 0;
-      const coveredQty = dep.coveredQuantity ?? 1;
-      totalNeeded = Math.max(totalNeeded, Math.ceil(dependentQty / coveredQty));
-    }
-
-    // Quantité déjà présente dans la liste
-    const currentQty = quantityByProductId.get(requiredProductId) ?? 0;
-    const missingQty = totalNeeded - currentQty;
+    // Demande totale en "required" : on somme la demande fractionnaire de tous
+    // les dépendants (un hub partagé n'est compté qu'une fois), puis on
+    // déduit ce qui est déjà présent dans la sélection.
+    const missingQty = computeMissingRequiredQuantity(
+      depsForRequired.map((d) => ({
+        productId: d.productId,
+        coveredQuantity: d.coveredQuantity ?? 1,
+      })),
+      quantityByProductId,
+      quantityByProductId.get(requiredProductId) ?? 0,
+    );
 
     if (missingQty > 0) {
       // Utiliser la première dépendance comme représentante

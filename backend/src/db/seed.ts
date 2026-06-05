@@ -129,17 +129,17 @@ async function seed() {
   // ========================================
   console.log('🔗 Création des dépendances produits...');
   await db.insert(productDependencies).values([
-    // Ampoules Philips Hue → Bridge obligatoire
-    { productId: getProduct('PHI-HUE-E27').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
-    { productId: getProduct('PHI-HUE-GU10').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
-    { productId: getProduct('PHI-HUE-DIM').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
-    { productId: getProduct('PHI-HUE-STRIP').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
-    // Détecteurs Ajax → Hub obligatoire
-    { productId: getProduct('AJAX-MOTION').id, requiredProductId: getProduct('AJAX-HUB2').id, type: 'required' as const, description: 'Centrale Ajax obligatoire pour tous les périphériques' },
-    { productId: getProduct('AJAX-DOOR').id, requiredProductId: getProduct('AJAX-HUB2').id, type: 'required' as const, description: 'Centrale Ajax obligatoire pour tous les périphériques' },
-    { productId: getProduct('AJAX-KEYPAD').id, requiredProductId: getProduct('AJAX-HUB2').id, type: 'required' as const, description: 'Centrale Ajax obligatoire pour tous les périphériques' },
-    // Tado TRV → Kit Tado Starter
-    { productId: getProduct('TADO-TRV').id, requiredProductId: getProduct('TADO-STARTER').id, type: 'required' as const, description: 'Kit Tado V3+ requis pour les têtes thermostatiques' },
+    // Ampoules Philips Hue → Bridge obligatoire (1 bridge couvre jusqu'à 50 ampoules)
+    { productId: getProduct('PHI-HUE-E27').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, coveredQuantity: 50, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
+    { productId: getProduct('PHI-HUE-GU10').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, coveredQuantity: 50, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
+    { productId: getProduct('PHI-HUE-DIM').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, coveredQuantity: 50, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
+    { productId: getProduct('PHI-HUE-STRIP').id, requiredProductId: getProduct('PHI-HUE-BRIDGE').id, type: 'required' as const, coveredQuantity: 50, description: '1 bridge pour jusqu\'à 50 ampoules Hue' },
+    // Détecteurs Ajax → Hub obligatoire (1 centrale couvre jusqu'à 100 périphériques)
+    { productId: getProduct('AJAX-MOTION').id, requiredProductId: getProduct('AJAX-HUB2').id, type: 'required' as const, coveredQuantity: 100, description: 'Centrale Ajax obligatoire pour tous les périphériques' },
+    { productId: getProduct('AJAX-DOOR').id, requiredProductId: getProduct('AJAX-HUB2').id, type: 'required' as const, coveredQuantity: 100, description: 'Centrale Ajax obligatoire pour tous les périphériques' },
+    { productId: getProduct('AJAX-KEYPAD').id, requiredProductId: getProduct('AJAX-HUB2').id, type: 'required' as const, coveredQuantity: 100, description: 'Centrale Ajax obligatoire pour tous les périphériques' },
+    // Tado TRV → Kit Tado Starter (1 kit couvre toute l'installation)
+    { productId: getProduct('TADO-TRV').id, requiredProductId: getProduct('TADO-STARTER').id, type: 'required' as const, coveredQuantity: 50, description: 'Kit Tado V3+ requis pour les têtes thermostatiques' },
     // Moteurs Somfy → TaHoma recommandé
     { productId: getProduct('SOM-IO-RS100').id, requiredProductId: getProduct('SOM-TAHOMA').id, type: 'recommended' as const, description: 'TaHoma recommandé pour la gestion centralisée des volets' },
     // Ubiquiti AP → Switch PoE recommandé
