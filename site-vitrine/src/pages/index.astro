@@ -1,6 +1,8 @@
 ---
 import { SITE_CONFIG } from '../config/site';
 import PostHog from '../components/analytics/PostHog.astro';
+import MarketingBanner from '../components/layout/MarketingBanner.astro';
+import MarketingPopup from '../components/layout/MarketingPopup.astro';
 
 const siteUrl = SITE_CONFIG.url;
 const title = "Neo Domotique — Votre maison s'éveille";
@@ -128,6 +130,8 @@ const localBusinessSchema = {
 <PostHog />
 </head>
 <body>
+
+<MarketingBanner />
 
 <div class="sky" aria-hidden="true"></div>
 
@@ -719,5 +723,7 @@ const localBusinessSchema = {
   data-api={SITE_CONFIG.apiBaseUrl}
   defer
 ></script>
+
+<MarketingPopup />
 </body>
 </html>

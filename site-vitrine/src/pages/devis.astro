@@ -1,5 +1,7 @@
 ---
 import { SITE_CONFIG } from '../config/site';
+import MarketingBanner from '../components/layout/MarketingBanner.astro';
+import MarketingPopup from '../components/layout/MarketingPopup.astro';
 
 const siteUrl = SITE_CONFIG.url;
 const title = 'Obtenir un devis gratuit — Neo Domotique';
@@ -36,6 +38,8 @@ const schema = {
 <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
 </head>
 <body>
+
+<MarketingBanner />
 
 <div class="sky" aria-hidden="true"></div>
 
@@ -461,5 +465,6 @@ const schema = {
 })();
 </script>
 
+<MarketingPopup />
 </body>
 </html>

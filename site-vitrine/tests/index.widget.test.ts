@@ -6,10 +6,10 @@ import { join } from 'node:path';
 // elle-même les widgets servis par le backend. Régression : la bulle de chat
 // avait disparu de la home car ce script manquait ici.
 // NB : ce test vit hors de src/pages/ car Astro route tout fichier de src/pages.
-const source = readFileSync(
-  join(import.meta.dir, '../src/pages/index.astro'),
-  'utf8'
-);
+const readPage = (name: string) =>
+  readFileSync(join(import.meta.dir, `../src/pages/${name}`), 'utf8');
+
+const source = readPage('index.astro');
 
 describe('index.astro — widgets injectés', () => {
   it('charge le widget chatbot depuis apiBaseUrl', () => {
@@ -20,4 +20,22 @@ describe('index.astro — widgets injectés', () => {
   it('charge aussi le widget de feedback', () => {
     expect(source).toContain('/feedback-widget.js');
   });
+});
+
+// Même piège que les widgets : les pages autonomes (sans BaseLayout) doivent
+// embarquer elles-mêmes la bannière et la pop-up marketing, sinon elles ne
+// s'affichent pas. Régression : bannière/pop-up absentes de la home et de la
+// page devis car seules les pages BaseLayout les recevaient.
+describe('pages autonomes — composants marketing embarqués', () => {
+  for (const page of ['index.astro', 'devis.astro']) {
+    const src = readPage(page);
+    it(`${page} affiche la bannière marketing`, () => {
+      expect(src).toContain("import MarketingBanner from '../components/layout/MarketingBanner.astro'");
+      expect(src).toContain('<MarketingBanner />');
+    });
+    it(`${page} affiche la pop-up marketing`, () => {
+      expect(src).toContain("import MarketingPopup from '../components/layout/MarketingPopup.astro'");
+      expect(src).toContain('<MarketingPopup />');
+    });
+  }
 });

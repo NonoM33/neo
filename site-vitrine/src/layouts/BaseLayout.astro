@@ -2,6 +2,8 @@
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
 import CookieBanner from '../components/layout/CookieBanner.astro';
+import MarketingBanner from '../components/layout/MarketingBanner.astro';
+import MarketingPopup from '../components/layout/MarketingPopup.astro';
 import PostHog from '../components/analytics/PostHog.astro';
 import { SITE_CONFIG } from '../config/site';
 import '../styles/global.css';
@@ -125,12 +127,14 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical}` : Astro.url.href;
     <PostHog />
   </head>
   <body class="min-h-screen flex flex-col">
+    <MarketingBanner />
     <Header />
     <main class="flex-grow">
       <slot />
     </main>
     <Footer />
     <CookieBanner />
+    <MarketingPopup />
 
     <!-- Intersection Observer for scroll animations -->
     <script>
