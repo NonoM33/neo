@@ -57,6 +57,8 @@ const schema = {
   .cfg-choice.sel { border-color: #6ea8fe; background: rgba(110,168,254,.12); }
   .cfg-choice .t { font-weight: 600; font-size: 15px; }
   .cfg-choice .s { font-size: 13px; color: #8a8f98; margin-top: 3px; }
+  .cfg-choices--inline { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .cfg-choices--inline .cfg-choice { padding: 10px 12px; }
 
   /* ── Étape 2 : maison par pièces ── */
   .cfg-room-intro { text-align: center; color: #8a8f98; font-size: 14px; margin: 0 0 22px; }
@@ -249,38 +251,15 @@ const schema = {
     </div>
 
     <div class="cfg-steps">
-      <div class="cfg-step" data-step="1"><span class="num">1</span> Logement</div>
-      <div class="cfg-step" data-step="2"><span class="num">2</span> Pièces</div>
-      <div class="cfg-step" data-step="3"><span class="num">3</span> Estimation</div>
-      <div class="cfg-step" data-step="4"><span class="num">4</span> Coordonnées</div>
+      <div class="cfg-step" data-step="1"><span class="num">1</span> Pièces</div>
+      <div class="cfg-step" data-step="2"><span class="num">2</span> Estimation</div>
+      <div class="cfg-step" data-step="3"><span class="num">3</span> Coordonnées</div>
     </div>
     <div class="cfg-progress"><span id="cfg-bar"></span></div>
 
     <form id="cfg-form" novalidate>
-      <!-- ÉTAPE 1 — Logement -->
+      <!-- ÉTAPE 1 — Pièces (builder 3D) -->
       <section class="cfg-panel" data-panel="1">
-        <div class="cfg-field">
-          <label>Qui installe&nbsp;?</label>
-          <div class="cfg-choices" data-radio="installMode">
-            <div class="cfg-choice sel" data-value="pro"><div class="t">Un pro Neo</div><div class="s">Installation clé en main</div></div>
-            <div class="cfg-choice" data-value="autonome"><div class="t">Moi-même</div><div class="s">Livré avec notice de pose</div></div>
-          </div>
-        </div>
-        <div class="cfg-field">
-          <label>Type de logement</label>
-          <div class="cfg-choices" data-radio="housingType">
-            <div class="cfg-choice" data-value="maison"><div class="t">Maison</div></div>
-            <div class="cfg-choice" data-value="appartement"><div class="t">Appartement</div></div>
-          </div>
-        </div>
-        <div class="cfg-field">
-          <label for="cfg-surface">Surface approximative (m²)</label>
-          <input type="number" id="cfg-surface" name="surface" min="1" placeholder="ex : 90" />
-        </div>
-      </section>
-
-      <!-- ÉTAPE 2 — Pièces (builder 3D) -->
-      <section class="cfg-panel" data-panel="2">
         <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
         <div id="cfg-builder" class="cfg-builder" hidden>
           <div class="cfg-search">
@@ -317,8 +296,15 @@ const schema = {
         <div id="cfg-toast" class="cfg-toast" hidden aria-hidden="true"></div>
       </section>
 
-      <!-- ÉTAPE 3 — Estimation -->
-      <section class="cfg-panel" data-panel="3">
+      <!-- ÉTAPE 2 — Estimation -->
+      <section class="cfg-panel" data-panel="2">
+        <div class="cfg-field">
+          <label>Qui installe&nbsp;?</label>
+          <div class="cfg-choices cfg-choices--inline" data-radio="installMode">
+            <div class="cfg-choice sel" data-value="pro"><div class="t">Un pro Neo</div><div class="s">Installation clé en main</div></div>
+            <div class="cfg-choice" data-value="autonome"><div class="t">Moi-même</div><div class="s">Livré avec notice de pose</div></div>
+          </div>
+        </div>
         <div id="cfg-recap"></div>
         <p class="lead" style="font-size:14px;margin-top:16px;color:#8a8f98">
           Estimation indicative TTC. Le devis final est confirmé par un conseiller.
@@ -328,8 +314,8 @@ const schema = {
         </button>
       </section>
 
-      <!-- ÉTAPE 4 — Coordonnées -->
-      <section class="cfg-panel" data-panel="4">
+      <!-- ÉTAPE 3 — Coordonnées -->
+      <section class="cfg-panel" data-panel="3">
         <div class="cfg-field"><label for="cfg-firstName">Prénom</label><input id="cfg-firstName" name="firstName" /></div>
         <div class="cfg-field"><label for="cfg-lastName">Nom</label><input id="cfg-lastName" name="lastName" /></div>
         <div class="cfg-field"><label for="cfg-email">Email</label><input id="cfg-email" name="email" type="email" /></div>
@@ -517,7 +503,7 @@ import { filterProducts } from '../configurateur/search';
         storeCatalog(data.categories || []);
         catalogLoaded = true;
         renderRecap();
-        if (current === 2) enterBuilder();
+        if (current === 1) enterBuilder();
       })
       .catch(function () {
         document.getElementById('cfg-catalog').textContent =
@@ -1060,7 +1046,7 @@ import { filterProducts } from '../configurateur/search';
   function updateCount() {
     var n = totalCount();
     countEl.textContent = n + (n > 1 ? ' équipements' : ' équipement');
-    priceBar.style.display = current >= 2 && current !== 'done' ? 'block' : 'none';
+    priceBar.style.display = current !== 'done' ? 'block' : 'none';
   }
 
   // ── Guide IA (chat) ──
@@ -1072,18 +1058,11 @@ import { filterProducts } from '../configurateur/search';
   function aiSuggestionsForState() {
     var hasItems = selectionItems().length > 0;
     if (current === 1) {
-      return [
-        'Quelles pièces équiper en premier ?',
-        'J’ai un budget de 800 €, par où commencer ?',
-        'Maison ou appartement, ça change quoi ?',
-      ];
-    }
-    if (current === 2) {
       return hasItems
         ? ['Optimise mon panier', 'Que me manque-t-il ?', 'Explique les dépendances']
         : ['Sécurise mon entrée et mon salon', 'C’est quoi un bridge ?', 'Une caméra pas chère ?'];
     }
-    if (current === 3) {
+    if (current === 2) {
       return ['Comment réduire la facture ?', 'Pourquoi ce total ?', 'Une alternative moins chère ?'];
     }
     return ['Un conseiller peut-il me rappeler ?', 'Mes données sont-elles protégées ?'];
@@ -1306,15 +1285,15 @@ import { filterProducts } from '../configurateur/search';
       if (step === 'done' || n < step) el.classList.add('done');
       else if (n === step) el.classList.add('active');
     });
-    var pct = step === 'done' ? 100 : step * 25;
+    var pct = step === 'done' ? 100 : Math.round((step / 3) * 100);
     bar.style.width = pct + '%';
     errorEl.textContent = '';
-    if (step === 2) { if (catalogLoaded) enterBuilder(); }
+    if (step === 1) { if (catalogLoaded) enterBuilder(); }
     else { if (house3d) house3d.setActive(false); if (openRoomKey) closeRoom(); }
     if (step === 'done') { navEl.style.display = 'none'; priceBar.style.display = 'none'; return; }
     navEl.style.display = 'flex';
     prevBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
-    nextBtn.textContent = step === 4 ? 'Envoyer ma demande' : 'Continuer';
+    nextBtn.textContent = step === 3 ? 'Envoyer ma demande' : 'Continuer';
     updateCount();
     aiRenderSuggestions();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1323,12 +1302,9 @@ import { filterProducts } from '../configurateur/search';
   function validate(step) {
     errorEl.textContent = '';
     if (step === 1) {
-      if (!radioValue('housingType')) { errorEl.textContent = 'Choisissez un type de logement.'; return false; }
-    }
-    if (step === 2) {
       if (!selectionItems().length) { errorEl.textContent = 'Sélectionnez au moins un équipement dans une pièce.'; return false; }
     }
-    if (step === 4) {
+    if (step === 3) {
       var req = ['firstName', 'lastName', 'email', 'phone', 'postalCode'];
       for (var i = 0; i < req.length; i++) {
         var f = form.elements[req[i]];
@@ -1343,7 +1319,7 @@ import { filterProducts } from '../configurateur/search';
   prevBtn.addEventListener('click', function () { if (current > 1) show(current - 1); });
   nextBtn.addEventListener('click', function () {
     if (!validate(current)) return;
-    if (current < 4) { show(current + 1); return; }
+    if (current < 3) { show(current + 1); return; }
     submit();
   });
 
@@ -1359,7 +1335,6 @@ import { filterProducts } from '../configurateur/search';
       firstName: val('firstName'), lastName: val('lastName'),
       email: val('email'), phone: val('phone'),
       postalCode: val('postalCode'), city: val('city'),
-      surface: val('surface') ? Number(val('surface')) : undefined,
       message: val('message'),
       consent: form.elements['consent'].checked,
       website: form.elements['website'].value || '',
@@ -1449,8 +1424,6 @@ import { filterProducts } from '../configurateur/search';
       body: JSON.stringify({
         items: selectionItems(),
         installMode: radioValue('installMode', 'pro'),
-        housingType: radioValue('housingType') || undefined,
-        surface: val('surface') ? Number(val('surface')) : undefined,
         origin: window.location.origin,
       }),
     })
@@ -1479,14 +1452,9 @@ import { filterProducts } from '../configurateur/search';
       var chip = document.querySelector('[data-radio="installMode"] .cfg-choice[data-value="' + draft.installMode + '"]');
       if (chip) { document.querySelectorAll('[data-radio="installMode"] .cfg-choice').forEach(function (c) { c.classList.remove('sel'); }); chip.classList.add('sel'); }
     }
-    if (draft.housingType) {
-      var hc = document.querySelector('[data-radio="housingType"] .cfg-choice[data-value="' + draft.housingType + '"]');
-      if (hc) { document.querySelectorAll('[data-radio="housingType"] .cfg-choice').forEach(function (c) { c.classList.remove('sel'); }); hc.classList.add('sel'); }
-    }
-    if (draft.surface != null && form.elements['surface']) form.elements['surface'].value = draft.surface;
     if (draft.estimate) { lastEstimate = draft.estimate; totalEl.textContent = EUR.format(draft.estimate.totalTTC || 0); }
     renderRecap();
-    show(3);
+    show(2);
   }
 
   function loadFromCode(code) {
