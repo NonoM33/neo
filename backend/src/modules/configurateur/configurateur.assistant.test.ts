@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   buildCatalogDigest,
   buildContextMessage,
+  normalizeChoices,
   resolveRoom,
   runTool,
   type ToolContext,
@@ -214,6 +215,85 @@ describe('runTool · gestion des pièces', () => {
     expect(out.ok).toBe(true);
     expect(c.actions).toEqual([{ type: 'set_room_floor', room: 'salon', floor: 2 }]);
     expect(c.rooms.find((r) => r.key === 'salon')?.floor).toBe(2);
+  });
+});
+
+describe('normalizeChoices', () => {
+  it('garde les boutons valides (label + send) en limitant le format', () => {
+    expect(
+      normalizeChoices([
+        { label: 'Oui, retire-la', send: 'Retire la Sonos Arc' },
+        { label: 'Garde tout', send: 'Garde tout, ne change rien' },
+      ]),
+    ).toEqual([
+      { label: 'Oui, retire-la', send: 'Retire la Sonos Arc' },
+      { label: 'Garde tout', send: 'Garde tout, ne change rien' },
+    ]);
+  });
+
+  it('utilise le label comme message quand send est absent', () => {
+    expect(normalizeChoices([{ label: 'Optimise mon panier' }])).toEqual([
+      { label: 'Optimise mon panier', send: 'Optimise mon panier' },
+    ]);
+  });
+
+  it('ignore les entrées sans label exploitable', () => {
+    expect(
+      normalizeChoices([{ label: '   ' }, { send: 'sans label' }, 'pas un objet', null]),
+    ).toEqual([]);
+  });
+
+  it('déduplique par label (insensible à la casse) et plafonne à 4 boutons', () => {
+    const out = normalizeChoices([
+      { label: 'Oui' },
+      { label: 'oui' },
+      { label: 'A' },
+      { label: 'B' },
+      { label: 'C' },
+      { label: 'D' },
+    ]);
+    expect(out.map((c) => c.label)).toEqual(['Oui', 'A', 'B', 'C']);
+  });
+
+  it('renvoie une liste vide pour une entrée non-tableau', () => {
+    expect(normalizeChoices(undefined)).toEqual([]);
+    expect(normalizeChoices({})).toEqual([]);
+  });
+});
+
+describe('runTool · proposer_choix', () => {
+  it('enregistre les choix cliquables contextuels dans le contexte', async () => {
+    // L'utilisateur veut des messages avec des boutons cliquables (façon bot
+    // Telegram) : le guide propose 2 à 4 réponses rapides contextuelles.
+    const c: ToolContext = { catalog, rooms: [], actions: [], choices: [] };
+    const out = (await runTool(
+      c,
+      'proposer_choix',
+      JSON.stringify({
+        choices: [
+          { label: 'Oui, retire-la', send: 'Retire la Sonos Arc' },
+          { label: 'Une alternative ?', send: 'Propose une alternative moins chère' },
+        ],
+      }),
+    )) as { ok: boolean; count: number };
+
+    expect(out.ok).toBe(true);
+    expect(out.count).toBe(2);
+    expect(c.choices).toEqual([
+      { label: 'Oui, retire-la', send: 'Retire la Sonos Arc' },
+      { label: 'Une alternative ?', send: 'Propose une alternative moins chère' },
+    ]);
+  });
+
+  it('remplace les choix précédents par le dernier appel', async () => {
+    const c: ToolContext = {
+      catalog,
+      rooms: [],
+      actions: [],
+      choices: [{ label: 'ancien', send: 'ancien' }],
+    };
+    await runTool(c, 'proposer_choix', JSON.stringify({ choices: [{ label: 'neuf' }] }));
+    expect(c.choices).toEqual([{ label: 'neuf', send: 'neuf' }]);
   });
 });
 

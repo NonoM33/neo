@@ -207,6 +207,11 @@ const schema = {
   .cfg-ai__suggest { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
   .cfg-ai__chip { padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); color: #cfe0ff; font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s; }
   .cfg-ai__chip:hover { border-color: #6ea8fe; background: rgba(110,168,254,.12); }
+  /* Boutons cliquables contextuels sous un message (façon bot Telegram) */
+  .cfg-ai__choices { align-self: flex-start; max-width: 86%; display: flex; flex-wrap: wrap; gap: 7px; margin: -2px 0 2px; }
+  .cfg-ai__choice { padding: 8px 13px; border-radius: 12px; border: 1px solid rgba(110,168,254,.45); background: linear-gradient(135deg, rgba(110,168,254,.16), rgba(169,142,255,.12)); color: #dce8ff; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; text-align: left; transition: border-color .15s, background .15s, transform .12s; }
+  .cfg-ai__choice:hover { border-color: #6ea8fe; background: linear-gradient(135deg, rgba(110,168,254,.28), rgba(169,142,255,.22)); transform: translateY(-1px); }
+  .cfg-ai__choice:active { transform: translateY(0); }
   .cfg-ai__form { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid rgba(255,255,255,.08); }
   .cfg-ai__input { flex: 1; padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); color: #eef3ff; font-size: 14px; }
   .cfg-ai__input:focus { outline: none; border-color: #6ea8fe; }
@@ -1404,6 +1409,37 @@ import { createHistory, pushHistory, canUndo, canRedo, undo, redo, current as hi
     return el;
   }
 
+  // Boutons cliquables contextuels attachés au dernier message (façon clavier
+  // inline d'un bot Telegram). Chaque choix porte un libellé (texte du bouton)
+  // et le message envoyé au clic. On retire les choix précédents : ils ne valent
+  // que pour le message en cours.
+  function aiClearChoices() {
+    var log = aiLog(); if (!log) return;
+    log.querySelectorAll('.cfg-ai__choices').forEach(function (el) { el.remove(); });
+  }
+
+  function aiAppendChoices(choices) {
+    if (!choices || !choices.length) return;
+    var log = aiLog(); if (!log) return;
+    aiClearChoices();
+    var row = document.createElement('div');
+    row.className = 'cfg-ai__choices';
+    choices.slice(0, 4).forEach(function (c) {
+      var label = c && typeof c.label === 'string' ? c.label.trim() : '';
+      var send = c && typeof c.send === 'string' && c.send.trim() ? c.send.trim() : label;
+      if (!label || !send) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cfg-ai__choice';
+      b.textContent = label;
+      b.addEventListener('click', function () { aiSubmit(send); });
+      row.appendChild(b);
+    });
+    if (!row.childNodes.length) return;
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+  }
+
   function aiRenderSuggestions() {
     var host = document.getElementById('cfg-ai-suggest');
     if (!host) return;
@@ -1485,6 +1521,7 @@ import { createHistory, pushHistory, canUndo, canRedo, undo, redo, current as hi
     if (!clean || aiBusy) return;
     var input = document.getElementById('cfg-ai-input');
     if (input) input.value = '';
+    aiClearChoices();
     aiAppend('user', clean);
     aiHistory.push({ role: 'user', content: clean });
     if (aiHistory.length > 16) aiHistory = aiHistory.slice(-16);
@@ -1505,6 +1542,7 @@ import { createHistory, pushHistory, canUndo, canRedo, undo, redo, current as hi
         aiAppend('bot', reply);
         aiHistory.push({ role: 'assistant', content: reply });
         aiApplyActions(data && data.actions);
+        aiAppendChoices(data && data.choices);
       })
       .catch(function () {
         if (typing && typing.parentNode) typing.parentNode.removeChild(typing);

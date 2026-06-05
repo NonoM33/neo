@@ -38,7 +38,19 @@ export type AssistantAction =
   | { type: 'set_room_floor'; room: string; floor: number }
   | { type: 'remove_room'; room: string };
 
+/**
+ * Bouton de réponse rapide attaché à un message du guide (façon clavier inline
+ * d'un bot Telegram). `label` est le texte du bouton ; `send` est le message
+ * envoyé au guide quand le visiteur clique dessus.
+ */
+export interface AssistantChoice {
+  label: string;
+  send: string;
+}
+
 export interface AssistantReply {
   reply: string;
   actions: AssistantAction[];
+  /** Choix cliquables contextuels proposés sous le message (0 à 4). */
+  choices: AssistantChoice[];
 }

@@ -5,6 +5,7 @@ import { getProductDependencies } from '../products/products.service';
 import { cheaperAlternatives, type SuggestProduct } from './configurateur.suggest';
 import type {
   AssistantAction,
+  AssistantChoice,
   AssistantInput,
   AssistantReply,
 } from './configurateur.assistant.schema';
@@ -41,16 +42,49 @@ Style :
 - Avant d'ajouter un équipement, assure-toi d'avoir une pièce de destination valide (utilise la liste des pièces fournie).
 - Quand tu ajoutes/retires quelque chose, dis-le clairement et explique pourquoi en une phrase.
 
+Choix cliquables (IMPORTANT) :
+- Termine CHAQUE réponse en appelant "proposer_choix" avec 2 à 4 boutons de réponse rapide, pertinents et contextuels au message (la suite logique de la conversation).
+- Quand tu SUGGÈRES une modification sans être sûr que le visiteur la veut (ex : « je te propose de retirer la Sonos Arc »), ne l'applique PAS tout de suite : propose-la comme un bouton cliquable (ex : label « Oui, retire-la » → send « Retire la Sonos Arc »). Le clic confirmera. Quand le visiteur a clairement validé, agis directement.
+- Le "label" est court (2-4 mots, le texte du bouton) ; le "send" est le message complet envoyé en ton nom quand on clique.
+
 Outils :
 - "rechercher_produits" : explore le catalogue (par catégorie, mot-clé, prix max).
 - "alternatives_moins_cheres" : trouve des équivalents moins chers d'un produit.
 - "expliquer_dependances" : liste ce qu'un produit requiert (bridge, etc.) et pourquoi.
-- "ajouter_equipement" / "retirer_equipement" : modifient le panier du visiteur.`;
+- "ajouter_equipement" / "retirer_equipement" : modifient le panier du visiteur.
+- "proposer_choix" : attache des boutons cliquables de réponse rapide sous ton message.`;
 
 export interface ToolContext {
   catalog: SuggestProduct[];
   rooms: AssistantInput['rooms'];
   actions: AssistantAction[];
+  /** Choix cliquables proposés par le guide pour le message courant. */
+  choices?: AssistantChoice[];
+}
+
+/**
+ * Nettoie les choix proposés par l'IA : on ne garde que des boutons avec un
+ * libellé exploitable, on retombe sur le libellé si `send` manque, on
+ * déduplique par libellé (insensible à la casse) et on plafonne à 4 boutons.
+ */
+export function normalizeChoices(raw: unknown): AssistantChoice[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AssistantChoice[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const label = typeof rec.label === 'string' ? rec.label.trim() : '';
+    const sendRaw = typeof rec.send === 'string' ? rec.send.trim() : '';
+    const send = sendRaw || label;
+    if (!label || !send) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ label: label.slice(0, 60), send: send.slice(0, 200) });
+    if (out.length >= 4) break;
+  }
+  return out;
 }
 
 function buildToolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
@@ -200,6 +234,36 @@ function buildToolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
         name: 'lister_pieces',
         description: 'Liste les pièces actuelles de la maison avec leur étage.',
         parameters: { type: 'object', properties: {} },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'proposer_choix',
+        description:
+          'Attache 2 à 4 boutons cliquables de réponse rapide sous ton message (façon clavier inline d’un bot). À appeler à la fin de chaque réponse.',
+        parameters: {
+          type: 'object',
+          properties: {
+            choices: {
+              type: 'array',
+              maxItems: 4,
+              description: 'Liste de 2 à 4 boutons contextuels.',
+              items: {
+                type: 'object',
+                properties: {
+                  label: { type: 'string', description: 'Texte court du bouton (2-4 mots).' },
+                  send: {
+                    type: 'string',
+                    description: 'Message envoyé au guide quand on clique (défaut : le label).',
+                  },
+                },
+                required: ['label'],
+              },
+            },
+          },
+          required: ['choices'],
+        },
       },
     },
   ];
@@ -385,6 +449,12 @@ export async function runTool(
       };
     }
 
+    case 'proposer_choix': {
+      const choices = normalizeChoices(args.choices);
+      ctx.choices = choices;
+      return { ok: true, count: choices.length };
+    }
+
     default:
       return { error: `Outil inconnu : ${name}` };
   }
@@ -448,6 +518,7 @@ export async function runConfiguratorAssistant(
       reply:
         "Le guide en ligne est momentanément indisponible. Décrivez votre projet et un conseiller Neo vous aidera très vite !",
       actions: [],
+      choices: [],
     };
   }
 
@@ -462,7 +533,7 @@ export async function runConfiguratorAssistant(
     })),
   );
 
-  const ctx: ToolContext = { catalog, rooms: input.rooms, actions: [] };
+  const ctx: ToolContext = { catalog, rooms: input.rooms, actions: [], choices: [] };
   const client = getClient();
   const tools = buildToolDefinitions();
 
@@ -488,7 +559,7 @@ export async function runConfiguratorAssistant(
 
     const toolCalls = choice.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      return { reply: (choice.content ?? '').trim(), actions: ctx.actions };
+      return { reply: (choice.content ?? '').trim(), actions: ctx.actions, choices: ctx.choices ?? [] };
     }
 
     messages.push(choice);
@@ -507,5 +578,6 @@ export async function runConfiguratorAssistant(
     reply:
       "J'ai mis à jour votre configuration. Souhaitez-vous que je vous aide sur autre chose ?",
     actions: ctx.actions,
+    choices: ctx.choices ?? [],
   };
 }
