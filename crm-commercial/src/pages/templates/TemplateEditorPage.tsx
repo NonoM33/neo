@@ -4,6 +4,7 @@ import grapesjs, { type Editor } from 'grapesjs';
 import presetNewsletter from 'grapesjs-preset-newsletter';
 import 'grapesjs/dist/css/grapes.min.css';
 import { Spinner } from '../../components';
+import { Btn, Icon } from '../../components/neo';
 import { templatesService } from '../../services';
 import { useUIStore } from '../../stores';
 import type { TemplateDTO } from '../../types';
@@ -158,47 +159,41 @@ export function TemplateEditorPage() {
   if (loading || !template) return <Spinner />;
 
   return (
-    <div className="template-editor-page d-flex flex-column" style={{ height: 'calc(100vh - 70px)' }}>
+    <div
+      style={{ padding: 28, height: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Toolbar */}
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <div className="d-flex align-items-center gap-2">
-          <button className="btn btn-outline-secondary btn-sm" onClick={() => navigate('/templates')}>
-            <i className="bi bi-arrow-left"></i>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/templates')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux templates
           </button>
-          <div>
-            <h1 className="page-title mb-0" style={{ fontSize: '1.2rem' }}>
-              {template.name}
-            </h1>
-            <span style={{ color: 'var(--neo-text-secondary)', fontSize: '0.8rem' }}>
-              {template.description}
-            </span>
-          </div>
+          <h1 style={{ fontSize: 21 }}>{template.name}</h1>
+          <p>{template.description}</p>
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <button className="btn btn-outline-danger btn-sm" onClick={handleReset}>
-            <i className="bi bi-arrow-counterclockwise me-1"></i>
+        <div className="page-actions">
+          <Btn variant="danger-ghost" size="sm" icon="arrowLeft" onClick={handleReset}>
             Réinitialiser
-          </button>
-          <button className="btn btn-outline-primary btn-sm" onClick={handlePreview}>
-            <i className="bi bi-eye me-1"></i>
+          </Btn>
+          <Btn variant="subtle" size="sm" icon="eyeOff" onClick={handlePreview}>
             Aperçu
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-            <i className="bi bi-save me-1"></i>
+          </Btn>
+          <Btn size="sm" icon="check" disabled={saving} onClick={handleSave}>
             {saving ? 'Enregistrement...' : 'Enregistrer'}
-          </button>
+          </Btn>
         </div>
       </div>
 
       {/* Subject (emails only) */}
       {template.kind === 'email' && (
-        <div className="mb-3">
-          <label className="form-label mb-1" style={{ fontSize: '0.85rem' }}>
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label" htmlFor="template-subject">
             Objet de l'email
           </label>
           <input
+            id="template-subject"
             type="text"
-            className="form-control"
+            className="neo-field"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Objet (les variables {{...}} sont autorisées)"
@@ -206,41 +201,54 @@ export function TemplateEditorPage() {
         </div>
       )}
 
-      <div className="d-flex gap-3" style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
         {/* Variable palette */}
         <div
           style={{
             width: 240,
             flexShrink: 0,
             overflowY: 'auto',
-            background: 'var(--neo-bg-card)',
-            border: '1px solid var(--neo-border-color)',
-            borderRadius: 10,
-            padding: 12,
+            background: 'var(--card)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--r-md)',
+            padding: 14,
           }}
         >
-          <div className="nav-section mb-2">Variables</div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--neo-text-secondary)' }}>
+          <div
+            style={{
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: '.05em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-3)',
+              marginBottom: 8,
+            }}
+          >
+            Variables
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 10px', lineHeight: 1.5 }}>
             Cliquez pour copier, puis collez dans le contenu.
           </p>
-          <div className="d-flex flex-column gap-1">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {template.variables.map((v) => (
               <button
                 key={v.token}
-                className="btn btn-sm text-start"
+                type="button"
                 style={{
-                  background: 'var(--neo-bg-light)',
-                  border: '1px solid var(--neo-border-color)',
-                  borderRadius: 6,
-                  fontSize: '0.78rem',
+                  textAlign: 'left',
+                  background: 'var(--paper)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '7px 10px',
+                  cursor: 'pointer',
                 }}
                 title={v.hint ?? v.token}
                 onClick={() => copyToken(v.token)}
               >
-                <code style={{ color: 'var(--neo-primary)' }}>{`{{${v.token}}}`}</code>
-                <div style={{ color: 'var(--neo-text-secondary)', fontSize: '0.72rem' }}>
-                  {v.label}
-                </div>
+                <code
+                  style={{ color: 'var(--komun)', fontSize: 12.5, fontFamily: 'var(--font-mono)' }}
+                >{`{{${v.token}}}`}</code>
+                <div style={{ color: 'var(--ink-3)', fontSize: 11.5, marginTop: 2 }}>{v.label}</div>
               </button>
             ))}
           </div>
@@ -251,8 +259,8 @@ export function TemplateEditorPage() {
           style={{
             flex: 1,
             minWidth: 0,
-            border: '1px solid var(--neo-border-color)',
-            borderRadius: 10,
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--r-md)',
             overflow: 'hidden',
           }}
         >
@@ -277,8 +285,8 @@ export function TemplateEditorPage() {
         >
           <div
             style={{
-              background: 'var(--neo-bg-card)',
-              borderRadius: 12,
+              background: 'var(--card)',
+              borderRadius: 'var(--r-lg)',
               width: 'min(900px, 100%)',
               maxHeight: '90vh',
               display: 'flex',
@@ -287,18 +295,22 @@ export function TemplateEditorPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: 16,
+                borderBottom: '1px solid var(--line)',
+              }}
+            >
               <div>
                 <strong>Aperçu</strong>
                 {template.kind === 'email' && previewSubject && (
-                  <div style={{ color: 'var(--neo-text-secondary)', fontSize: '0.85rem' }}>
-                    Objet : {previewSubject}
-                  </div>
+                  <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Objet : {previewSubject}</div>
                 )}
               </div>
-              <button className="btn btn-outline-secondary btn-sm" onClick={() => setPreviewHtml(null)}>
-                <i className="bi bi-x-lg"></i>
-              </button>
+              <Btn variant="subtle" size="sm" icon="x" onClick={() => setPreviewHtml(null)} />
             </div>
             <iframe
               title="Aperçu du template"

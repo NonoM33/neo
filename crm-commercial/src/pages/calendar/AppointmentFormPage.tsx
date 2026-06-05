@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, Button, Input, Select, Textarea } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Card, Icon } from '../../components/neo';
+import type { IconName } from '../../components/neo';
 import { appointmentsService } from '../../services/appointments.service';
 import type {
   AppointmentType,
@@ -10,7 +12,6 @@ import type {
 import {
   APPOINTMENT_TYPE_LABELS,
   APPOINTMENT_TYPE_COLORS,
-  APPOINTMENT_TYPE_ICONS,
   LOCATION_TYPE_LABELS,
 } from '../../types/appointment.types';
 
@@ -22,6 +23,16 @@ const DEFAULT_DURATIONS: Record<AppointmentType, number> = {
   sav: 60,
   reunion_interne: 60,
   autre: 30,
+};
+
+const TYPE_ICON: Record<AppointmentType, IconName> = {
+  visite_technique: 'building',
+  audit: 'crosshair',
+  rdv_commercial: 'message',
+  installation: 'package',
+  sav: 'headset',
+  reunion_interne: 'users',
+  autre: 'calendar',
 };
 
 interface FormData {
@@ -84,36 +95,7 @@ export function AppointmentFormPage() {
     participantUserIds: [],
   });
 
-  useEffect(() => {
-    if (isEditing && id) {
-      loadAppointment();
-    }
-  }, [id]);
-
-  // Auto-compute endAt from scheduledAt + duration
-  useEffect(() => {
-    if (formData.scheduledAt && formData.duration > 0) {
-      const start = new Date(formData.scheduledAt);
-      if (!isNaN(start.getTime())) {
-        const end = new Date(start.getTime() + formData.duration * 60 * 1000);
-        const year = end.getFullYear();
-        const month = String(end.getMonth() + 1).padStart(2, '0');
-        const day = String(end.getDate()).padStart(2, '0');
-        const hours = String(end.getHours()).padStart(2, '0');
-        const minutes = String(end.getMinutes()).padStart(2, '0');
-        setFormData((prev) => ({ ...prev, endAt: `${year}-${month}-${day}T${hours}:${minutes}` }));
-      }
-    }
-  }, [formData.scheduledAt, formData.duration]);
-
-  // Check for conflicts when date/time changes
-  useEffect(() => {
-    if (formData.scheduledAt && formData.endAt) {
-      checkConflicts();
-    }
-  }, [formData.scheduledAt, formData.endAt, formData.participantUserIds]);
-
-  const loadAppointment = async () => {
+  const loadAppointment = useCallback(async () => {
     try {
       const appointment = await appointmentsService.getAppointment(id!);
       const formatDTLocal = (iso: string) => {
@@ -144,9 +126,9 @@ export function AppointmentFormPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const checkConflicts = async () => {
+  const checkConflicts = useCallback(async () => {
     try {
       const start = new Date(formData.scheduledAt);
       const end = new Date(formData.endAt);
@@ -177,7 +159,36 @@ export function AppointmentFormPage() {
     } catch {
       // Silently ignore conflict check errors
     }
-  };
+  }, [formData.scheduledAt, formData.endAt, isEditing, id]);
+
+  useEffect(() => {
+    if (isEditing && id) {
+      loadAppointment();
+    }
+  }, [isEditing, id, loadAppointment]);
+
+  // Auto-compute endAt from scheduledAt + duration
+  useEffect(() => {
+    if (formData.scheduledAt && formData.duration > 0) {
+      const start = new Date(formData.scheduledAt);
+      if (!isNaN(start.getTime())) {
+        const end = new Date(start.getTime() + formData.duration * 60 * 1000);
+        const year = end.getFullYear();
+        const month = String(end.getMonth() + 1).padStart(2, '0');
+        const day = String(end.getDate()).padStart(2, '0');
+        const hours = String(end.getHours()).padStart(2, '0');
+        const minutes = String(end.getMinutes()).padStart(2, '0');
+        setFormData((prev) => ({ ...prev, endAt: `${year}-${month}-${day}T${hours}:${minutes}` }));
+      }
+    }
+  }, [formData.scheduledAt, formData.duration]);
+
+  // Check for conflicts when date/time changes
+  useEffect(() => {
+    if (formData.scheduledAt && formData.endAt) {
+      checkConflicts();
+    }
+  }, [formData.scheduledAt, formData.endAt, formData.participantUserIds, checkConflicts]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -210,7 +221,7 @@ export function AppointmentFormPage() {
   const removeParticipant = (userId: string) => {
     setFormData((prev) => ({
       ...prev,
-      participantUserIds: prev.participantUserIds.filter((id) => id !== userId),
+      participantUserIds: prev.participantUserIds.filter((pid) => pid !== userId),
     }));
   };
 
@@ -259,266 +270,292 @@ export function AppointmentFormPage() {
     }
   };
 
-  const locationTypeOptions = Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => ({
-    value,
-    label,
-  }));
-
   if (loading) {
     return <Spinner />;
   }
 
   return (
-    <div className="appointment-form">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate(-1)}>
-            <i className="bi bi-arrow-left me-1"></i>
+    <div className="appointment-form" style={{ maxWidth: 760, margin: '0 auto' }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              color: 'var(--ink-3)',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: 8,
+              fontSize: 13,
+            }}
+          >
+            <Icon name="arrowLeft" size={15} />
             Retour
           </button>
-          <h2 className="mb-0" style={{ fontWeight: 600 }}>
-            {isEditing ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous'}
-          </h2>
+          <h1>{isEditing ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous'}</h1>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="row justify-content-center">
-          <div className="col-lg-8">
-            {/* Type Selection */}
-            <Card className="mb-4">
-              <CardHeader>Type de rendez-vous</CardHeader>
-              <CardBody>
-                <div className="row g-2">
-                  {(Object.keys(APPOINTMENT_TYPE_LABELS) as AppointmentType[]).map((type) => (
-                    <div key={type} className="col-6 col-md-4 col-lg-3">
-                      <button
-                        type="button"
-                        className={`btn w-100 d-flex flex-column align-items-center gap-1 py-3 ${
-                          formData.type === type ? 'btn-primary' : 'btn-outline-secondary'
-                        }`}
-                        style={{
-                          borderColor: formData.type === type ? APPOINTMENT_TYPE_COLORS[type] : undefined,
-                          backgroundColor: formData.type === type ? APPOINTMENT_TYPE_COLORS[type] : undefined,
-                          color: formData.type === type ? '#fff' : undefined,
-                          transition: 'all 0.2s',
-                        }}
-                        onClick={() => handleTypeChange(type)}
-                      >
-                        <i className={`bi ${APPOINTMENT_TYPE_ICONS[type]}`} style={{ fontSize: '1.3rem' }}></i>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                          {APPOINTMENT_TYPE_LABELS[type]}
-                        </span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {errors.type && <div className="text-danger mt-2" style={{ fontSize: '0.875rem' }}>{errors.type}</div>}
-              </CardBody>
-            </Card>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <Card head="Type de rendez-vous" icon="calendar">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: 10,
+            }}
+          >
+            {(Object.keys(APPOINTMENT_TYPE_LABELS) as AppointmentType[]).map((type) => {
+              const active = formData.type === type;
+              const color = APPOINTMENT_TYPE_COLORS[type];
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleTypeChange(type)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '14px 8px',
+                    borderRadius: 10,
+                    border: `1.5px solid ${active ? color : 'var(--line-2)'}`,
+                    background: active ? color : 'var(--card)',
+                    color: active ? '#fff' : 'var(--ink-2)',
+                    cursor: 'pointer',
+                    transition: 'all .15s',
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  <Icon name={TYPE_ICON[type]} size={20} />
+                  <span>{APPOINTMENT_TYPE_LABELS[type]}</span>
+                </button>
+              );
+            })}
+          </div>
+          {errors.type && <div className="field-error">{errors.type}</div>}
+        </Card>
 
-            {/* Details */}
-            <Card className="mb-4">
-              <CardHeader>Détails</CardHeader>
-              <CardBody>
-                <Input
-                  label="Titre"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder={APPOINTMENT_TYPE_LABELS[formData.type]}
-                />
+        <Card head="Détails" icon="fileText">
+          <div>
+            <div className="field-label">Titre</div>
+            <input
+              className="neo-field"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder={APPOINTMENT_TYPE_LABELS[formData.type]}
+            />
+          </div>
 
-                <div className="row">
-                  <div className="col-md-6">
-                    <Input
-                      label="Date et heure de début"
-                      name="scheduledAt"
-                      type="datetime-local"
-                      value={formData.scheduledAt}
-                      onChange={handleChange}
-                      error={errors.scheduledAt}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <Input
-                      label="Durée (min)"
-                      name="duration"
-                      type="number"
-                      value={formData.duration}
-                      onChange={handleChange}
-                      error={errors.duration}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <div className="mb-3">
-                      <label className="form-label">Fin (calculée)</label>
-                      <input
-                        type="datetime-local"
-                        className="form-control"
-                        value={formData.endAt}
-                        readOnly
-                        style={{ backgroundColor: 'var(--neo-bg-light)' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conflict Warning */}
-                {conflictWarning && (
-                  <div className="alert alert-warning d-flex align-items-center gap-2 py-2" style={{ fontSize: '0.875rem' }}>
-                    <i className="bi bi-exclamation-triangle-fill"></i>
-                    {conflictWarning}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-
-            {/* Location */}
-            <Card className="mb-4">
-              <CardHeader>Lieu</CardHeader>
-              <CardBody>
-                <div className="row">
-                  <div className="col-md-4">
-                    <Select
-                      label="Type de lieu"
-                      name="locationType"
-                      value={formData.locationType}
-                      onChange={handleChange}
-                      options={locationTypeOptions}
-                    />
-                  </div>
-                  <div className="col-md-8">
-                    <Input
-                      label="Adresse / Lien"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      placeholder={
-                        formData.locationType === 'visio'
-                          ? 'Lien de visioconférence'
-                          : formData.locationType === 'telephone'
-                          ? 'Numéro de téléphone'
-                          : 'Adresse'
-                      }
-                    />
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-
-            {/* Linked Entities */}
-            <Card className="mb-4">
-              <CardHeader>Liens</CardHeader>
-              <CardBody>
-                <div className="row">
-                  <div className="col-md-4">
-                    <Input
-                      label="ID Lead"
-                      name="leadId"
-                      value={formData.leadId}
-                      onChange={handleChange}
-                      placeholder="ID du lead (optionnel)"
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <Input
-                      label="ID Client"
-                      name="clientId"
-                      value={formData.clientId}
-                      onChange={handleChange}
-                      placeholder="ID du client (optionnel)"
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <Input
-                      label="ID Projet"
-                      name="projectId"
-                      value={formData.projectId}
-                      onChange={handleChange}
-                      placeholder="ID du projet (optionnel)"
-                    />
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-
-            {/* Participants */}
-            <Card className="mb-4">
-              <CardHeader>Participants</CardHeader>
-              <CardBody>
-                {formData.participantUserIds.length > 0 && (
-                  <div className="d-flex flex-wrap gap-2 mb-3">
-                    {formData.participantUserIds.map((userId) => (
-                      <span
-                        key={userId}
-                        className="badge bg-light text-dark d-flex align-items-center gap-1"
-                        style={{ fontSize: '0.85rem', padding: '6px 10px' }}
-                      >
-                        <i className="bi bi-person"></i>
-                        {userId}
-                        <button
-                          type="button"
-                          className="btn-close ms-1"
-                          style={{ fontSize: '0.6rem' }}
-                          onClick={() => removeParticipant(userId)}
-                        ></button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="d-flex gap-2">
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="ID utilisateur à ajouter"
-                    value={newParticipantId}
-                    onChange={(e) => setNewParticipantId(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addParticipant();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={addParticipant}
-                    disabled={!newParticipantId.trim()}
-                  >
-                    <i className="bi bi-plus-lg"></i>
-                  </button>
-                </div>
-              </CardBody>
-            </Card>
-
-            {/* Notes */}
-            <Card className="mb-4">
-              <CardHeader>Notes</CardHeader>
-              <CardBody>
-                <Textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  placeholder="Notes internes sur ce rendez-vous..."
-                />
-              </CardBody>
-            </Card>
-
-            {/* Actions */}
-            <div className="d-flex gap-2 justify-content-end">
-              <Button type="button" variant="outline-secondary" onClick={() => navigate(-1)}>
-                Annuler
-              </Button>
-              <Button type="submit" loading={submitting} icon="bi-check-lg">
-                {isEditing ? 'Enregistrer' : 'Créer le rendez-vous'}
-              </Button>
+          <div
+            className="field-grid"
+            style={{ marginTop: 14, paddingTop: 0, borderTop: 'none', gridTemplateColumns: '2fr 1fr 1fr' }}
+          >
+            <div>
+              <div className="field-label">Date et heure de début</div>
+              <input
+                className="neo-field"
+                name="scheduledAt"
+                type="datetime-local"
+                value={formData.scheduledAt}
+                onChange={handleChange}
+                required
+              />
+              {errors.scheduledAt && <div className="field-error">{errors.scheduledAt}</div>}
+            </div>
+            <div>
+              <div className="field-label">Durée (min)</div>
+              <input
+                className="neo-field"
+                name="duration"
+                type="number"
+                value={formData.duration}
+                onChange={handleChange}
+                required
+              />
+              {errors.duration && <div className="field-error">{errors.duration}</div>}
+            </div>
+            <div>
+              <div className="field-label">Fin (calculée)</div>
+              <input
+                className="neo-field"
+                type="datetime-local"
+                value={formData.endAt}
+                readOnly
+                style={{ background: 'var(--paper-2)', color: 'var(--ink-3)' }}
+              />
             </div>
           </div>
+
+          {conflictWarning && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 14,
+                padding: '10px 13px',
+                borderRadius: 8,
+                background: 'var(--ochre-soft)',
+                border: '1px solid #f0dcae',
+                color: 'var(--ochre-ink)',
+                fontSize: 13,
+              }}
+            >
+              <Icon name="bell" size={15} />
+              {conflictWarning}
+            </div>
+          )}
+        </Card>
+
+        <Card head="Lieu" icon="building">
+          <div
+            className="field-grid"
+            style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', gridTemplateColumns: '1fr 2fr' }}
+          >
+            <div>
+              <div className="field-label">Type de lieu</div>
+              <select className="neo-field" name="locationType" value={formData.locationType} onChange={handleChange}>
+                {Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="field-label">Adresse / Lien</div>
+              <input
+                className="neo-field"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder={
+                  formData.locationType === 'visio'
+                    ? 'Lien de visioconférence'
+                    : formData.locationType === 'telephone'
+                      ? 'Numéro de téléphone'
+                      : 'Adresse'
+                }
+              />
+            </div>
+          </div>
+        </Card>
+
+        <Card head="Liens" icon="folder">
+          <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            <div>
+              <div className="field-label">ID Lead</div>
+              <input
+                className="neo-field"
+                name="leadId"
+                value={formData.leadId}
+                onChange={handleChange}
+                placeholder="optionnel"
+              />
+            </div>
+            <div>
+              <div className="field-label">ID Client</div>
+              <input
+                className="neo-field"
+                name="clientId"
+                value={formData.clientId}
+                onChange={handleChange}
+                placeholder="optionnel"
+              />
+            </div>
+            <div>
+              <div className="field-label">ID Projet</div>
+              <input
+                className="neo-field"
+                name="projectId"
+                value={formData.projectId}
+                onChange={handleChange}
+                placeholder="optionnel"
+              />
+            </div>
+          </div>
+        </Card>
+
+        <Card head="Participants" icon="users">
+          {formData.participantUserIds.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {formData.participantUserIds.map((userId) => (
+                <span
+                  key={userId}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 10px',
+                    borderRadius: 99,
+                    background: 'var(--paper-2)',
+                    border: '1px solid var(--line)',
+                    fontSize: 13,
+                  }}
+                >
+                  <Icon name="user" size={13} />
+                  {userId}
+                  <button
+                    type="button"
+                    onClick={() => removeParticipant(userId)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'var(--ink-4)', padding: 0 }}
+                    aria-label="Retirer"
+                  >
+                    <Icon name="x" size={13} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              className="neo-field"
+              placeholder="ID utilisateur à ajouter"
+              value={newParticipantId}
+              onChange={(e) => setNewParticipantId(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addParticipant();
+                }
+              }}
+            />
+            <Btn type="button" variant="subtle" icon="plus" onClick={addParticipant} disabled={!newParticipantId.trim()}>
+              Ajouter
+            </Btn>
+          </div>
+        </Card>
+
+        <Card head="Notes" icon="fileText">
+          <textarea
+            className="neo-field"
+            name="notes"
+            rows={4}
+            value={formData.notes}
+            onChange={handleChange}
+            placeholder="Notes internes sur ce rendez-vous..."
+            style={{ resize: 'vertical' }}
+          />
+        </Card>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Btn type="button" variant="subtle" onClick={() => navigate(-1)}>
+            Annuler
+          </Btn>
+          <Btn type="submit" icon="check" disabled={submitting}>
+            {isEditing ? 'Enregistrer' : 'Créer le rendez-vous'}
+          </Btn>
         </div>
       </form>
     </div>

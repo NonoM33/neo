@@ -1,9 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, StatCard, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Card, Icon } from '../../components/neo';
+import type { IconName } from '../../components/neo';
 import { kpisService } from '../../services';
-import type { DashboardData, PipelineAnalysis, ConversionStats, ActivityMetrics, ObjectiveWithProgress } from '../../types';
+import type {
+  DashboardData,
+  PipelineAnalysis,
+  ConversionStats,
+  ActivityMetrics,
+  ObjectiveWithProgress,
+  LeadStatus,
+} from '../../types';
 import { LEAD_STATUS_LABELS, ACTIVITY_TYPE_LABELS } from '../../types';
+
+const STAGE_COLOR: Record<LeadStatus, string> = {
+  prospect: 'var(--ink-3)',
+  qualifie: 'var(--komun)',
+  proposition: 'var(--ochre)',
+  negociation: 'var(--warning)',
+  gagne: 'var(--success)',
+  perdu: 'var(--danger)',
+};
 
 export function KPIsPage() {
   const navigate = useNavigate();
@@ -15,270 +33,336 @@ export function KPIsPage() {
   const [objectives, setObjectives] = useState<ObjectiveWithProgress[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadData = async () => {
+      try {
+        const [dashboardData, pipelineData, conversionsData, activitiesData, objectivesData] =
+          await Promise.all([
+            kpisService.getDashboard(),
+            kpisService.getPipeline(),
+            kpisService.getConversions(),
+            kpisService.getActivityMetrics(),
+            kpisService.getObjectives(),
+          ]);
+        if (cancelled) return;
+        setDashboard(dashboardData);
+        setPipeline(pipelineData);
+        setConversions(conversionsData);
+        setActivities(activitiesData);
+        setObjectives(objectivesData);
+      } catch (error) {
+        console.error('Failed to load KPI data:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
     loadData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [dashboardData, pipelineData, conversionsData, activitiesData, objectivesData] = await Promise.all([
-        kpisService.getDashboard(),
-        kpisService.getPipeline(),
-        kpisService.getConversions(),
-        kpisService.getActivityMetrics(),
-        kpisService.getObjectives(),
-      ]);
-
-      setDashboard(dashboardData);
-      setPipeline(pipelineData);
-      setConversions(conversionsData);
-      setActivities(activitiesData);
-      setObjectives(objectivesData);
-    } catch (error) {
-      console.error('Failed to load KPI data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('fr-FR', {
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'EUR',
       maximumFractionDigits: 0,
     }).format(value);
-  };
 
-  const formatPercent = (value: number | null) => {
-    if (value === null) return '-';
-    return `${value.toFixed(1)}%`;
-  };
+  const formatPercent = (value: number | null) =>
+    value === null ? '-' : `${value.toFixed(1)}%`;
 
   if (loading) {
     return <Spinner />;
   }
 
+  const stats: { icon: IconName; tone: string; val: string; label: string }[] = [
+    { icon: 'users', tone: 'blue', val: String(dashboard?.leads.total ?? 0), label: 'Total leads' },
+    { icon: 'trophy', tone: 'green', val: String(dashboard?.leads.won ?? 0), label: 'Leads gagnés' },
+    {
+      icon: 'chart',
+      tone: 'ink',
+      val: formatPercent(dashboard?.leads.conversionRate ?? 0),
+      label: 'Taux de conversion',
+    },
+    {
+      icon: 'euro',
+      tone: 'ochre',
+      val: formatCurrency(dashboard?.revenue.totalValue ?? 0),
+      label: 'CA réalisé',
+    },
+  ];
+
+  const pipelineTotal = pipeline?.totals.count || 1;
+
   return (
     <div className="kpis-page">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="page-title mb-0">Indicateurs de performance</h2>
-        <Button icon="bi-plus-lg" onClick={() => navigate('/leads/new')}>
-          Nouveau lead
-        </Button>
-      </div>
-
-      {/* Main Stats */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-6 col-xl-3">
-          <StatCard
-            label="Total leads"
-            value={dashboard?.leads.total || 0}
-            icon="bi-people"
-            color="primary"
-          />
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Indicateurs de performance</h1>
+          <p>Vue d'ensemble de votre activité commerciale</p>
         </div>
-        <div className="col-md-6 col-xl-3">
-          <StatCard
-            label="Leads gagnés"
-            value={dashboard?.leads.won || 0}
-            icon="bi-trophy"
-            color="success"
-          />
-        </div>
-        <div className="col-md-6 col-xl-3">
-          <StatCard
-            label="Taux de conversion"
-            value={formatPercent(dashboard?.leads.conversionRate || 0)}
-            icon="bi-graph-up-arrow"
-            color="info"
-          />
-        </div>
-        <div className="col-md-6 col-xl-3">
-          <StatCard
-            label="CA réalisé"
-            value={formatCurrency(dashboard?.revenue.totalValue || 0)}
-            icon="bi-currency-euro"
-            color="success"
-          />
+        <div className="page-actions">
+          <Btn icon="plus" onClick={() => navigate('/leads/new')}>
+            Nouveau lead
+          </Btn>
         </div>
       </div>
 
-      <div className="row g-4 mb-4">
-        {/* Pipeline Analysis */}
-        <div className="col-lg-6">
-          <Card className="h-100">
-            <CardHeader>Analyse du Pipeline</CardHeader>
-            <CardBody>
-              {pipeline?.stages.map((stage) => (
-                <div key={stage.status} className="mb-3">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span>{LEAD_STATUS_LABELS[stage.status as keyof typeof LEAD_STATUS_LABELS] || stage.status}</span>
-                    <span className="text-muted">{stage.count} leads</span>
-                  </div>
-                  <div className="progress progress-neo">
-                    <div
-                      className={`progress-bar badge-${stage.status}`}
-                      role="progressbar"
-                      style={{ width: `${(stage.count / (pipeline.totals.count || 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="d-flex justify-content-between mt-1">
-                    <small className="text-muted">Valeur: {formatCurrency(stage.totalValue)}</small>
-                    <small className="text-muted">Pond.: {formatCurrency(stage.weightedValue)}</small>
-                  </div>
-                </div>
-              ))}
-              <hr />
-              <div className="d-flex justify-content-between">
-                <strong>Total Pipeline</strong>
-                <strong>{formatCurrency(pipeline?.totals.weightedValue || 0)}</strong>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Conversion by Source */}
-        <div className="col-lg-6">
-          <Card className="h-100">
-            <CardHeader>Conversions par source</CardHeader>
-            <CardBody>
-              {conversions?.bySource.map((source) => (
-                <div key={source.source} className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
-                  <div>
-                    <div className="fw-semibold">{source.source}</div>
-                    <small className="text-muted">{source.total} leads, {source.won} gagnés</small>
-                  </div>
-                  <div className="text-end">
-                    <div className="h5 mb-0 text-primary">{formatPercent(source.conversionRate)}</div>
-                    <small className="text-muted">{formatCurrency(source.revenue)}</small>
-                  </div>
-                </div>
-              ))}
-              <div className="d-flex justify-content-between align-items-center">
-                <strong>Taux global</strong>
-                <span className="h5 mb-0 text-success">{formatPercent(conversions?.overall.conversionRate || 0)}</span>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+      <div className="stat-grid mb-22" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        {stats.map((s) => (
+          <div className="stat" key={s.label}>
+            <div className="st-top">
+              <span className={'st-ic ' + s.tone}>
+                <Icon name={s.icon} size={19} />
+              </span>
+            </div>
+            <div className="st-val">{s.val}</div>
+            <div className="st-label">{s.label}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="row g-4 mb-4">
-        {/* Activity Metrics */}
-        <div className="col-lg-6">
-          <Card className="h-100">
-            <CardHeader>Activités par type</CardHeader>
-            <CardBody>
-              <div className="table-responsive">
-                <table className="table table-sm mb-0">
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th className="text-center">Total</th>
-                      <th className="text-center">Terminées</th>
-                      <th className="text-end">Durée totale</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activities?.byType.map((item) => (
-                      <tr key={item.type}>
-                        <td>
-                          <span className={`badge badge-${item.type}`}>
-                            {ACTIVITY_TYPE_LABELS[item.type as keyof typeof ACTIVITY_TYPE_LABELS] || item.type}
-                          </span>
-                        </td>
-                        <td className="text-center">{item.total}</td>
-                        <td className="text-center">{item.completed}</td>
-                        <td className="text-end">
-                          {Math.round(item.totalDurationMinutes / 60)}h
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Objectives Progress */}
-        <div className="col-lg-6">
-          <Card className="h-100">
-            <CardHeader>Progression des objectifs</CardHeader>
-            <CardBody>
-              {objectives.length > 0 ? (
-                objectives.slice(0, 3).map((obj) => (
-                  <div key={obj.objective.id} className="mb-4">
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="fw-semibold">
-                        {obj.objective.month
-                          ? new Date(obj.objective.year, obj.objective.month - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-                          : obj.objective.quarter
-                          ? `T${obj.objective.quarter} ${obj.objective.year}`
-                          : obj.objective.year}
-                      </span>
-                    </div>
-                    <div className="row g-2">
-                      {obj.progress.revenue.target !== null && (
-                        <div className="col-6">
-                          <small className="text-muted d-block">CA</small>
-                          <div className="progress progress-neo">
-                            <div
-                              className="progress-bar bg-success"
-                              style={{ width: `${Math.min(obj.progress.revenue.percentage || 0, 100)}%` }}
-                            ></div>
-                          </div>
-                          <small>{formatPercent(obj.progress.revenue.percentage)}</small>
-                        </div>
-                      )}
-                      {obj.progress.leads.target !== null && (
-                        <div className="col-6">
-                          <small className="text-muted d-block">Leads</small>
-                          <div className="progress progress-neo">
-                            <div
-                              className="progress-bar bg-primary"
-                              style={{ width: `${Math.min(obj.progress.leads.percentage || 0, 100)}%` }}
-                            ></div>
-                          </div>
-                          <small>{formatPercent(obj.progress.leads.percentage)}</small>
-                        </div>
-                      )}
-                      {obj.progress.conversions.target !== null && (
-                        <div className="col-6">
-                          <small className="text-muted d-block">Conversions</small>
-                          <div className="progress progress-neo">
-                            <div
-                              className="progress-bar bg-warning"
-                              style={{ width: `${Math.min(obj.progress.conversions.percentage || 0, 100)}%` }}
-                            ></div>
-                          </div>
-                          <small>{formatPercent(obj.progress.conversions.percentage)}</small>
-                        </div>
-                      )}
-                      {obj.progress.activities.target !== null && (
-                        <div className="col-6">
-                          <small className="text-muted d-block">Activités</small>
-                          <div className="progress progress-neo">
-                            <div
-                              className="progress-bar bg-info"
-                              style={{ width: `${Math.min(obj.progress.activities.percentage || 0, 100)}%` }}
-                            ></div>
-                          </div>
-                          <small>{formatPercent(obj.progress.activities.percentage)}</small>
-                        </div>
-                      )}
-                    </div>
+      <div className="grid-2 mb-22">
+        <Card head="Analyse du pipeline" icon="filter">
+          <div className="funnel">
+            {pipeline?.stages.map((stage) => {
+              const status = stage.status as LeadStatus;
+              const pct = (stage.count / pipelineTotal) * 100;
+              return (
+                <div className="funnel-row" key={stage.status}>
+                  <span className="fl">
+                    {LEAD_STATUS_LABELS[status] || stage.status}
+                  </span>
+                  <div
+                    className="funnel-bar"
+                    style={{
+                      width: `${Math.max(pct, 8)}%`,
+                      background: STAGE_COLOR[status] ?? 'var(--komun)',
+                    }}
+                  >
+                    {stage.count}
                   </div>
-                ))
-              ) : (
-                <div className="text-center text-muted py-4">
-                  <i className="bi bi-bullseye fs-2 mb-2"></i>
-                  <p className="mb-0">Aucun objectif défini</p>
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12.5,
+                      color: 'var(--ink-3)',
+                    }}
+                  >
+                    {formatCurrency(stage.weightedValue)}
+                  </span>
                 </div>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+              );
+            })}
+            {!pipeline?.stages.length && <div className="empty">Pipeline vide</div>}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginTop: 16,
+              paddingTop: 14,
+              borderTop: '1px solid var(--line)',
+              fontWeight: 700,
+            }}
+          >
+            <span>Total pondéré</span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>
+              {formatCurrency(pipeline?.totals.weightedValue || 0)}
+            </span>
+          </div>
+        </Card>
+
+        <Card head="Conversions par source" icon="chart">
+          <div style={{ padding: '0 2px' }}>
+            {conversions?.bySource.map((source) => (
+              <div className="lrow" key={source.source}>
+                <div className="lr-main">
+                  <b>{source.source}</b>
+                  <small>
+                    {source.total} leads · {source.won} gagnés
+                  </small>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--komun)' }}>
+                    {formatPercent(source.conversionRate)}
+                  </div>
+                  <small
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      color: 'var(--ink-3)',
+                    }}
+                  >
+                    {formatCurrency(source.revenue)}
+                  </small>
+                </div>
+              </div>
+            ))}
+            {!conversions?.bySource.length && <div className="empty">Aucune donnée</div>}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 14,
+              paddingTop: 14,
+              borderTop: '1px solid var(--line)',
+              fontWeight: 700,
+            }}
+          >
+            <span>Taux global</span>
+            <span style={{ color: 'var(--success)', fontSize: 16 }}>
+              {formatPercent(conversions?.overall.conversionRate || 0)}
+            </span>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid-2">
+        <Card head="Activités par type" icon="calendar" flush>
+          <div className="tbl-wrap" style={{ border: 'none', boxShadow: 'none' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Total</th>
+                  <th>Terminées</th>
+                  <th>Durée</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activities?.byType.map((item) => (
+                  <tr key={item.type}>
+                    <td className="t-main">
+                      {ACTIVITY_TYPE_LABELS[item.type as keyof typeof ACTIVITY_TYPE_LABELS] ||
+                        item.type}
+                    </td>
+                    <td className="t-mono">{item.total}</td>
+                    <td className="t-mono">{item.completed}</td>
+                    <td className="t-mono">{Math.round(item.totalDurationMinutes / 60)}h</td>
+                  </tr>
+                ))}
+                {!activities?.byType.length && (
+                  <tr>
+                    <td colSpan={4}>
+                      <div className="empty">
+                        <span className="em-ic">
+                          <Icon name="calendar" size={20} />
+                        </span>
+                        <p>Aucune activité</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card head="Progression des objectifs" icon="trophy">
+          {objectives.length > 0 ? (
+            objectives.slice(0, 3).map((obj) => {
+              const label = obj.objective.month
+                ? new Date(obj.objective.year, obj.objective.month - 1).toLocaleDateString('fr-FR', {
+                    month: 'long',
+                    year: 'numeric',
+                  })
+                : obj.objective.quarter
+                ? `T${obj.objective.quarter} ${obj.objective.year}`
+                : String(obj.objective.year);
+
+              const metrics: {
+                key: string;
+                label: string;
+                pct: number | null;
+                target: number | null;
+                color: string;
+              }[] = [
+                {
+                  key: 'revenue',
+                  label: 'CA',
+                  pct: obj.progress.revenue.percentage,
+                  target: obj.progress.revenue.target,
+                  color: 'var(--success)',
+                },
+                {
+                  key: 'leads',
+                  label: 'Leads',
+                  pct: obj.progress.leads.percentage,
+                  target: obj.progress.leads.target,
+                  color: 'var(--komun)',
+                },
+                {
+                  key: 'conversions',
+                  label: 'Conversions',
+                  pct: obj.progress.conversions.percentage,
+                  target: obj.progress.conversions.target,
+                  color: 'var(--warning)',
+                },
+                {
+                  key: 'activities',
+                  label: 'Activités',
+                  pct: obj.progress.activities.percentage,
+                  target: obj.progress.activities.target,
+                  color: 'var(--ochre)',
+                },
+              ];
+
+              return (
+                <div key={obj.objective.id} style={{ marginBottom: 18 }}>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      textTransform: 'capitalize',
+                      marginBottom: 10,
+                    }}
+                  >
+                    {label}
+                  </div>
+                  <div className="grid-2" style={{ gap: 12 }}>
+                    {metrics
+                      .filter((m) => m.target !== null)
+                      .map((m) => (
+                        <div key={m.key}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: 12,
+                              color: 'var(--ink-3)',
+                            }}
+                          >
+                            <span>{m.label}</span>
+                            <span>{formatPercent(m.pct)}</span>
+                          </div>
+                          <div className="mbar">
+                            <i
+                              style={{
+                                width: `${Math.min(m.pct || 0, 100)}%`,
+                                background: m.color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty">
+              <span className="em-ic">
+                <Icon name="trophy" size={20} />
+              </span>
+              <p>Aucun objectif défini</p>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

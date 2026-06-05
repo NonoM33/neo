@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardBody, Spinner, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon } from '../../components/neo';
 import { leadsService } from '../../services';
 import { computeLeadScore } from '../../services/scoring.engine';
 import { generateSuggestions } from '../../services/suggestions.engine';
@@ -20,6 +21,8 @@ import {
 } from '../../types/prospection.types';
 
 const TOTAL_STEPS = 5;
+
+const STEP_LABELS = ['Contact', 'Besoins', 'Budget', 'Technique', 'Résumé'];
 
 interface WizardData {
   // Step 1: Contact
@@ -51,6 +54,19 @@ interface WizardData {
   postalCode: string;
   technicalNotes: string;
 }
+
+const choiceStyle = (active: boolean) => ({
+  padding: 12,
+  borderRadius: 'var(--r-sm)',
+  border: `1.5px solid ${active ? 'var(--ochre)' : 'var(--line-2)'}`,
+  background: active ? 'var(--ochre-soft)' : 'var(--card)',
+  cursor: 'pointer',
+  textAlign: 'center' as const,
+  fontSize: 13.5,
+  fontWeight: active ? 600 : 400,
+  color: active ? 'var(--ochre-press)' : 'var(--ink-3)',
+  transition: 'all .15s var(--ease)',
+});
 
 export function QualificationWizardPage() {
   const { id } = useParams<{ id: string }>();
@@ -231,117 +247,88 @@ export function QualificationWizardPage() {
   const sourceOptions = Object.entries(LEAD_SOURCE_LABELS);
 
   return (
-    <div className="qualification-wizard">
+    <div style={{ padding: 28 }}>
       {/* Header */}
-      <div className="mb-4">
-        <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate('/prospection')}>
-          <i className="bi bi-arrow-left me-1"></i>
-          Retour à la prospection
-        </button>
-        <div className="d-flex align-items-center gap-2">
-          <h5 style={{ margin: 0, fontWeight: 600 }}>
-            <i className="bi bi-clipboard-check me-2" style={{ color: 'var(--neo-accent)' }}></i>
-            {isEditing ? 'Qualifier le prospect' : 'Nouveau prospect'}
-          </h5>
-          <XPIndicator xp={30} size="md" />
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/prospection')}>
+            <Icon name="arrowLeft" size={15} /> Retour à la prospection
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h1>{isEditing ? 'Qualifier le prospect' : 'Nouveau prospect'}</h1>
+            <XPIndicator xp={30} size="md" />
+          </div>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-4">
-        <div className="d-flex justify-content-between mb-2">
-          {['Contact', 'Besoins', 'Budget', 'Technique', 'Résumé'].map((label, i) => (
-            <div
-              key={label}
-              style={{
-                textAlign: 'center',
-                flex: 1,
-                cursor: i + 1 < currentStep ? 'pointer' : 'default',
-              }}
-              onClick={() => { if (i + 1 < currentStep) setCurrentStep(i + 1); }}
-            >
-              <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                background: i + 1 <= currentStep ? 'var(--neo-accent)' : 'var(--neo-bg-light)',
-                color: i + 1 <= currentStep ? '#fff' : 'var(--neo-text-muted)',
-                transition: 'all 0.3s',
-              }}>
-                {i + 1 < currentStep ? <i className="bi bi-check"></i> : i + 1}
+      {/* Stepper */}
+      <div style={{ marginBottom: 22 }}>
+        <div className="stepper">
+          {STEP_LABELS.map((label, i) => {
+            const stepNumber = i + 1;
+            const state = stepNumber < currentStep
+              ? 'done'
+              : stepNumber === currentStep
+                ? 'current'
+                : 'upcoming';
+            const clickable = stepNumber < currentStep;
+            return (
+              <div
+                key={label}
+                className={`step-node ${state}`}
+                style={{ cursor: clickable ? 'pointer' : 'default' }}
+                onClick={() => { if (clickable) setCurrentStep(stepNumber); }}
+              >
+                <span className="step-dot">
+                  {state === 'done' ? <Icon name="check" size={20} /> : stepNumber}
+                </span>
+                <span className="step-t">{label}</span>
               </div>
-              <div style={{
-                fontSize: '0.7rem',
-                marginTop: '4px',
-                color: i + 1 <= currentStep ? 'var(--neo-text-primary)' : 'var(--neo-text-muted)',
-                fontWeight: i + 1 === currentStep ? 600 : 400,
-              }}>
-                {label}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{
-          height: '4px',
-          borderRadius: '2px',
-          background: 'var(--neo-bg-light)',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${(currentStep / TOTAL_STEPS) * 100}%`,
-            borderRadius: '2px',
-            background: 'linear-gradient(90deg, var(--neo-accent), var(--neo-primary))',
-            transition: 'width 0.4s ease',
-          }} />
+            );
+          })}
         </div>
       </div>
 
-      <div className="row g-4">
-        <div className="col-lg-8">
+      <div className="lead-grid">
+        <div>
           <Card>
-            <CardBody style={{ padding: '24px' }}>
+            <div className="card-body">
               {/* Step 1: Contact */}
               {currentStep === 1 && (
                 <div className="animate-fade-in">
-                  <h6 className="mb-3" style={{ fontWeight: 600 }}>
-                    <i className="bi bi-person me-2"></i>
+                  <h3 style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="user" size={18} />
                     Informations de contact
-                  </h6>
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label">Prénom *</label>
-                      <input className="form-control" value={data.firstName}
+                  </h3>
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Prénom *</div>
+                      <input className="neo-field" value={data.firstName}
                         onChange={e => update({ firstName: e.target.value })} autoFocus />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Nom *</label>
-                      <input className="form-control" value={data.lastName}
+                    <div>
+                      <div className="field-label">Nom *</div>
+                      <input className="neo-field" value={data.lastName}
                         onChange={e => update({ lastName: e.target.value })} />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Email</label>
-                      <input className="form-control" type="email" value={data.email}
+                    <div>
+                      <div className="field-label">Email</div>
+                      <input className="neo-field" type="email" value={data.email}
                         onChange={e => update({ email: e.target.value })} />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Téléphone</label>
-                      <input className="form-control" type="tel" value={data.phone}
+                    <div>
+                      <div className="field-label">Téléphone</div>
+                      <input className="neo-field" type="tel" value={data.phone}
                         onChange={e => update({ phone: e.target.value })} />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Entreprise</label>
-                      <input className="form-control" value={data.company}
+                    <div>
+                      <div className="field-label">Entreprise</div>
+                      <input className="neo-field" value={data.company}
                         onChange={e => update({ company: e.target.value })} />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Source</label>
-                      <select className="form-select" value={data.source}
+                    <div>
+                      <div className="field-label">Source</div>
+                      <select className="neo-field" value={data.source}
                         onChange={e => update({ source: e.target.value as LeadSource })}>
                         {sourceOptions.map(([val, label]) => (
                           <option key={val} value={val}>{label}</option>
@@ -355,20 +342,20 @@ export function QualificationWizardPage() {
               {/* Step 2: Needs */}
               {currentStep === 2 && (
                 <div className="animate-fade-in">
-                  <h6 className="mb-3" style={{ fontWeight: 600 }}>
-                    <i className="bi bi-house-gear me-2"></i>
+                  <h3 style={{ fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="home" size={18} />
                     Besoins domotique
-                  </h6>
-                  <p style={{ color: 'var(--neo-text-secondary)', marginBottom: '16px' }}>
+                  </h3>
+                  <p style={{ color: 'var(--ink-3)', marginBottom: 16, fontSize: 14 }}>
                     Quels services intéressent le prospect ? (sélection multiple)
                   </p>
                   <ServiceSelector
                     selected={data.desiredServices}
                     onChange={services => update({ desiredServices: services })}
                   />
-                  <div className="mt-3">
-                    <label className="form-label">Besoin principal / Commentaire</label>
-                    <textarea className="form-control" rows={3} value={data.primaryNeed}
+                  <div style={{ marginTop: 16 }}>
+                    <div className="field-label">Besoin principal / Commentaire</div>
+                    <textarea className="neo-field" rows={3} value={data.primaryNeed}
                       onChange={e => update({ primaryNeed: e.target.value })}
                       placeholder="Que recherche principalement le prospect ?" />
                   </div>
@@ -378,82 +365,57 @@ export function QualificationWizardPage() {
               {/* Step 3: Budget & Timeline */}
               {currentStep === 3 && (
                 <div className="animate-fade-in">
-                  <h6 className="mb-3" style={{ fontWeight: 600 }}>
-                    <i className="bi bi-currency-euro me-2"></i>
+                  <h3 style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="euro" size={18} />
                     Budget & Planning
-                  </h6>
+                  </h3>
 
-                  <label className="form-label">Fourchette de budget</label>
-                  <div className="row g-2 mb-3">
+                  <div className="field-label">Fourchette de budget</div>
+                  <div className="grid-3" style={{ marginBottom: 18 }}>
                     {(Object.entries(BUDGET_RANGE_LABELS) as [BudgetRange, string][]).map(([val, label]) => (
-                      <div key={val} className="col-6 col-md-4">
-                        <div
-                          onClick={() => update({
-                            budgetRange: val,
-                            estimatedValue: BUDGET_RANGE_VALUES[val],
-                          })}
-                          style={{
-                            padding: '12px',
-                            borderRadius: '8px',
-                            border: `2px solid ${data.budgetRange === val ? 'var(--neo-accent)' : 'var(--neo-border-color)'}`,
-                            background: data.budgetRange === val ? 'var(--neo-accent-light)' : 'var(--neo-bg-light)',
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                            fontSize: '0.85rem',
-                            fontWeight: data.budgetRange === val ? 600 : 400,
-                            color: data.budgetRange === val ? 'var(--neo-accent)' : 'var(--neo-text-secondary)',
-                            transition: 'all 0.2s',
-                          }}
-                        >
-                          {label}
-                        </div>
+                      <div
+                        key={val}
+                        onClick={() => update({
+                          budgetRange: val,
+                          estimatedValue: BUDGET_RANGE_VALUES[val],
+                        })}
+                        style={choiceStyle(data.budgetRange === val)}
+                      >
+                        {label}
                       </div>
                     ))}
                   </div>
 
-                  <label className="form-label">Délai du projet</label>
-                  <div className="row g-2 mb-3">
-                    {(Object.entries(TIMELINE_LABELS) as [ProjectTimeline, string][]).map(([val, label]) => (
-                      <div key={val} className="col-6 col-md-3">
+                  <div className="field-label">Délai du projet</div>
+                  <div className="grid-3" style={{ marginBottom: 18 }}>
+                    {(Object.entries(TIMELINE_LABELS) as [ProjectTimeline, string][]).map(([val, label]) => {
+                      const active = data.timeline === val;
+                      return (
                         <div
+                          key={val}
                           onClick={() => update({ timeline: val })}
-                          style={{
-                            padding: '12px',
-                            borderRadius: '8px',
-                            border: `2px solid ${data.timeline === val ? 'var(--neo-accent)' : 'var(--neo-border-color)'}`,
-                            background: data.timeline === val ? 'var(--neo-accent-light)' : 'var(--neo-bg-light)',
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                            transition: 'all 0.2s',
-                          }}
+                          style={choiceStyle(active)}
                         >
                           <i className={`bi ${TIMELINE_ICONS[val]}`} style={{
                             display: 'block',
                             fontSize: '1.2rem',
-                            marginBottom: '4px',
-                            color: data.timeline === val ? 'var(--neo-accent)' : 'var(--neo-text-muted)',
+                            marginBottom: 4,
                           }}></i>
-                          <span style={{
-                            fontSize: '0.8rem',
-                            fontWeight: data.timeline === val ? 600 : 400,
-                            color: data.timeline === val ? 'var(--neo-accent)' : 'var(--neo-text-secondary)',
-                          }}>
-                            {label}
-                          </span>
+                          <span>{label}</span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label">Valeur estimée (€)</label>
-                      <input className="form-control" type="number" value={data.estimatedValue || ''}
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Valeur estimée (€)</div>
+                      <input className="neo-field" type="number" value={data.estimatedValue || ''}
                         onChange={e => update({ estimatedValue: e.target.value ? parseFloat(e.target.value) : undefined })} />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Date de clôture prévue</label>
-                      <input className="form-control" type="date" value={data.expectedCloseDate}
+                    <div>
+                      <div className="field-label">Date de clôture prévue</div>
+                      <input className="neo-field" type="date" value={data.expectedCloseDate}
                         onChange={e => update({ expectedCloseDate: e.target.value })} />
                     </div>
                   </div>
@@ -463,56 +425,43 @@ export function QualificationWizardPage() {
               {/* Step 4: Technical */}
               {currentStep === 4 && (
                 <div className="animate-fade-in">
-                  <h6 className="mb-3" style={{ fontWeight: 600 }}>
-                    <i className="bi bi-tools me-2"></i>
+                  <h3 style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="settings" size={18} />
                     Évaluation technique
-                  </h6>
+                  </h3>
 
-                  <div className="mb-3">
-                    <label className="form-label">Titre du projet *</label>
-                    <input className="form-control" value={data.title}
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="field-label">Titre du projet *</div>
+                    <input className="neo-field" value={data.title}
                       onChange={e => update({ title: e.target.value })}
                       placeholder="Ex: Installation domotique complète" />
                   </div>
 
-                  <label className="form-label">Type de logement</label>
-                  <div className="d-flex gap-2 mb-3">
-                    {(Object.entries(HOUSING_TYPE_LABELS) as [HousingType, string][]).map(([val, label]) => (
-                      <div
-                        key={val}
-                        onClick={() => update({ housingType: val })}
-                        style={{
-                          flex: 1,
-                          padding: '16px',
-                          borderRadius: '10px',
-                          border: `2px solid ${data.housingType === val ? 'var(--neo-accent)' : 'var(--neo-border-color)'}`,
-                          background: data.housingType === val ? 'var(--neo-accent-light)' : 'var(--neo-bg-light)',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        <i className={`bi ${HOUSING_TYPE_ICONS[val]}`} style={{
-                          fontSize: '1.5rem',
-                          display: 'block',
-                          marginBottom: '4px',
-                          color: data.housingType === val ? 'var(--neo-accent)' : 'var(--neo-text-muted)',
-                        }}></i>
-                        <span style={{
-                          fontSize: '0.85rem',
-                          fontWeight: data.housingType === val ? 600 : 400,
-                          color: data.housingType === val ? 'var(--neo-accent)' : 'var(--neo-text-secondary)',
-                        }}>
-                          {label}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="field-label">Type de logement</div>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+                    {(Object.entries(HOUSING_TYPE_LABELS) as [HousingType, string][]).map(([val, label]) => {
+                      const active = data.housingType === val;
+                      return (
+                        <div
+                          key={val}
+                          onClick={() => update({ housingType: val })}
+                          style={{ ...choiceStyle(active), flex: 1, padding: 16 }}
+                        >
+                          <i className={`bi ${HOUSING_TYPE_ICONS[val]}`} style={{
+                            fontSize: '1.5rem',
+                            display: 'block',
+                            marginBottom: 4,
+                          }}></i>
+                          <span>{label}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label">Âge du logement</label>
-                      <select className="form-select" value={data.housingAge || ''}
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Âge du logement</div>
+                      <select className="neo-field" value={data.housingAge || ''}
                         onChange={e => update({ housingAge: (e.target.value || undefined) as HousingAge | undefined })}>
                         <option value="">Sélectionner</option>
                         {Object.entries(HOUSING_AGE_LABELS).map(([val, label]) => (
@@ -520,90 +469,94 @@ export function QualificationWizardPage() {
                         ))}
                       </select>
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Surface (m²)</label>
-                      <input className="form-control" type="number" value={data.surface || ''}
+                    <div>
+                      <div className="field-label">Surface (m²)</div>
+                      <input className="neo-field" type="number" value={data.surface || ''}
                         onChange={e => update({ surface: e.target.value ? parseFloat(e.target.value) : undefined })} />
                     </div>
-                    <div className="col-md-12">
-                      <label className="form-label">Installation existante</label>
-                      <select className="form-select" value={data.existingInstallation || ''}
-                        onChange={e => update({ existingInstallation: (e.target.value || undefined) as ExistingInstallation | undefined })}>
-                        <option value="">Sélectionner</option>
-                        {Object.entries(EXISTING_INSTALLATION_LABELS).map(([val, label]) => (
-                          <option key={val} value={val}>{label}</option>
-                        ))}
-                      </select>
-                    </div>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <div className="field-label">Installation existante</div>
+                    <select className="neo-field" value={data.existingInstallation || ''}
+                      onChange={e => update({ existingInstallation: (e.target.value || undefined) as ExistingInstallation | undefined })}>
+                      <option value="">Sélectionner</option>
+                      {Object.entries(EXISTING_INSTALLATION_LABELS).map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </select>
                   </div>
 
-                  <hr style={{ borderColor: 'var(--neo-border-color)', margin: '16px 0' }} />
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '18px 0' }} />
 
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label">Décideur ?</label>
-                      <div className="d-flex gap-2">
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Décideur ?</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         {[true, false].map(val => (
-                          <button
+                          <Btn
                             key={String(val)}
                             type="button"
-                            className={`btn btn-sm flex-fill ${data.isDecisionMaker === val ? 'btn-primary' : 'btn-outline-secondary'}`}
+                            size="sm"
+                            variant={data.isDecisionMaker === val ? 'primary' : 'subtle'}
+                            style={{ flex: 1 }}
                             onClick={() => update({ isDecisionMaker: val })}
                           >
                             {val ? 'Oui' : 'Non'}
-                          </button>
+                          </Btn>
                         ))}
                       </div>
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Concurrence ?</label>
-                      <div className="d-flex gap-2">
+                    <div>
+                      <div className="field-label">Concurrence ?</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         {[true, false].map(val => (
-                          <button
+                          <Btn
                             key={String(val)}
                             type="button"
-                            className={`btn btn-sm flex-fill ${data.hasCompetition === val ? 'btn-primary' : 'btn-outline-secondary'}`}
+                            size="sm"
+                            variant={data.hasCompetition === val ? 'primary' : 'subtle'}
+                            style={{ flex: 1 }}
                             onClick={() => update({ hasCompetition: val })}
                           >
                             {val ? 'Oui' : 'Non'}
-                          </button>
+                          </Btn>
                         ))}
                       </div>
                     </div>
-                    {data.hasCompetition && (
-                      <div className="col-12">
-                        <label className="form-label">Détails concurrence</label>
-                        <input className="form-control" value={data.competitionDetails}
-                          onChange={e => update({ competitionDetails: e.target.value })}
-                          placeholder="Quels concurrents ?" />
-                      </div>
-                    )}
                   </div>
-
-                  <hr style={{ borderColor: 'var(--neo-border-color)', margin: '16px 0' }} />
-
-                  <div className="row g-3">
-                    <div className="col-12">
-                      <label className="form-label">Adresse</label>
-                      <input className="form-control" value={data.address}
-                        onChange={e => update({ address: e.target.value })} />
+                  {data.hasCompetition && (
+                    <div style={{ marginTop: 14 }}>
+                      <div className="field-label">Détails concurrence</div>
+                      <input className="neo-field" value={data.competitionDetails}
+                        onChange={e => update({ competitionDetails: e.target.value })}
+                        placeholder="Quels concurrents ?" />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Code postal</label>
-                      <input className="form-control" value={data.postalCode}
+                  )}
+
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '18px 0' }} />
+
+                  <div style={{ marginBottom: 14 }}>
+                    <div className="field-label">Adresse</div>
+                    <input className="neo-field" value={data.address}
+                      onChange={e => update({ address: e.target.value })} />
+                  </div>
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Code postal</div>
+                      <input className="neo-field" value={data.postalCode}
                         onChange={e => update({ postalCode: e.target.value })} />
                     </div>
-                    <div className="col-md-8">
-                      <label className="form-label">Ville</label>
-                      <input className="form-control" value={data.city}
+                    <div>
+                      <div className="field-label">Ville</div>
+                      <input className="neo-field" value={data.city}
                         onChange={e => update({ city: e.target.value })} />
                     </div>
-                    <div className="col-12">
-                      <label className="form-label">Notes techniques</label>
-                      <textarea className="form-control" rows={3} value={data.technicalNotes}
-                        onChange={e => update({ technicalNotes: e.target.value })}
-                        placeholder="Particularités techniques, contraintes..." />
-                    </div>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <div className="field-label">Notes techniques</div>
+                    <textarea className="neo-field" rows={3} value={data.technicalNotes}
+                      onChange={e => update({ technicalNotes: e.target.value })}
+                      placeholder="Particularités techniques, contraintes..." />
                   </div>
                 </div>
               )}
@@ -611,56 +564,52 @@ export function QualificationWizardPage() {
               {/* Step 5: Summary */}
               {currentStep === 5 && (
                 <div className="animate-fade-in">
-                  <h6 className="mb-3" style={{ fontWeight: 600 }}>
-                    <i className="bi bi-check-circle me-2"></i>
+                  <h3 style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="checkCircle" size={18} />
                     Résumé & Score
-                  </h6>
+                  </h3>
 
-                  <div className="text-center mb-4">
+                  <div style={{ textAlign: 'center', marginBottom: 22 }}>
                     <ScoreGauge score={previewScore} size="lg" />
                   </div>
 
-                  <div className="mb-4">
+                  <div style={{ marginBottom: 22 }}>
                     <ScoreBreakdown breakdown={previewScore.breakdown} />
                   </div>
 
-                  <hr style={{ borderColor: 'var(--neo-border-color)' }} />
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '18px 0' }} />
 
                   {/* Summary */}
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <h6 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--neo-text-secondary)' }}>Contact</h6>
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Contact</div>
                       <p style={{ margin: '0 0 4px', fontWeight: 600 }}>{data.firstName} {data.lastName}</p>
-                      {data.email && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--neo-text-secondary)' }}>{data.email}</p>}
-                      {data.phone && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--neo-text-secondary)' }}>{data.phone}</p>}
+                      {data.email && <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-3)' }}>{data.email}</p>}
+                      {data.phone && <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-3)' }}>{data.phone}</p>}
                     </div>
-                    <div className="col-md-6">
-                      <h6 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--neo-text-secondary)' }}>Projet</h6>
+                    <div>
+                      <div className="field-label">Projet</div>
                       <p style={{ margin: '0 0 4px', fontWeight: 600 }}>{data.title || 'Projet domotique'}</p>
-                      {data.budgetRange && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--neo-text-secondary)' }}>{BUDGET_RANGE_LABELS[data.budgetRange]}</p>}
-                      {data.timeline && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--neo-text-secondary)' }}>{TIMELINE_LABELS[data.timeline]}</p>}
+                      {data.budgetRange && <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-3)' }}>{BUDGET_RANGE_LABELS[data.budgetRange]}</p>}
+                      {data.timeline && <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-3)' }}>{TIMELINE_LABELS[data.timeline]}</p>}
                     </div>
-                    <div className="col-12">
-                      <h6 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--neo-text-secondary)' }}>Services</h6>
-                      <div className="d-flex flex-wrap gap-1">
-                        {data.desiredServices.map(s => (
-                          <span key={s} className="badge" style={{
-                            background: 'var(--neo-accent-light)',
-                            color: 'var(--neo-accent)',
-                          }}>
-                            {
-                              // Import labels
-                              { securite: 'Sécurité', energie: 'Énergie', confort: 'Confort', multimedia: 'Multimédia', jardin: 'Jardin' }[s]
-                            }
-                          </span>
-                        ))}
-                      </div>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <div className="field-label">Services</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {data.desiredServices.map(s => (
+                        <span key={s} className="pill ochre">
+                          {
+                            { securite: 'Sécurité', energie: 'Énergie', confort: 'Confort', multimedia: 'Multimédia', jardin: 'Jardin' }[s]
+                          }
+                        </span>
+                      ))}
                     </div>
                   </div>
 
                   {previewSuggestions.length > 0 && (
                     <>
-                      <hr style={{ borderColor: 'var(--neo-border-color)' }} />
+                      <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '18px 0' }} />
                       <SuggestionsList
                         suggestions={previewSuggestions}
                         title="Prochaines actions recommandées"
@@ -670,68 +619,62 @@ export function QualificationWizardPage() {
                   )}
                 </div>
               )}
-            </CardBody>
+            </div>
           </Card>
 
           {/* Navigation buttons */}
-          <div className="d-flex justify-content-between mt-3">
-            <button
-              className="btn btn-outline-secondary"
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+            <Btn
+              variant="subtle"
+              icon="arrowLeft"
               onClick={currentStep === 1 ? () => navigate('/prospection') : prevStep}
             >
-              <i className="bi bi-arrow-left me-1"></i>
               {currentStep === 1 ? 'Annuler' : 'Précédent'}
-            </button>
+            </Btn>
 
             {currentStep < TOTAL_STEPS ? (
-              <button
-                className="btn btn-primary"
+              <Btn
+                iconRight="arrowRight"
                 onClick={nextStep}
                 disabled={!canProceed()}
               >
                 Suivant
-                <i className="bi bi-arrow-right ms-1"></i>
-              </button>
+              </Btn>
             ) : (
-              <Button
-                loading={submitting}
+              <Btn
+                variant="ochre"
+                icon="check"
+                disabled={submitting}
                 onClick={handleSubmit}
-                icon="bi-check-lg"
-                style={{
-                  background: 'linear-gradient(135deg, var(--neo-accent), var(--neo-primary))',
-                  border: 'none',
-                }}
               >
-                Enregistrer le prospect
-              </Button>
+                {submitting ? 'Enregistrement…' : 'Enregistrer le prospect'}
+              </Btn>
             )}
           </div>
         </div>
 
         {/* Right sidebar: Live score preview */}
-        <div className="col-lg-4">
-          <div className="glass-card" style={{ padding: '16px', position: 'sticky', top: '80px' }}>
-            <h6 style={{ fontWeight: 600, marginBottom: '12px', color: 'var(--neo-text-primary)' }}>
-              <i className="bi bi-speedometer2 me-2" style={{ color: 'var(--neo-accent)' }}></i>
-              Score en direct
-            </h6>
-            <div className="text-center mb-3">
-              <ScoreGauge score={previewScore} size="md" />
-            </div>
-            <ScoreBreakdown breakdown={previewScore.breakdown} />
+        <div>
+          <Card head="Score en direct" icon="gauge" style={{ position: 'sticky', top: 80 }}>
+            <div className="card-body">
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <ScoreGauge score={previewScore} size="md" />
+              </div>
+              <ScoreBreakdown breakdown={previewScore.breakdown} />
 
-            <hr style={{ borderColor: 'var(--neo-border-color)', margin: '12px 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--line)', margin: '14px 0' }} />
 
-            <div style={{ fontSize: '0.8rem', color: 'var(--neo-text-muted)' }}>
-              <p className="mb-1">
-                <i className="bi bi-info-circle me-1"></i>
-                Complétez les étapes pour augmenter le score
-              </p>
-              <p className="mb-0">
-                Étape {currentStep}/{TOTAL_STEPS}
-              </p>
+              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                <p style={{ margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="sparkles" size={14} />
+                  Complétez les étapes pour augmenter le score
+                </p>
+                <p style={{ margin: 0 }}>
+                  Étape {currentStep}/{TOTAL_STEPS}
+                </p>
+              </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

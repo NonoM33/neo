@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
+import { Icon } from '../../components/neo';
+import type { IconName } from '../../components/neo';
 
 interface MarketingModalProps {
   title: string;
-  icon?: string;
+  icon?: IconName;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
@@ -20,7 +22,7 @@ export function MarketingModal({ title, icon, onClose, children, footer, size = 
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.5)',
+        background: 'rgba(0,0,0,.4)',
         zIndex: 1050,
         display: 'flex',
         alignItems: 'flex-start',
@@ -32,33 +34,56 @@ export function MarketingModal({ title, icon, onClose, children, footer, size = 
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'var(--neo-bg-card)',
-          borderRadius: 12,
+          background: 'var(--paper)',
+          border: '1px solid var(--line)',
+          borderRadius: 'var(--r-lg)',
           width: '100%',
           maxWidth: size === 'lg' ? 760 : 540,
-          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+          boxShadow: '0 10px 40px rgba(0,0,0,.25)',
         }}
       >
         <div
-          className="d-flex align-items-center justify-content-between"
-          style={{ padding: '16px 20px', borderBottom: '1px solid var(--neo-border-color)' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--line)',
+          }}
         >
-          <h2 className="mb-0" style={{ fontSize: '1.15rem', fontWeight: 600 }}>
-            {icon && <i className={`bi ${icon} me-2`}></i>}
+          <h2
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              margin: 0,
+              fontSize: '1.15rem',
+              fontWeight: 600,
+              color: 'var(--ink)',
+            }}
+          >
+            {icon && <Icon name={icon} size={18} />}
             {title}
           </h2>
           <button
             type="button"
-            className="btn-close"
+            className="icon-btn"
             aria-label="Fermer"
             onClick={onClose}
-          ></button>
+          >
+            <Icon name="x" size={16} />
+          </button>
         </div>
-        <div style={{ padding: '20px' }}>{children}</div>
+        <div style={{ padding: 20 }}>{children}</div>
         {footer && (
           <div
-            className="d-flex justify-content-end gap-2"
-            style={{ padding: '14px 20px', borderTop: '1px solid var(--neo-border-color)' }}
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 8,
+              padding: '14px 20px',
+              borderTop: '1px solid var(--line)',
+            }}
           >
             {footer}
           </div>

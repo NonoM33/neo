@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Button, Spinner } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 import { ticketsService, usersService } from '../../services';
 import {
   ticketPriorityLabels,
@@ -14,18 +16,18 @@ import {
 } from '../../types';
 import { assigneeId, categoryName } from './ticket-display';
 
-const STATUS_VARIANT: Record<TicketStatus, string> = {
+const STATUS_TONE: Record<TicketStatus, PillTone> = {
   nouveau: 'info',
-  ouvert: 'primary',
+  ouvert: 'info',
   en_attente_client: 'warning',
-  en_attente_interne: 'secondary',
+  en_attente_interne: 'neutral',
   escalade: 'danger',
   resolu: 'success',
   ferme: 'dark',
 };
 
-const PRIORITY_VARIANT: Record<TicketPriority, string> = {
-  basse: 'secondary',
+const PRIORITY_TONE: Record<TicketPriority, PillTone> = {
+  basse: 'neutral',
   normale: 'info',
   haute: 'warning',
   urgente: 'danger',
@@ -153,179 +155,206 @@ export function TicketDetailPage() {
   };
 
   if (loading || !ticket) {
-    return (
-      <div className="content-area">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   const availableTransitions = STATUS_TRANSITIONS[ticket.status];
 
   return (
-    <div className="content-area">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex align-items-center gap-2">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            icon="bi-arrow-left"
-            onClick={() => navigate('/tickets')}
-          >
-            Retour
-          </Button>
-          <h1 className="page-title mb-0">{ticket.number}</h1>
-          <span className={`badge bg-${STATUS_VARIANT[ticket.status]}`}>
-            {ticketStatusLabels[ticket.status]}
-          </span>
-          <span className={`badge bg-${PRIORITY_VARIANT[ticket.priority]}`}>
-            {ticketPriorityLabels[ticket.priority]}
-          </span>
-          {ticket.slaBreached && <span className="badge bg-danger">SLA dépassé</span>}
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/tickets')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux tickets
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1>{ticket.number}</h1>
+            <Pill tone={STATUS_TONE[ticket.status]} dot>
+              {ticketStatusLabels[ticket.status]}
+            </Pill>
+            <Pill tone={PRIORITY_TONE[ticket.priority]}>{ticketPriorityLabels[ticket.priority]}</Pill>
+            {ticket.slaBreached && <Pill tone="danger">SLA dépassé</Pill>}
+          </div>
         </div>
-        <Button
-          variant="danger"
-          icon="bi-arrow-up-circle"
-          loading={busy}
-          onClick={handleEscalate}
-        >
-          Escalader
-        </Button>
+        <div className="page-actions">
+          <Btn variant="danger" icon="zap" disabled={busy} onClick={handleEscalate}>
+            Escalader
+          </Btn>
+        </div>
       </div>
 
-      <div className="row g-4">
-        <div className="col-lg-8">
-          <Card className="mb-4">
-            <CardBody>
-              <h2 className="card-title h5 mb-2">{ticket.title}</h2>
-              <p className="text-secondary" style={{ whiteSpace: 'pre-wrap' }}>
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head={ticket.title} icon="ticket">
+            <div className="card-body">
+              <p style={{ color: 'var(--ink-3)', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>
                 {ticket.description}
               </p>
               {ticket.aiDiagnosis && (
-                <div className="mt-3">
-                  <label className="form-label">Diagnostic IA</label>
-                  <p className="text-secondary mb-0" style={{ whiteSpace: 'pre-wrap' }}>
+                <div style={{ marginTop: 16 }}>
+                  <div className="field-label">Diagnostic IA</div>
+                  <p style={{ color: 'var(--ink-3)', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>
                     {ticket.aiDiagnosis}
                   </p>
                 </div>
               )}
-            </CardBody>
+            </div>
           </Card>
 
-          <Card className="mb-4">
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Commentaires</h2>
+          <Card head="Commentaires" icon="mail">
+            <div className="card-body">
               {ticket.comments.length === 0 ? (
-                <p className="text-secondary">Aucun commentaire</p>
+                <p style={{ color: 'var(--ink-3)', margin: 0 }}>Aucun commentaire</p>
               ) : (
-                <div className="d-flex flex-column gap-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {ticket.comments.map((c) => (
                     <div
                       key={c.id}
-                      className="p-3 rounded"
-                      style={{ background: 'var(--neo-bg-card)', border: '1px solid var(--neo-border-color)' }}
+                      style={{
+                        padding: 13,
+                        borderRadius: 8,
+                        background: 'var(--paper-2)',
+                        border: '1px solid var(--line)',
+                      }}
                     >
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <span className="fw-semibold small text-capitalize">{c.authorType}</span>
-                        <div className="d-flex align-items-center gap-2">
-                          {c.type === 'interne' && (
-                            <span className="badge border text-body-secondary">Interne</span>
-                          )}
-                          <span className="text-secondary small">{formatDateTime(c.createdAt)}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 6,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>
+                          {c.authorType}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {c.type === 'interne' && <Pill tone="ochre">Interne</Pill>}
+                          <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>
+                            {formatDateTime(c.createdAt)}
+                          </span>
                         </div>
                       </div>
-                      <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14 }}>{c.content}</div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <form onSubmit={handleAddComment} className="mt-3">
+              <form onSubmit={handleAddComment} style={{ marginTop: 14 }}>
                 <textarea
-                  className="form-control mb-2"
+                  className="neo-field"
                   rows={3}
                   placeholder="Ajouter un commentaire…"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                 />
-                <div className="d-flex justify-content-between align-items-center">
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 10,
+                  }}
+                >
                   <select
-                    className="form-select w-auto"
+                    className="neo-field"
+                    style={{ width: 'auto' }}
                     value={commentType}
                     onChange={(e) => setCommentType(e.target.value as 'public' | 'interne')}
                   >
                     <option value="public">Public (visible client)</option>
                     <option value="interne">Interne (staff)</option>
                   </select>
-                  <Button type="submit" icon="bi-send" loading={busy} disabled={!comment.trim()}>
+                  <Btn type="submit" icon="send" disabled={busy || !comment.trim()}>
                     Envoyer
-                  </Button>
+                  </Btn>
                 </div>
               </form>
-            </CardBody>
+            </div>
           </Card>
 
-          <Card>
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Historique</h2>
+          <Card head="Historique" icon="clock">
+            <div className="card-body">
               {ticket.history.length === 0 ? (
-                <p className="text-secondary">Aucun évènement</p>
+                <p style={{ color: 'var(--ink-3)', margin: 0 }}>Aucun évènement</p>
               ) : (
-                <ul className="list-unstyled mb-0">
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {ticket.history.map((h) => (
-                    <li key={h.id} className="d-flex gap-3 py-2 border-bottom">
-                      <span className="text-secondary small" style={{ minWidth: 140 }}>
+                    <li
+                      key={h.id}
+                      style={{
+                        display: 'flex',
+                        gap: 14,
+                        padding: '8px 0',
+                        borderBottom: '1px solid var(--line)',
+                      }}
+                    >
+                      <span style={{ color: 'var(--ink-3)', fontSize: 12, minWidth: 140 }}>
                         {formatDateTime(h.createdAt)}
                       </span>
-                      <span>
-                        <span className="fw-semibold">{h.changeType}</span>
+                      <span style={{ fontSize: 13 }}>
+                        <span style={{ fontWeight: 600 }}>{h.changeType}</span>
                         {h.field ? ` · ${h.field}` : ''}
                         {h.oldValue || h.newValue ? (
-                          <span className="text-secondary">
+                          <span style={{ color: 'var(--ink-3)' }}>
                             {' '}
                             {h.oldValue ?? '∅'} → {h.newValue ?? '∅'}
                           </span>
                         ) : null}
-                        {h.notes && <div className="text-secondary small">{h.notes}</div>}
+                        {h.notes && <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>{h.notes}</div>}
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
-            </CardBody>
+            </div>
           </Card>
         </div>
 
-        <div className="col-lg-4">
-          <Card className="mb-4">
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Détails</h2>
-              <dl className="row mb-0">
-                <dt className="col-5 text-secondary fw-normal">Client</dt>
-                <dd className="col-7">
-                  {ticket.client.firstName} {ticket.client.lastName}
-                </dd>
-                <dt className="col-5 text-secondary fw-normal">Catégorie</dt>
-                <dd className="col-7">{categoryName(ticket.category)}</dd>
-                <dt className="col-5 text-secondary fw-normal">Source</dt>
-                <dd className="col-7">{ticketSourceLabels[ticket.source]}</dd>
-                <dt className="col-5 text-secondary fw-normal">Escalade</dt>
-                <dd className="col-7">Niveau {ticket.escalationLevel}</dd>
-                <dt className="col-5 text-secondary fw-normal">Créé le</dt>
-                <dd className="col-7">{formatDateTime(ticket.createdAt)}</dd>
-                <dt className="col-5 text-secondary fw-normal">Échéance résol.</dt>
-                <dd className="col-7">{formatDateTime(ticket.resolutionDueAt)}</dd>
-                <dt className="col-5 text-secondary fw-normal">Résolu le</dt>
-                <dd className="col-7">{formatDateTime(ticket.resolvedAt)}</dd>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Détails" icon="inbox">
+            <div className="card-body">
+              <dl className="detail-dl">
+                <div>
+                  <dt>Client</dt>
+                  <dd>
+                    {ticket.client.firstName} {ticket.client.lastName}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Catégorie</dt>
+                  <dd>{categoryName(ticket.category)}</dd>
+                </div>
+                <div>
+                  <dt>Source</dt>
+                  <dd>{ticketSourceLabels[ticket.source]}</dd>
+                </div>
+                <div>
+                  <dt>Escalade</dt>
+                  <dd>Niveau {ticket.escalationLevel}</dd>
+                </div>
+                <div>
+                  <dt>Créé le</dt>
+                  <dd>{formatDateTime(ticket.createdAt)}</dd>
+                </div>
+                <div>
+                  <dt>Échéance résol.</dt>
+                  <dd>{formatDateTime(ticket.resolutionDueAt)}</dd>
+                </div>
+                <div>
+                  <dt>Résolu le</dt>
+                  <dd>{formatDateTime(ticket.resolvedAt)}</dd>
+                </div>
               </dl>
-            </CardBody>
+            </div>
           </Card>
 
-          <Card className="mb-4">
-            <CardBody>
-              <label className="form-label">Changer le statut</label>
+          <Card head="Changer le statut" icon="gauge">
+            <div className="card-body">
               <select
-                className="form-select"
+                className="neo-field"
                 value={ticket.status}
                 disabled={busy}
                 onChange={(e) => handleStatusChange(e.target.value as TicketStatus)}
@@ -337,14 +366,13 @@ export function TicketDetailPage() {
                   </option>
                 ))}
               </select>
-            </CardBody>
+            </div>
           </Card>
 
-          <Card>
-            <CardBody>
-              <label className="form-label">Assigné à</label>
+          <Card head="Assigné à" icon="user">
+            <div className="card-body">
               <select
-                className="form-select"
+                className="neo-field"
                 value={assigneeId(ticket.assignedTo)}
                 disabled={busy}
                 onChange={(e) => handleAssign(e.target.value)}
@@ -356,7 +384,7 @@ export function TicketDetailPage() {
                   </option>
                 ))}
               </select>
-            </CardBody>
+            </div>
           </Card>
         </div>
       </div>

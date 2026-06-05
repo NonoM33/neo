@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Button, Table } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
 import { marketingService } from '../../services';
 import { useUIStore } from '../../stores';
 import type { Popup, PopupPayload, PopupFrequency, PromoCode } from '../../types/marketing.types';
@@ -159,107 +160,126 @@ export function PopupsTab() {
 
   return (
     <>
-      <div className="d-flex justify-content-end mb-3">
-        <Button icon="bi-plus-lg" onClick={openCreate}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Btn icon="plus" onClick={openCreate}>
           Nouvelle pop-up
-        </Button>
+        </Btn>
       </div>
 
-      <Table
-        data={items}
-        loading={loading}
-        keyExtractor={(p) => p.id}
-        emptyMessage="Aucune pop-up"
-        columns={[
-          {
-            key: 'title',
-            header: 'Titre',
-            render: (p) => <span className="fw-semibold">{p.title}</span>,
-          },
-          {
-            key: 'frequency',
-            header: 'Fréquence',
-            render: (p) => FREQUENCY_LABEL[p.frequency],
-          },
-          { key: 'delay', header: 'Délai', render: (p) => `${p.delaySeconds}s` },
-          {
-            key: 'active',
-            header: 'Statut',
-            render: (p) =>
-              p.active ? (
-                <span className="badge" style={{ background: 'var(--neo-status-gagne)' }}>
-                  Active
-                </span>
+      <Card flush>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Fréquence</th>
+                <th>Délai</th>
+                <th>Statut</th>
+                <th style={{ textAlign: 'right' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5}>
+                    <Spinner />
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="message" size={22} />
+                      </span>
+                      <b>Aucune pop-up</b>
+                      <p>Créez une pop-up pour capter l'attention de vos visiteurs.</p>
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                <span className="badge border text-body-secondary">Inactive</span>
-              ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            className: 'text-end',
-            render: (p) => (
-              <div className="d-flex gap-2 justify-content-end">
-                <Button size="sm" variant="outline-secondary" icon="bi-pencil" onClick={() => openEdit(p)}>
-                  {''}
-                </Button>
-                <Button size="sm" variant="danger" icon="bi-trash" onClick={() => remove(p)}>
-                  {''}
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+                items.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <span className="t-main">{p.title}</span>
+                    </td>
+                    <td className="t-sub">{FREQUENCY_LABEL[p.frequency]}</td>
+                    <td className="t-sub">{`${p.delaySeconds}s`}</td>
+                    <td>
+                      {p.active ? (
+                        <Pill tone="success" dot>
+                          Active
+                        </Pill>
+                      ) : (
+                        <Pill tone="neutral">Inactive</Pill>
+                      )}
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button className="icon-btn" aria-label="Modifier" onClick={() => openEdit(p)}>
+                          <Icon name="edit" size={16} />
+                        </button>
+                        <button className="icon-btn" aria-label="Supprimer" onClick={() => remove(p)}>
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {showForm && (
         <MarketingModal
           title={editing ? 'Modifier la pop-up' : 'Nouvelle pop-up'}
-          icon="bi-window-stack"
+          icon="message"
           size="lg"
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <Button variant="outline-secondary" onClick={() => setShowForm(false)}>
+              <Btn variant="subtle" onClick={() => setShowForm(false)}>
                 Annuler
-              </Button>
-              <Button onClick={save} loading={saving}>
-                Enregistrer
-              </Button>
+              </Btn>
+              <Btn onClick={save} disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Btn>
             </>
           }
         >
-          <div className="row g-3">
-            <div className="col-12">
-              <label className="form-label">Titre</label>
+          <div>
+            <div className="field-label">Titre</div>
+            <input
+              className="neo-field"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <div className="field-label">Contenu (HTML autorisé)</div>
+            <textarea
+              className="neo-field"
+              rows={4}
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+            />
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Image (URL)</div>
               <input
-                className="form-control"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-              />
-            </div>
-            <div className="col-12">
-              <label className="form-label">Contenu (HTML autorisé)</label>
-              <textarea
-                className="form-control"
-                rows={4}
-                value={form.body}
-                onChange={(e) => setForm({ ...form, body: e.target.value })}
-              />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Image (URL)</label>
-              <input
-                className="form-control"
+                className="neo-field"
                 value={form.imageUrl}
                 onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 placeholder="https://…"
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Code promo mis en avant</label>
+            <div>
+              <div className="field-label">Code promo mis en avant</div>
               <select
-                className="form-select"
+                className="neo-field"
                 value={form.promoCodeId}
                 onChange={(e) => setForm({ ...form, promoCodeId: e.target.value })}
               >
@@ -271,37 +291,41 @@ export function PopupsTab() {
                 ))}
               </select>
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Libellé du bouton (CTA)</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Libellé du bouton (CTA)</div>
               <input
-                className="form-control"
+                className="neo-field"
                 value={form.ctaLabel}
                 onChange={(e) => setForm({ ...form, ctaLabel: e.target.value })}
                 placeholder="J'en profite"
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Lien du bouton (CTA)</label>
+            <div>
+              <div className="field-label">Lien du bouton (CTA)</div>
               <input
-                className="form-control"
+                className="neo-field"
                 value={form.ctaUrl}
                 onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })}
                 placeholder="https://…"
               />
             </div>
-            <div className="col-md-4">
-              <label className="form-label">Délai (s)</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Délai (s)</div>
               <input
                 type="number"
-                className="form-control"
+                className="neo-field"
                 value={form.delaySeconds}
                 onChange={(e) => setForm({ ...form, delaySeconds: e.target.value })}
               />
             </div>
-            <div className="col-md-4">
-              <label className="form-label">Fréquence</label>
+            <div>
+              <div className="field-label">Fréquence</div>
               <select
-                className="form-select"
+                className="neo-field"
                 value={form.frequency}
                 onChange={(e) => setForm({ ...form, frequency: e.target.value as PopupFrequency })}
               >
@@ -312,47 +336,49 @@ export function PopupsTab() {
                 ))}
               </select>
             </div>
-            <div className="col-md-4">
-              <label className="form-label">Priorité</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Priorité</div>
               <input
                 type="number"
-                className="form-control"
+                className="neo-field"
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Début</label>
+            <div>
+              <div className="field-label">Début</div>
               <input
                 type="datetime-local"
-                className="form-control"
+                className="neo-field"
                 value={form.startsAt}
                 onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Fin</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Fin</div>
               <input
                 type="datetime-local"
-                className="form-control"
+                className="neo-field"
                 value={form.endsAt}
                 onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
               />
             </div>
-            <div className="col-12">
-              <div className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="popup-active"
-                  checked={form.active}
-                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                />
-                <label className="form-check-label" htmlFor="popup-active">
-                  Active
-                </label>
-              </div>
-            </div>
+            <div />
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                style={{ accentColor: 'var(--komun)', width: 16, height: 16 }}
+              />
+              Active
+            </label>
           </div>
         </MarketingModal>
       )}

@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardHeader, CardBody, Spinner, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Pill, Icon } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 import { leadsService } from '../../services';
-import type { LeadWithDetails, LeadStatus } from '../../types';
+import type { LeadWithDetails, LeadStatus, ActivityStatus } from '../../types';
 import { LEAD_STATUS_LABELS, LEAD_SOURCE_LABELS, ACTIVITY_TYPE_LABELS, PIPELINE_STAGES } from '../../types';
 import { useGamificationStore } from '../../stores';
 import { XPIndicator } from '../../components/gamification';
@@ -11,6 +13,21 @@ import { ScoreGauge, ScoreBreakdown, SuggestionsList, QuickActionBar } from '../
 import { CallRecorderWidget, CallHistoryList } from '../../components/calls';
 import { computeLeadScore } from '../../services/scoring.engine';
 import { generateSuggestions } from '../../services/suggestions.engine';
+
+const STATUS_TONE: Record<LeadStatus, PillTone> = {
+  prospect: 'neutral',
+  qualifie: 'info',
+  proposition: 'info',
+  negociation: 'warning',
+  gagne: 'success',
+  perdu: 'danger',
+};
+
+const ACTIVITY_STATUS_TONE: Record<string, PillTone> = {
+  termine: 'success',
+  annule: 'neutral',
+  planifie: 'info',
+};
 
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,11 +37,7 @@ export function LeadDetailPage() {
   const [lead, setLead] = useState<LeadWithDetails | null>(null);
   const [converting, setConverting] = useState(false);
 
-  useEffect(() => {
-    if (id) loadLead();
-  }, [id]);
-
-  const loadLead = async () => {
+  const loadLead = useCallback(async () => {
     try {
       const data = await leadsService.getLead(id!);
       setLead(data);
@@ -33,7 +46,11 @@ export function LeadDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) loadLead();
+  }, [id, loadLead]);
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
     if (!lead) return;
@@ -51,14 +68,19 @@ export function LeadDetailPage() {
         case 'negociation':
           gamification.awardXP('lead_negociation');
           break;
-        case 'gagne':
+        case 'gagne': {
           const bonusXP = lead.estimatedValue
-            ? parseFloat(lead.estimatedValue) >= 50000 ? 100
-              : parseFloat(lead.estimatedValue) >= 20000 ? 50
-              : parseFloat(lead.estimatedValue) >= 10000 ? 25 : 0
+            ? parseFloat(lead.estimatedValue) >= 50000
+              ? 100
+              : parseFloat(lead.estimatedValue) >= 20000
+                ? 50
+                : parseFloat(lead.estimatedValue) >= 10000
+                  ? 25
+                  : 0
             : 0;
           gamification.awardXP('lead_won', bonusXP);
           break;
+        }
       }
 
       loadLead();
@@ -74,12 +96,11 @@ export function LeadDetailPage() {
       const result = await leadsService.convertLead(lead.id, { createClient: true });
       // Projects are managed in the integrateur app (Flutter), not in the
       // CRM, so we stay on the lead detail (now status=gagne) and surface
-      // the new project id in the toast. The salesperson copies it or
-      // opens the integrator app where the project is now visible.
+      // the new project id in the toast.
       toast.success(`Lead converti — projet créé`, {
         description: `Identifiant du projet : ${result.projectId.slice(0, 8)}…`,
         action: {
-          label: 'Copier l\'ID',
+          label: "Copier l'ID",
           onClick: () => {
             void navigator.clipboard?.writeText(result.projectId);
             toast.message('ID copié dans le presse-papiers');
@@ -105,17 +126,15 @@ export function LeadDetailPage() {
     }).format(parseFloat(value));
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
 
-  // XP potential for this deal
   const getXPPotential = () => {
     if (!lead) return 0;
     let xp = 0;
@@ -123,10 +142,18 @@ export function LeadDetailPage() {
     const stageIndex = stages.indexOf(lead.status);
     for (let i = stageIndex + 1; i < stages.length; i++) {
       switch (stages[i]) {
-        case 'qualifie': xp += 25; break;
-        case 'proposition': xp += 50; break;
-        case 'negociation': xp += 75; break;
-        case 'gagne': xp += 200; break;
+        case 'qualifie':
+          xp += 25;
+          break;
+        case 'proposition':
+          xp += 50;
+          break;
+        case 'negociation':
+          xp += 75;
+          break;
+        case 'gagne':
+          xp += 200;
+          break;
       }
     }
     return xp;
@@ -138,10 +165,16 @@ export function LeadDetailPage() {
 
   if (!lead) {
     return (
-      <div className="empty-state">
-        <i className="bi bi-exclamation-triangle"></i>
-        <p>Lead non trouvé</p>
-        <Button onClick={() => navigate('/leads')}>Retour aux leads</Button>
+      <div style={{ padding: 28 }}>
+        <div className="empty">
+          <span className="em-ic">
+            <Icon name="bug" size={24} />
+          </span>
+          <b>Lead non trouvé</b>
+          <div style={{ marginTop: 14 }}>
+            <Btn onClick={() => navigate('/leads')}>Retour aux leads</Btn>
+          </div>
+        </div>
       </div>
     );
   }
@@ -150,257 +183,229 @@ export function LeadDetailPage() {
   const xpPotential = getXPPotential();
 
   return (
-    <div className="lead-detail">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-start mb-4">
-        <div>
-          <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate('/leads')}>
-            <i className="bi bi-arrow-left me-1"></i>
-            Retour aux leads
+    <div style={{ padding: 28 }}>
+      <div className="page-head" style={{ alignItems: 'flex-start' }}>
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/leads')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux leads
           </button>
-          <h2 className="mb-1">{lead.firstName} {lead.lastName}</h2>
-          <div className="d-flex align-items-center gap-2">
-            <p className="text-muted mb-0">{lead.title}</p>
-            {!isWonOrLost && xpPotential > 0 && (
-              <XPIndicator xp={xpPotential} size="sm" />
-            )}
+          <h1>
+            {lead.firstName} {lead.lastName}
+          </h1>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {lead.title}
+            {!isWonOrLost && xpPotential > 0 && <XPIndicator xp={xpPotential} size="sm" />}
+          </p>
+        </div>
+        {!isWonOrLost && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Btn variant="ghost" icon="edit" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
+              Modifier
+            </Btn>
+            <Btn variant="success" icon="trophy" disabled={converting} onClick={handleConvert}>
+              {converting ? 'Conversion…' : 'Convertir en projet'}
+            </Btn>
           </div>
-        </div>
-        <div className="d-flex gap-2">
-          {!isWonOrLost && (
-            <>
-              <Button variant="outline-primary" icon="bi-pencil" onClick={() => navigate(`/leads/${lead.id}/edit`)}>
-                Modifier
-              </Button>
-              <Button variant="success" icon="bi-trophy" loading={converting} onClick={handleConvert}>
-                Convertir en projet
-              </Button>
-            </>
-          )}
-        </div>
+        )}
       </div>
 
-      <div className="row g-4">
-        {/* Main Info */}
-        <div className="col-lg-8">
-          {/* Status & Actions */}
-          <Card className="mb-4">
-            <CardBody>
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <span className="text-muted me-2">Statut:</span>
-                  <span className={`badge badge-${lead.status} fs-6`}>{LEAD_STATUS_LABELS[lead.status]}</span>
-                </div>
-                {!isWonOrLost && (
-                  <div className="btn-group">
-                    {PIPELINE_STAGES.map((status) => (
-                      <button
-                        key={status}
-                        className={`btn btn-sm ${lead.status === status ? 'btn-primary' : 'btn-outline-primary'}`}
-                        onClick={() => handleStatusChange(status)}
-                        disabled={lead.status === status}
-                      >
-                        {LEAD_STATUS_LABELS[status]}
-                      </button>
-                    ))}
-                    <button className="btn btn-sm btn-outline-success" onClick={() => handleStatusChange('gagne')}>
-                      <i className="bi bi-trophy me-1"></i>Gagné
-                      <span className="ms-1" style={{ fontSize: '0.7rem', opacity: 0.8 }}>+200 XP</span>
-                    </button>
-                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleStatusChange('perdu')}>
-                      <i className="bi bi-x-lg me-1"></i>Perdu
-                    </button>
-                  </div>
-                )}
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card>
+            <div
+              className="card-body"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--ink-3)' }}>Statut :</span>
+                <Pill tone={STATUS_TONE[lead.status]} dot>
+                  {LEAD_STATUS_LABELS[lead.status]}
+                </Pill>
               </div>
-            </CardBody>
+              {!isWonOrLost && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {PIPELINE_STAGES.map((status) => (
+                    <Btn
+                      key={status}
+                      size="sm"
+                      variant={lead.status === status ? 'primary' : 'ghost'}
+                      disabled={lead.status === status}
+                      onClick={() => handleStatusChange(status)}
+                    >
+                      {LEAD_STATUS_LABELS[status]}
+                    </Btn>
+                  ))}
+                  <Btn size="sm" variant="success" icon="trophy" onClick={() => handleStatusChange('gagne')}>
+                    Gagné +200 XP
+                  </Btn>
+                  <Btn size="sm" variant="danger-ghost" icon="x" onClick={() => handleStatusChange('perdu')}>
+                    Perdu
+                  </Btn>
+                </div>
+              )}
+            </div>
           </Card>
 
-          {/* Description */}
           {lead.description && (
-            <Card className="mb-4">
-              <CardHeader>Description</CardHeader>
-              <CardBody>
-                <p className="mb-0">{lead.description}</p>
-              </CardBody>
+            <Card head="Description" icon="fileText">
+              <div className="card-body">
+                <p style={{ margin: 0, lineHeight: 1.6 }}>{lead.description}</p>
+              </div>
             </Card>
           )}
 
-          {/* Activities */}
-          <Card className="mb-4">
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>Activités</span>
-                <Button size="sm" icon="bi-plus-lg" onClick={() => navigate(`/activities/new?leadId=${lead.id}`)}>
-                  Ajouter
-                </Button>
+          <Card
+            head="Activités"
+            icon="calendar"
+            action={
+              <Btn size="sm" icon="plus" onClick={() => navigate(`/activities/new?leadId=${lead.id}`)}>
+                Ajouter
+              </Btn>
+            }
+            flush
+          >
+            {lead.activities && lead.activities.length > 0 ? (
+              <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Sujet</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lead.activities.map((activity) => (
+                    <tr key={activity.id}>
+                      <td>
+                        <Pill tone="neutral">{ACTIVITY_TYPE_LABELS[activity.type]}</Pill>
+                      </td>
+                      <td>{activity.subject}</td>
+                      <td>{activity.scheduledAt ? formatDate(activity.scheduledAt) : '-'}</td>
+                      <td>
+                        <Pill tone={ACTIVITY_STATUS_TONE[activity.status as ActivityStatus] ?? 'info'}>
+                          {activity.status}
+                        </Pill>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               </div>
-            </CardHeader>
-            <CardBody className="p-0">
-              {lead.activities && lead.activities.length > 0 ? (
-                <div className="table-responsive">
-                  <table className="table table-hover mb-0">
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th>Sujet</th>
-                        <th>Date</th>
-                        <th>Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lead.activities.map((activity) => (
-                        <tr key={activity.id}>
-                          <td>
-                            <span className={`badge badge-${activity.type}`}>
-                              {ACTIVITY_TYPE_LABELS[activity.type]}
-                            </span>
-                          </td>
-                          <td>{activity.subject}</td>
-                          <td>{activity.scheduledAt ? formatDate(activity.scheduledAt) : '-'}</td>
-                          <td>
-                            <span className={`badge ${activity.status === 'termine' ? 'bg-success' : activity.status === 'annule' ? 'bg-secondary' : 'bg-info'}`}>
-                              {activity.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="empty-state py-4">
-                  <i className="bi bi-calendar-x"></i>
-                  <p className="mb-0">Aucune activité</p>
-                </div>
-              )}
-            </CardBody>
-          </Card>
-
-          {/* Enregistrements d'appels */}
-          <Card className="mb-4">
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>
-                  <i className="bi bi-mic me-2"></i>
-                  Enregistrements d'appels
+            ) : (
+              <div className="empty">
+                <span className="em-ic">
+                  <Icon name="calendar" size={22} />
                 </span>
+                <b>Aucune activité</b>
               </div>
-            </CardHeader>
-            <CardBody>
-              <CallRecorderWidget leadId={lead.id} onCallComplete={() => loadLead()} />
-            </CardBody>
+            )}
           </Card>
 
-          <div className="mb-4">
-            <CallHistoryList leadId={lead.id} />
-          </div>
+          <Card head="Enregistrements d'appels" icon="phone">
+            <div className="card-body">
+              <CallRecorderWidget leadId={lead.id} onCallComplete={() => loadLead()} />
+            </div>
+          </Card>
 
-          {/* Stage History */}
-          <Card>
-            <CardHeader>Historique</CardHeader>
-            <CardBody>
+          <CallHistoryList leadId={lead.id} />
+
+          <Card head="Historique" icon="clock">
+            <div className="card-body">
               {lead.stageHistory && lead.stageHistory.length > 0 ? (
-                <ul className="list-unstyled mb-0">
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {lead.stageHistory.map((entry) => (
-                    <li key={entry.id} className="d-flex align-items-start mb-3">
-                      <div className="me-3">
-                        <i className="bi bi-arrow-right-circle text-primary"></i>
-                      </div>
+                    <li key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <span style={{ color: 'var(--komun)', marginTop: 2 }}>
+                        <Icon name="arrowRight" size={16} />
+                      </span>
                       <div>
-                        <div>
-                          {entry.fromStatus ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {entry.fromStatus && (
                             <>
-                              <span className={`badge badge-${entry.fromStatus} me-1`}>{LEAD_STATUS_LABELS[entry.fromStatus]}</span>
-                              <i className="bi bi-arrow-right mx-1"></i>
+                              <Pill tone={STATUS_TONE[entry.fromStatus]}>{LEAD_STATUS_LABELS[entry.fromStatus]}</Pill>
+                              <Icon name="arrowRight" size={13} />
                             </>
-                          ) : null}
-                          <span className={`badge badge-${entry.toStatus}`}>{LEAD_STATUS_LABELS[entry.toStatus]}</span>
+                          )}
+                          <Pill tone={STATUS_TONE[entry.toStatus]}>{LEAD_STATUS_LABELS[entry.toStatus]}</Pill>
                         </div>
-                        <small className="text-muted">{formatDate(entry.changedAt)}</small>
-                        {entry.notes && <p className="text-muted small mb-0 mt-1">{entry.notes}</p>}
+                        <small style={{ color: 'var(--ink-3)' }}>{formatDate(entry.changedAt)}</small>
+                        {entry.notes && (
+                          <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: '4px 0 0' }}>{entry.notes}</p>
+                        )}
                       </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted mb-0">Aucun historique</p>
+                <p style={{ color: 'var(--ink-3)', margin: 0 }}>Aucun historique</p>
               )}
-            </CardBody>
+            </div>
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="col-lg-4">
-          {/* Score & Quick Actions */}
-          {!isWonOrLost && (() => {
-            const score = computeLeadScore(lead, lead.activities || []);
-            const suggestions = generateSuggestions(lead, lead.activities || []);
-            return (
-              <>
-                <Card className="mb-4">
-                  <CardHeader>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span>Score prospect</span>
-                      {!lead.qualification && (
-                        <button
-                          className="btn btn-sm btn-outline-primary"
-                          style={{ fontSize: '0.75rem' }}
-                          onClick={() => navigate(`/prospection/qualify/${lead.id}`)}
-                        >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {!isWonOrLost &&
+            (() => {
+              const score = computeLeadScore(lead, lead.activities || []);
+              const suggestions = generateSuggestions(lead, lead.activities || []);
+              return (
+                <>
+                  <Card
+                    head="Score prospect"
+                    icon="gauge"
+                    action={
+                      !lead.qualification ? (
+                        <Btn size="sm" variant="ghost" onClick={() => navigate(`/prospection/qualify/${lead.id}`)}>
                           Qualifier
-                        </button>
+                        </Btn>
+                      ) : undefined
+                    }
+                  >
+                    <div className="card-body">
+                      <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                        <ScoreGauge score={score} size="md" />
+                      </div>
+                      <ScoreBreakdown breakdown={score.breakdown} />
+                      {lead.qualification && (
+                        <div style={{ marginTop: 10, textAlign: 'center' }}>
+                          <Btn
+                            size="sm"
+                            variant="subtle"
+                            icon="edit"
+                            onClick={() => navigate(`/prospection/qualify/${lead.id}`)}
+                          >
+                            Modifier qualification
+                          </Btn>
+                        </div>
                       )}
                     </div>
-                  </CardHeader>
-                  <CardBody>
-                    <div className="text-center mb-3">
-                      <ScoreGauge score={score} size="md" />
-                    </div>
-                    <ScoreBreakdown breakdown={score.breakdown} />
-                    {lead.qualification && (
-                      <div className="mt-2 text-center">
-                        <button
-                          className="btn btn-sm btn-outline-secondary"
-                          style={{ fontSize: '0.75rem' }}
-                          onClick={() => navigate(`/prospection/qualify/${lead.id}`)}
-                        >
-                          <i className="bi bi-pencil me-1"></i>
-                          Modifier qualification
-                        </button>
-                      </div>
-                    )}
-                  </CardBody>
-                </Card>
-
-                {/* Quick Actions */}
-                <Card className="mb-4">
-                  <CardHeader>Actions rapides</CardHeader>
-                  <CardBody>
-                    <QuickActionBar leadId={lead.id} />
-                  </CardBody>
-                </Card>
-
-                {/* Suggestions */}
-                {suggestions.length > 0 && (
-                  <Card className="mb-4">
-                    <CardBody>
-                      <SuggestionsList suggestions={suggestions} maxItems={3} />
-                    </CardBody>
                   </Card>
-                )}
-              </>
-            );
-          })()}
 
-          {/* Contact Info */}
-          <Card className="mb-4">
-            <CardHeader>Contact</CardHeader>
-            <CardBody>
-              <dl className="mb-0">
+                  <Card head="Actions rapides" icon="zap">
+                    <div className="card-body">
+                      <QuickActionBar leadId={lead.id} />
+                    </div>
+                  </Card>
+
+                  {suggestions.length > 0 && (
+                    <Card>
+                      <div className="card-body">
+                        <SuggestionsList suggestions={suggestions} maxItems={3} />
+                      </div>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
+
+          <Card head="Contact" icon="user">
+            <div className="card-body">
+              <dl className="detail-dl">
                 {lead.email && (
                   <>
-                    <dt className="text-muted small">Email</dt>
+                    <dt>Email</dt>
                     <dd>
                       <a href={`mailto:${lead.email}`}>{lead.email}</a>
                     </dd>
@@ -408,7 +413,7 @@ export function LeadDetailPage() {
                 )}
                 {lead.phone && (
                   <>
-                    <dt className="text-muted small">Téléphone</dt>
+                    <dt>Téléphone</dt>
                     <dd>
                       <a href={`tel:${lead.phone}`}>{lead.phone}</a>
                     </dd>
@@ -416,36 +421,42 @@ export function LeadDetailPage() {
                 )}
                 {lead.company && (
                   <>
-                    <dt className="text-muted small">Entreprise</dt>
+                    <dt>Entreprise</dt>
                     <dd>{lead.company}</dd>
                   </>
                 )}
               </dl>
-            </CardBody>
+            </div>
           </Card>
 
-          {/* Project Info */}
-          <Card className="mb-4">
-            <CardHeader>Projet</CardHeader>
-            <CardBody>
-              <dl className="mb-0">
-                <dt className="text-muted small">Source</dt>
+          <Card head="Projet" icon="target">
+            <div className="card-body">
+              <dl className="detail-dl">
+                <dt>Source</dt>
                 <dd>{LEAD_SOURCE_LABELS[lead.source]}</dd>
 
-                <dt className="text-muted small">Valeur estimée</dt>
-                <dd className="h5 text-primary">{formatCurrency(lead.estimatedValue)}</dd>
+                <dt>Valeur estimée</dt>
+                <dd style={{ fontSize: 18, fontWeight: 700, color: 'var(--komun)' }}>
+                  {formatCurrency(lead.estimatedValue)}
+                </dd>
 
                 {lead.probability !== undefined && (
                   <>
-                    <dt className="text-muted small">Probabilité</dt>
+                    <dt>Probabilité</dt>
                     <dd>
-                      <div className="d-flex align-items-center gap-2">
-                        <div className="progress progress-neo flex-grow-1">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 6,
+                            borderRadius: 4,
+                            background: 'var(--line)',
+                            overflow: 'hidden',
+                          }}
+                        >
                           <div
-                            className="progress-bar"
-                            role="progressbar"
-                            style={{ width: `${lead.probability}%` }}
-                          ></div>
+                            style={{ width: `${lead.probability}%`, height: '100%', background: 'var(--komun)' }}
+                          />
                         </div>
                         <span>{lead.probability}%</span>
                       </div>
@@ -455,43 +466,38 @@ export function LeadDetailPage() {
 
                 {lead.expectedCloseDate && (
                   <>
-                    <dt className="text-muted small">Date de clôture prévue</dt>
+                    <dt>Date de clôture prévue</dt>
                     <dd>{new Date(lead.expectedCloseDate).toLocaleDateString('fr-FR')}</dd>
                   </>
                 )}
               </dl>
-            </CardBody>
+            </div>
           </Card>
 
-          {/* Location */}
           {(lead.address || lead.city || lead.postalCode) && (
-            <Card className="mb-4">
-              <CardHeader>Adresse</CardHeader>
-              <CardBody>
-                {lead.address && <p className="mb-1">{lead.address}</p>}
+            <Card head="Adresse" icon="building">
+              <div className="card-body">
+                {lead.address && <p style={{ margin: '0 0 4px' }}>{lead.address}</p>}
                 {(lead.postalCode || lead.city) && (
-                  <p className="mb-0">
+                  <p style={{ margin: 0 }}>
                     {lead.postalCode} {lead.city}
                   </p>
                 )}
                 {lead.surface && (
-                  <p className="text-muted small mt-2 mb-0">
-                    Surface: {lead.surface} m²
-                  </p>
+                  <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: '8px 0 0' }}>Surface : {lead.surface} m²</p>
                 )}
-              </CardBody>
+              </div>
             </Card>
           )}
 
-          {/* Metadata */}
           <Card>
-            <CardBody>
-              <small className="text-muted">
+            <div className="card-body">
+              <small style={{ color: 'var(--ink-3)' }}>
                 Créé le {formatDate(lead.createdAt)}
                 <br />
                 Mis à jour le {formatDate(lead.updatedAt)}
               </small>
-            </CardBody>
+            </div>
           </Card>
         </div>
       </div>

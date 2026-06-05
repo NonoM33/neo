@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Table, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Avatar, Btn, Icon } from '../../components/neo';
 import { clientsService } from '../../services';
 import type { Client } from '../../types';
 
@@ -58,111 +59,143 @@ export function ClientsPage() {
   };
 
   return (
-    <div className="content-area">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="page-title">Clients</h1>
-          <p className="text-secondary mb-0">
-            {total} client{total > 1 ? 's' : ''}
+    <div className="clients-page">
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Clients</h1>
+          <p>
+            {total} client{total > 1 ? 's' : ''} — votre portefeuille
           </p>
         </div>
-        <Button icon="bi-plus-lg" onClick={() => navigate('/clients/new')}>
-          Nouveau client
-        </Button>
+        <div className="page-actions">
+          <Btn icon="plus" onClick={() => navigate('/clients/new')}>
+            Nouveau client
+          </Btn>
+        </div>
       </div>
 
-      <Card className="mb-4">
-        <CardBody>
-          <div className="input-group">
-            <span className="input-group-text bg-transparent">
-              <i className="bi bi-search"></i>
-            </span>
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="fbar">
+          <div className="fbar-search">
+            <Icon name="search" size={16} />
             <input
               type="search"
-              className="form-control"
+              className="neo-field"
               placeholder="Rechercher par nom ou email…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-        </CardBody>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardBody>
-          <Table<Client>
-            loading={loading}
-            data={clients}
-            keyExtractor={(c) => c.id}
-            emptyMessage="Aucun client"
-            columns={[
-              {
-                key: 'name',
-                header: 'Nom',
-                render: (c) => (
-                  <span className="fw-semibold">
-                    {c.firstName} {c.lastName}
-                  </span>
-                ),
-              },
-              { key: 'email', header: 'Email', render: (c) => c.email || '—' },
-              { key: 'phone', header: 'Téléphone', render: (c) => c.phone || '—' },
-              { key: 'city', header: 'Ville', render: (c) => c.city || '—' },
-              {
-                key: 'actions',
-                header: '',
-                className: 'text-end',
-                render: (c) => (
-                  <div className="d-flex gap-2 justify-content-end">
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      icon="bi-pencil"
-                      onClick={() => navigate(`/clients/${c.id}/edit`)}
-                    >
-                      Modifier
-                    </Button>
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      icon="bi-trash"
-                      onClick={() => handleDelete(c)}
-                    >
-                      Supprimer
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-          />
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Ville</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map((client, i) => (
+                <tr
+                  key={client.id}
+                  onClick={() => navigate(`/clients/${client.id}/edit`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                      <Avatar
+                        name={`${client.firstName} ${client.lastName}`}
+                        size={36}
+                        tone={(['ochre', 'blue', 'green', 'ink'] as const)[i % 4]}
+                      />
+                      <span className="t-main">
+                        {client.firstName} {client.lastName}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="t-sub">{client.email || '—'}</td>
+                  <td className="t-sub">{client.phone || '—'}</td>
+                  <td className="t-sub">{client.city || '—'}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button
+                        className="icon-btn"
+                        aria-label="Modifier"
+                        onClick={() => navigate(`/clients/${client.id}/edit`)}
+                      >
+                        <Icon name="edit" size={16} />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        aria-label="Supprimer"
+                        onClick={() => handleDelete(client)}
+                      >
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {clients.length === 0 && (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="users" size={22} />
+                      </span>
+                      <b>Aucun client</b>
+                      <p>Ajustez votre recherche ou créez un nouveau client.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
 
           {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <span className="text-secondary small">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 16px',
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
                 Page {page} / {totalPages}
               </span>
-              <div className="btn-group">
-                <Button
-                  variant="outline-secondary"
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn
+                  variant="subtle"
                   size="sm"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Précédent
-                </Button>
-                <Button
-                  variant="outline-secondary"
+                </Btn>
+                <Btn
+                  variant="subtle"
                   size="sm"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   Suivant
-                </Button>
+                </Btn>
               </div>
             </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

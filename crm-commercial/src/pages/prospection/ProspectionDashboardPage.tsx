@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon } from '../../components/neo';
 import { leadsService, activitiesService } from '../../services';
 import type { Lead, Activity } from '../../types';
 import { useProspectionStore } from '../../stores';
@@ -43,24 +44,34 @@ export function ProspectionDashboardPage() {
 
   if (error) {
     return (
-      <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '50vh' }}>
-        <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '3rem' }}></i>
-        <p className="mt-3 text-muted">{error}</p>
-        <button className="btn btn-primary" onClick={() => { setError(null); setLoading(true); loadData(); }}>
-          <i className="bi bi-arrow-clockwise me-2"></i>Réessayer
-        </button>
+      <div style={{ padding: 28 }}>
+        <div className="empty">
+          <span className="em-ic"><Icon name="zap" /></span>
+          <b>{error}</b>
+          <p>Réessayez dans un instant.</p>
+          <div style={{ marginTop: 14 }}>
+            <Btn icon="rocket" onClick={() => { setError(null); setLoading(true); loadData(); }}>
+              Réessayer
+            </Btn>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!prospection.stats) {
     return (
-      <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '50vh' }}>
-        <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
-        <p className="mt-3 text-muted">Aucune donnée de prospection disponible.</p>
-        <button className="btn btn-primary" onClick={() => navigate('/leads/new')}>
-          <i className="bi bi-plus-lg me-2"></i>Créer un premier lead
-        </button>
+      <div style={{ padding: 28 }}>
+        <div className="empty">
+          <span className="em-ic"><Icon name="inbox" /></span>
+          <b>Aucune donnée de prospection disponible.</b>
+          <p>Commencez par créer un premier lead.</p>
+          <div style={{ marginTop: 14 }}>
+            <Btn icon="plus" onClick={() => navigate('/leads/new')}>
+              Créer un premier lead
+            </Btn>
+          </div>
+        </div>
       </div>
     );
   }
@@ -94,33 +105,22 @@ export function ProspectionDashboardPage() {
   }));
 
   return (
-    <div className="prospection-dashboard">
+    <div style={{ padding: 28 }}>
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h5 style={{ margin: 0, fontWeight: 600 }}>
-            <i className="bi bi-crosshair me-2" style={{ color: 'var(--neo-accent)' }}></i>
-            Prospection
-          </h5>
-          <p style={{ margin: 0, color: 'var(--neo-text-secondary)', fontSize: '0.85rem' }}>
-            Vue d'ensemble de vos prospects et actions recommandées
-          </p>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Prospection</h1>
+          <p>Vue d'ensemble de vos prospects et actions recommandées</p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate('/prospection/qualify')}
-          style={{
-            background: 'linear-gradient(135deg, var(--neo-accent), var(--neo-primary))',
-            border: 'none',
-          }}
-        >
-          <i className="bi bi-plus-lg me-1"></i>
-          Nouveau prospect
-        </button>
+        <div className="page-actions">
+          <Btn icon="plus" onClick={() => navigate('/prospection/qualify')}>
+            Nouveau prospect
+          </Btn>
+        </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="mb-4">
+      <div style={{ marginBottom: 18 }}>
         <QuickStats
           stats={[
             {
@@ -153,119 +153,88 @@ export function ProspectionDashboardPage() {
       </div>
 
       {/* Row: Funnel + Suggestions */}
-      <div className="row g-4 mb-4">
-        <div className="col-lg-7">
-          <Card className="h-100">
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>
-                  <i className="bi bi-funnel me-2"></i>
-                  Entonnoir de conversion
-                </span>
-                <button
-                  className="btn btn-sm btn-outline-primary"
-                  onClick={() => navigate('/leads')}
-                >
-                  Pipeline →
-                </button>
-              </div>
-            </CardHeader>
-            <CardBody>
-              <FunnelChart stats={stats} stageCounts={stageCounts} />
-            </CardBody>
-          </Card>
-        </div>
-        <div className="col-lg-5">
-          <Card className="h-100">
-            <CardHeader>
-              <i className="bi bi-lightbulb me-2" style={{ color: 'var(--neo-xp-color)' }}></i>
-              Actions prioritaires
-            </CardHeader>
-            <CardBody>
-              <SuggestionsList
-                suggestions={prospection.suggestions}
-                title=""
-                maxItems={6}
-              />
-            </CardBody>
-          </Card>
-        </div>
+      <div className="lead-grid" style={{ marginBottom: 18 }}>
+        <Card
+          head="Entonnoir de conversion"
+          icon="filter"
+          action={
+            <Btn variant="subtle" size="sm" iconRight="arrowRight" onClick={() => navigate('/leads')}>
+              Pipeline
+            </Btn>
+          }
+        >
+          <div className="card-body">
+            <FunnelChart stats={stats} stageCounts={stageCounts} />
+          </div>
+        </Card>
+        <Card head="Actions prioritaires" icon="sparkles">
+          <div className="card-body">
+            <SuggestionsList
+              suggestions={prospection.suggestions}
+              title=""
+              maxItems={6}
+            />
+          </div>
+        </Card>
       </div>
 
       {/* Row: Hot/Cold + Source Performance */}
-      <div className="row g-4 mb-4">
-        <div className="col-lg-6">
-          <Card className="h-100">
-            <CardHeader>
-              <i className="bi bi-thermometer-half me-2"></i>
-              Température des leads
-            </CardHeader>
-            <CardBody>
-              <HotColdList leads={leads} activities={activities} />
-            </CardBody>
-          </Card>
-        </div>
-        <div className="col-lg-6">
-          <Card className="h-100">
-            <CardHeader>
-              <i className="bi bi-bar-chart me-2"></i>
-              Performance par source
-            </CardHeader>
-            <CardBody>
-              {sourceChartData.length > 0 ? (
-                <div style={{ height: '280px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sourceChartData} layout="vertical">
-                      <XAxis type="number" domain={[0, 100]}
-                        tick={{ fill: 'var(--neo-text-muted)', fontSize: 11 }}
-                        axisLine={false} tickLine={false}
-                      />
-                      <YAxis dataKey="name" type="category" width={100}
-                        tick={{ fill: 'var(--neo-text-secondary)', fontSize: 12 }}
-                        axisLine={false} tickLine={false}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: 'var(--neo-bg-card)',
-                          border: '1px solid var(--neo-border-color)',
-                          borderRadius: '8px',
-                          color: 'var(--neo-text-primary)',
-                        }}
-                        formatter={(value, name) => {
-                          if (name === 'score') return [`${Number(value)}/100`, 'Score moyen'];
-                          return [`${value}`, 'Leads'];
-                        }}
-                      />
-                      <Bar dataKey="score" fill="var(--neo-accent)" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '40px',
-                  color: 'var(--neo-text-muted)',
-                }}>
-                  Pas assez de données
-                </div>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+      <div className="grid-2" style={{ marginBottom: 18 }}>
+        <Card head="Température des leads" icon="flame">
+          <div className="card-body">
+            <HotColdList leads={leads} activities={activities} />
+          </div>
+        </Card>
+        <Card head="Performance par source" icon="chart">
+          <div className="card-body">
+            {sourceChartData.length > 0 ? (
+              <div style={{ height: '280px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={sourceChartData} layout="vertical">
+                    <XAxis type="number" domain={[0, 100]}
+                      tick={{ fill: 'var(--ink-4)', fontSize: 11 }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <YAxis dataKey="name" type="category" width={100}
+                      tick={{ fill: 'var(--ink-3)', fontSize: 12 }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--card)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 'var(--r-sm)',
+                        color: 'var(--ink)',
+                      }}
+                      formatter={(value, name) => {
+                        if (name === 'score') return [`${Number(value)}/100`, 'Score moyen'];
+                        return [`${value}`, 'Leads'];
+                      }}
+                    />
+                    <Bar dataKey="score" fill="var(--ochre)" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="empty">
+                <span className="em-ic"><Icon name="chart" /></span>
+                <b>Pas assez de données</b>
+                <p>Les performances s'afficheront avec plus de leads.</p>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
 
       {/* All Suggestions */}
       {prospection.suggestions.length > 6 && (
-        <Card>
-          <CardHeader>
-            Toutes les actions suggérées ({prospection.suggestions.length})
-          </CardHeader>
-          <CardBody>
+        <Card head={`Toutes les actions suggérées (${prospection.suggestions.length})`} icon="target">
+          <div className="card-body">
             <SuggestionsList
               suggestions={prospection.suggestions}
               title=""
             />
-          </CardBody>
+          </div>
         </Card>
       )}
     </div>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Spinner, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Icon, Pill } from '../../components/neo';
 import { productsService } from '../../services';
 import { useAuthStore } from '../../stores';
 import type { Product, ProductFilter } from '../../types';
@@ -123,236 +124,237 @@ export function ProductsPage() {
     setActiveFilter('');
   };
 
+  const hasFilters = Boolean(search || category || brand || activeFilter);
+
   return (
     <div className="products-page">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 className="mb-0">Catalogue produits</h2>
-          <span className="text-secondary small">{total} produit(s)</span>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Catalogue produits</h1>
+          <p>
+            {total} produit{total > 1 ? 's' : ''} référencé{total > 1 ? 's' : ''}
+          </p>
         </div>
         {isAdmin && (
-          <div className="d-flex gap-2">
-            <Button variant="outline-secondary" icon="bi-upload" onClick={() => setShowImport(true)}>
+          <div className="page-actions">
+            <Btn variant="ghost" icon="fileText" onClick={() => setShowImport(true)}>
               Importer CSV
-            </Button>
-            <Button icon="bi-plus-lg" onClick={() => navigate('/produits/new')}>
+            </Btn>
+            <Btn icon="plus" onClick={() => navigate('/produits/new')}>
               Nouveau produit
-            </Button>
+            </Btn>
           </div>
         )}
       </div>
 
-      {/* Filters */}
-      <Card className="mb-3">
-        <CardBody>
-          <div className="row g-3 align-items-end">
-            <div className="col-md-4">
-              <label className="form-label">Recherche</label>
-              <div className="input-group">
-                <span className="input-group-text">
-                  <i className="bi bi-search"></i>
-                </span>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Nom, référence, description…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+          <div>
+            <div className="field-label">Recherche</div>
+            <div className="fbar-search">
+              <Icon name="search" size={16} />
+              <input
+                type="text"
+                className="neo-field"
+                placeholder="Nom, référence, description…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="field-label">Catégorie</div>
+            <select className="neo-field" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">Toutes</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div className="field-label">Marque</div>
+            <select className="neo-field" value={brand} onChange={(e) => setBrand(e.target.value)}>
+              <option value="">Toutes</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div className="field-label">Statut</div>
+            <select
+              className="neo-field"
+              value={activeFilter}
+              onChange={(e) => setActiveFilter(e.target.value)}
+            >
+              <option value="">Tous</option>
+              <option value="active">Actif</option>
+              <option value="inactive">Inactif</option>
+            </select>
+          </div>
+        </div>
+        {hasFilters && (
+          <div style={{ marginTop: 12 }}>
+            <Btn variant="subtle" size="sm" icon="x" onClick={resetFilters}>
+              Réinitialiser les filtres
+            </Btn>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>Nom</th>
+                <th>Catégorie</th>
+                <th>Marque</th>
+                <th style={{ textAlign: 'right' }}>Prix HT</th>
+                <th style={{ textAlign: 'right' }}>Stock</th>
+                <th>Statut</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <tr
+                  key={product.id}
+                  onClick={() => navigate(`/produits/${product.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td className="t-mono">{product.reference}</td>
+                  <td className="t-main">{product.name}</td>
+                  <td className="t-sub">{product.category}</td>
+                  <td className="t-sub">{product.brand || '—'}</td>
+                  <td className="t-mono" style={{ textAlign: 'right' }}>
+                    {formatCurrency(product.priceHT)}
+                  </td>
+                  <td className="t-mono" style={{ textAlign: 'right' }}>
+                    {product.stock ?? '—'}
+                  </td>
+                  <td>
+                    <Pill tone={product.isActive ? 'success' : 'neutral'} dot>
+                      {product.isActive ? 'Actif' : 'Inactif'}
+                    </Pill>
+                  </td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button
+                        className="icon-btn"
+                        aria-label="Voir"
+                        onClick={() => navigate(`/produits/${product.id}`)}
+                      >
+                        <Icon name="chevronRight" size={16} />
+                      </button>
+                      {isAdmin && (
+                        <>
+                          <button
+                            className="icon-btn"
+                            aria-label="Modifier"
+                            onClick={() => navigate(`/produits/${product.id}/edit`)}
+                          >
+                            <Icon name="edit" size={16} />
+                          </button>
+                          <button
+                            className="icon-btn"
+                            aria-label="Supprimer"
+                            onClick={() => handleDelete(product)}
+                          >
+                            <Icon name="trash" size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={8}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="package" size={22} />
+                      </span>
+                      <b>Aucun produit trouvé</b>
+                      <p>Ajustez vos filtres ou ajoutez un produit.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 16px',
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                Page {page} / {totalPages}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn
+                  variant="subtle"
+                  size="sm"
+                  icon="arrowLeft"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Précédent
+                </Btn>
+                <Btn
+                  variant="subtle"
+                  size="sm"
+                  iconRight="arrowRight"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Suivant
+                </Btn>
               </div>
             </div>
-            <div className="col-md-3">
-              <label className="form-label">Catégorie</label>
-              <select className="form-select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">Toutes</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Marque</label>
-              <select className="form-select" value={brand} onChange={(e) => setBrand(e.target.value)}>
-                <option value="">Toutes</option>
-                {brands.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Statut</label>
-              <select className="form-select" value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
-                <option value="">Tous</option>
-                <option value="active">Actif</option>
-                <option value="inactive">Inactif</option>
-              </select>
-            </div>
-          </div>
-          {(search || category || brand || activeFilter) && (
-            <div className="mt-3">
-              <button className="btn btn-sm btn-link text-secondary p-0" onClick={resetFilters}>
-                <i className="bi bi-x-circle me-1"></i>
-                Réinitialiser les filtres
-              </button>
-            </div>
           )}
-        </CardBody>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardBody className="p-0">
-          {loading ? (
-            <div className="p-4">
-              <Spinner />
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center text-secondary p-5">
-              <i className="bi bi-box-seam d-block mb-2" style={{ fontSize: '2rem' }}></i>
-              Aucun produit trouvé
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover mb-0 align-middle">
-                <thead>
-                  <tr>
-                    <th>Référence</th>
-                    <th>Nom</th>
-                    <th>Catégorie</th>
-                    <th>Marque</th>
-                    <th className="text-end">Prix HT</th>
-                    <th className="text-end">Stock</th>
-                    <th>Statut</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr
-                      key={product.id}
-                      onClick={() => navigate(`/produits/${product.id}`)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td>
-                        <code>{product.reference}</code>
-                      </td>
-                      <td>
-                        <strong>{product.name}</strong>
-                      </td>
-                      <td>{product.category}</td>
-                      <td>{product.brand || '-'}</td>
-                      <td className="text-end">{formatCurrency(product.priceHT)}</td>
-                      <td className="text-end">{product.stock ?? '-'}</td>
-                      <td>
-                        {product.isActive ? (
-                          <span className="badge bg-success">Actif</span>
-                        ) : (
-                          <span className="badge border text-body-secondary">Inactif</span>
-                        )}
-                      </td>
-                      <td className="text-end" onClick={(e) => e.stopPropagation()}>
-                        <div className="btn-group btn-group-sm">
-                          <button
-                            className="btn btn-outline-secondary"
-                            title="Voir"
-                            onClick={() => navigate(`/produits/${product.id}`)}
-                          >
-                            <i className="bi bi-eye"></i>
-                          </button>
-                          {isAdmin && (
-                            <>
-                              <button
-                                className="btn btn-outline-secondary"
-                                title="Modifier"
-                                onClick={() => navigate(`/produits/${product.id}/edit`)}
-                              >
-                                <i className="bi bi-pencil"></i>
-                              </button>
-                              <button
-                                className="btn btn-outline-danger"
-                                title="Supprimer"
-                                onClick={() => handleDelete(product)}
-                              >
-                                <i className="bi bi-trash"></i>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="d-flex justify-content-between align-items-center mt-3">
-          <span className="text-secondary small">
-            Page {page} / {totalPages}
-          </span>
-          <div className="btn-group">
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <i className="bi bi-chevron-left"></i>
-            </button>
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <i className="bi bi-chevron-right"></i>
-            </button>
-          </div>
         </div>
       )}
 
-      {/* Import CSV modal */}
       {showImport && (
-        <div
-          className="modal-backdrop-custom"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 1050,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onClick={() => !importing && setShowImport(false)}
-        >
-          <div
-            className="card"
-            style={{ width: '100%', maxWidth: '480px', background: 'var(--neo-bg-card)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <span className="fw-semibold">Importer des produits (CSV)</span>
-              <button className="btn-close" disabled={importing} onClick={() => setShowImport(false)}></button>
+        <div className="neo-modal-scrim" onClick={() => !importing && setShowImport(false)}>
+          <div className="neo-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="neo-modal-head">
+              <b>Importer des produits (CSV)</b>
+              <button
+                className="icon-btn"
+                aria-label="Fermer"
+                disabled={importing}
+                onClick={() => setShowImport(false)}
+              >
+                <Icon name="x" size={16} />
+              </button>
             </div>
-            <div className="card-body">
-              <p className="text-secondary small">
-                Séparateur <code>;</code>. Colonnes requises : <code>reference</code>, <code>name</code>,{' '}
-                <code>category</code>, <code>priceHT</code>. Optionnelles : <code>description</code>, <code>brand</code>,{' '}
-                <code>tvaRate</code>.
+            <div className="neo-modal-body">
+              <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 14 }}>
+                Séparateur <code>;</code>. Colonnes requises : <code>reference</code>,{' '}
+                <code>name</code>, <code>category</code>, <code>priceHT</code>. Optionnelles :{' '}
+                <code>description</code>, <code>brand</code>, <code>tvaRate</code>.
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".csv,text/csv"
-                className="form-control"
+                className="neo-field"
                 disabled={importing}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -360,8 +362,17 @@ export function ProductsPage() {
                 }}
               />
               {importing && (
-                <div className="d-flex align-items-center gap-2 mt-3 text-secondary">
-                  <span className="spinner-border spinner-border-sm" role="status"></span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 14,
+                    color: 'var(--ink-3)',
+                    fontSize: 13,
+                  }}
+                >
+                  <span className="spinner-border spinner-border-sm" role="status" />
                   Import en cours…
                 </div>
               )}

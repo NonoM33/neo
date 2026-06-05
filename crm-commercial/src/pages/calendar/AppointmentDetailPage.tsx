@@ -1,16 +1,84 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Avatar, Btn, Card, Icon, Pill } from '../../components/neo';
+import type { BtnVariant, IconName, PillTone } from '../../components/neo';
 import { appointmentsService } from '../../services/appointments.service';
-import type { Appointment, AppointmentStatus } from '../../types/appointment.types';
+import type { Appointment, AppointmentStatus, AppointmentType, LocationType } from '../../types/appointment.types';
 import {
   APPOINTMENT_TYPE_LABELS,
   APPOINTMENT_TYPE_COLORS,
-  APPOINTMENT_TYPE_ICONS,
   APPOINTMENT_STATUS_LABELS,
   APPOINTMENT_STATUS_COLORS,
   LOCATION_TYPE_LABELS,
 } from '../../types/appointment.types';
+
+const TYPE_ICON: Record<AppointmentType, IconName> = {
+  visite_technique: 'building',
+  audit: 'crosshair',
+  rdv_commercial: 'message',
+  installation: 'package',
+  sav: 'headset',
+  reunion_interne: 'users',
+  autre: 'calendar',
+};
+
+const LOCATION_ICON: Record<LocationType, IconName> = {
+  visio: 'message',
+  telephone: 'phone',
+  bureau: 'building',
+  sur_site: 'building',
+};
+
+interface ActionDef {
+  key: string;
+  label: string;
+  icon: IconName;
+  variant: BtnVariant;
+}
+
+function getAvailableActions(status: AppointmentStatus): ActionDef[] {
+  switch (status) {
+    case 'propose':
+      return [
+        { key: 'confirm', label: 'Confirmer', icon: 'checkCircle', variant: 'primary' },
+        { key: 'cancel', label: 'Annuler', icon: 'x', variant: 'danger' },
+      ];
+    case 'confirme':
+      return [
+        { key: 'start', label: 'Démarrer', icon: 'rocket', variant: 'success' },
+        { key: 'cancel', label: 'Annuler', icon: 'x', variant: 'danger' },
+        { key: 'no_show', label: 'No-show', icon: 'eyeOff', variant: 'ochre' },
+      ];
+    case 'en_cours':
+      return [
+        { key: 'complete', label: 'Terminer', icon: 'checkCircle', variant: 'success' },
+        { key: 'cancel', label: 'Annuler', icon: 'x', variant: 'danger' },
+      ];
+    default:
+      return [];
+  }
+}
+
+const PARTICIPANT_TONE: Record<string, PillTone> = {
+  accepte: 'success',
+  refuse: 'danger',
+};
+
+function participantTone(status: string): PillTone {
+  return PARTICIPANT_TONE[status] ?? 'neutral';
+}
+
+function participantStatusLabel(status: string): string {
+  switch (status) {
+    case 'accepte':
+      return 'Accepté';
+    case 'refuse':
+      return 'Refusé';
+    default:
+      return 'En attente';
+  }
+}
 
 export function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,11 +94,7 @@ export function AppointmentDetailPage() {
   const [completeOutcome, setCompleteOutcome] = useState('');
   const [completeDuration, setCompleteDuration] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
-    if (id) loadAppointment();
-  }, [id]);
-
-  const loadAppointment = async () => {
+  const loadAppointment = useCallback(async () => {
     try {
       const data = await appointmentsService.getAppointment(id!);
       setAppointment(data);
@@ -39,33 +103,31 @@ export function AppointmentDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+  useEffect(() => {
+    if (id) loadAppointment();
+  }, [id, loadAppointment]);
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
-  };
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-  const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+  const formatDateTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
 
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
@@ -112,63 +174,20 @@ export function AppointmentDetailPage() {
     }
   };
 
-  type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'outline-primary' | 'outline-secondary';
-
-  const getAvailableActions = (status: AppointmentStatus): { key: string; label: string; icon: string; variant: ButtonVariant }[] => {
-    switch (status) {
-      case 'propose':
-        return [
-          { key: 'confirm', label: 'Confirmer', icon: 'bi-check-circle', variant: 'primary' },
-          { key: 'cancel', label: 'Annuler', icon: 'bi-x-circle', variant: 'danger' },
-        ];
-      case 'confirme':
-        return [
-          { key: 'start', label: 'Démarrer', icon: 'bi-play-circle', variant: 'success' },
-          { key: 'cancel', label: 'Annuler', icon: 'bi-x-circle', variant: 'danger' },
-          { key: 'no_show', label: 'No-show', icon: 'bi-person-x', variant: 'warning' },
-        ];
-      case 'en_cours':
-        return [
-          { key: 'complete', label: 'Terminer', icon: 'bi-check-circle-fill', variant: 'success' },
-          { key: 'cancel', label: 'Annuler', icon: 'bi-x-circle', variant: 'danger' },
-        ];
-      default:
-        return [];
-    }
-  };
-
-  const getParticipantStatusBadge = (status: string) => {
-    switch (status) {
-      case 'accepte':
-        return 'bg-success';
-      case 'refuse':
-        return 'bg-danger';
-      default:
-        return 'bg-secondary';
-    }
-  };
-
-  const getParticipantStatusLabel = (status: string) => {
-    switch (status) {
-      case 'accepte':
-        return 'Accepté';
-      case 'refuse':
-        return 'Refusé';
-      default:
-        return 'En attente';
-    }
-  };
-
   if (loading) {
     return <Spinner />;
   }
 
   if (!appointment) {
     return (
-      <div className="text-center py-5">
-        <i className="bi bi-exclamation-triangle fs-1 text-muted"></i>
-        <p className="text-muted mt-2">Rendez-vous non trouvé</p>
-        <Button onClick={() => navigate('/calendar')}>Retour à l'agenda</Button>
+      <div className="empty" style={{ marginTop: 60 }}>
+        <span className="em-ic">
+          <Icon name="calendar" size={22} />
+        </span>
+        <b>Rendez-vous non trouvé</b>
+        <Btn onClick={() => navigate('/calendar')} style={{ marginTop: 12 }}>
+          Retour à l'agenda
+        </Btn>
       </div>
     );
   }
@@ -176,451 +195,384 @@ export function AppointmentDetailPage() {
   const actions = getAvailableActions(appointment.status);
   const typeColor = APPOINTMENT_TYPE_COLORS[appointment.type];
   const statusColor = APPOINTMENT_STATUS_COLORS[appointment.status];
+  const canEdit = appointment.status === 'propose' || appointment.status === 'confirme';
+
+  const badge = (bg: string, label: string) => (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 10px',
+        borderRadius: 99,
+        fontSize: 12,
+        fontWeight: 600,
+        background: bg,
+        color: '#fff',
+      }}
+    >
+      {label}
+    </span>
+  );
 
   return (
     <div className="appointment-detail">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-start mb-4">
-        <div>
-          <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate('/calendar')}>
-            <i className="bi bi-arrow-left me-1"></i>
+      <div className="page-head">
+        <div className="ph-l">
+          <button
+            type="button"
+            onClick={() => navigate('/calendar')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              color: 'var(--ink-3)',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: 10,
+              fontSize: 13,
+            }}
+          >
+            <Icon name="arrowLeft" size={15} />
             Retour à l'agenda
           </button>
-          <div className="d-flex align-items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div
-              className="d-flex align-items-center justify-content-center rounded"
               style={{
                 width: 48,
                 height: 48,
-                backgroundColor: typeColor,
+                borderRadius: 12,
+                display: 'grid',
+                placeItems: 'center',
+                background: typeColor,
                 color: '#fff',
-                fontSize: '1.3rem',
+                flex: 'none',
               }}
             >
-              <i className={`bi ${APPOINTMENT_TYPE_ICONS[appointment.type]}`}></i>
+              <Icon name={TYPE_ICON[appointment.type]} size={22} />
             </div>
             <div>
-              <h2 className="mb-1" style={{ fontWeight: 600 }}>{appointment.title}</h2>
-              <div className="d-flex align-items-center gap-2">
-                <span
-                  className="badge"
-                  style={{ backgroundColor: typeColor, color: '#fff' }}
-                >
-                  {APPOINTMENT_TYPE_LABELS[appointment.type]}
-                </span>
-                <span
-                  className="badge"
-                  style={{ backgroundColor: statusColor, color: '#fff' }}
-                >
-                  {APPOINTMENT_STATUS_LABELS[appointment.status]}
-                </span>
+              <h1 style={{ marginBottom: 6 }}>{appointment.title}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {badge(typeColor, APPOINTMENT_TYPE_LABELS[appointment.type])}
+                {badge(statusColor, APPOINTMENT_STATUS_LABELS[appointment.status])}
               </div>
             </div>
           </div>
         </div>
-        <div className="d-flex gap-2">
-          {actions.length === 0 && appointment.status !== 'termine' && appointment.status !== 'annule' && appointment.status !== 'no_show' && (
-            <Button variant="outline-primary" icon="bi-pencil" onClick={() => navigate(`/calendar/${appointment.id}/edit`)}>
+        {canEdit && (
+          <div className="page-actions">
+            <Btn variant="ghost" icon="edit" onClick={() => navigate(`/calendar/${appointment.id}/edit`)}>
               Modifier
-            </Button>
-          )}
-          {(appointment.status === 'propose' || appointment.status === 'confirme') && (
-            <Button variant="outline-primary" icon="bi-pencil" onClick={() => navigate(`/calendar/${appointment.id}/edit`)}>
-              Modifier
-            </Button>
-          )}
-        </div>
+            </Btn>
+          </div>
+        )}
       </div>
 
-      <div className="row g-4">
-        {/* Main Content */}
-        <div className="col-lg-8">
-          {/* Date & Time */}
-          <Card className="mb-4">
-            <CardHeader>
-              <i className="bi bi-clock me-2"></i>
-              Date et horaire
-            </CardHeader>
-            <CardBody>
-              <div className="row">
-                <div className="col-md-4">
-                  <div className="text-muted small mb-1">Date</div>
-                  <div style={{ fontWeight: 500 }}>{formatDate(appointment.scheduledAt)}</div>
-                </div>
-                <div className="col-md-3">
-                  <div className="text-muted small mb-1">Horaire</div>
-                  <div style={{ fontWeight: 500 }}>
-                    {formatTime(appointment.scheduledAt)} - {formatTime(appointment.endAt)}
-                  </div>
-                </div>
-                <div className="col-md-2">
-                  <div className="text-muted small mb-1">Durée</div>
-                  <div style={{ fontWeight: 500 }}>{formatDuration(appointment.duration)}</div>
-                </div>
-                <div className="col-md-3">
-                  <div className="text-muted small mb-1">Lieu</div>
-                  <div style={{ fontWeight: 500 }}>
-                    <i className={`bi ${
-                      appointment.locationType === 'visio' ? 'bi-camera-video' :
-                      appointment.locationType === 'telephone' ? 'bi-telephone' :
-                      appointment.locationType === 'bureau' ? 'bi-building' :
-                      'bi-geo-alt'
-                    } me-1`}></i>
-                    {LOCATION_TYPE_LABELS[appointment.locationType]}
-                  </div>
-                  {appointment.location && (
-                    <div className="text-muted small mt-1">{appointment.location}</div>
-                  )}
-                  {appointment.location && (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(appointment.location)}&travelmode=driving`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm btn-outline-primary mt-2"
-                      style={{ fontSize: '0.8rem' }}
-                    >
-                      <i className="bi bi-map me-1"></i>
-                      Itinéraire
-                    </a>
-                  )}
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Date et horaire" icon="clock">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: 16,
+              }}
+            >
+              <div>
+                <div className="field-label">Date</div>
+                <div style={{ fontWeight: 500, textTransform: 'capitalize' }}>{formatDate(appointment.scheduledAt)}</div>
+              </div>
+              <div>
+                <div className="field-label">Horaire</div>
+                <div style={{ fontWeight: 500 }}>
+                  {formatTime(appointment.scheduledAt)} – {formatTime(appointment.endAt)}
                 </div>
               </div>
-            </CardBody>
+              <div>
+                <div className="field-label">Durée</div>
+                <div style={{ fontWeight: 500 }}>{formatDuration(appointment.duration)}</div>
+              </div>
+              <div>
+                <div className="field-label">Lieu</div>
+                <div style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name={LOCATION_ICON[appointment.locationType]} size={14} />
+                  {LOCATION_TYPE_LABELS[appointment.locationType]}
+                </div>
+                {appointment.location && (
+                  <div className="t-sub" style={{ marginTop: 4, fontSize: 12.5 }}>{appointment.location}</div>
+                )}
+                {appointment.location && (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(appointment.location)}&travelmode=driving`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="contact-link"
+                    style={{ marginTop: 4 }}
+                  >
+                    <Icon name="target" size={14} />
+                    Itinéraire
+                  </a>
+                )}
+              </div>
+            </div>
           </Card>
 
-          {/* Action Buttons */}
           {actions.length > 0 && (
-            <Card className="mb-4">
-              <CardBody>
-                <div className="d-flex gap-2 flex-wrap">
-                  {actions.map((action) => (
-                    <Button
-                      key={action.key}
-                      variant={action.variant}
-                      icon={action.icon}
-                      loading={actionLoading === action.key}
-                      onClick={() => {
-                        if (action.key === 'cancel') {
-                          setShowCancelModal(true);
-                        } else if (action.key === 'complete') {
-                          setCompleteDuration(appointment.duration);
-                          setShowCompleteModal(true);
-                        } else {
-                          handleAction(action.key);
-                        }
-                      }}
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-          )}
-
-          {/* Organizer & Participants */}
-          <Card className="mb-4">
-            <CardHeader>
-              <i className="bi bi-people me-2"></i>
-              Participants
-            </CardHeader>
-            <CardBody>
-              {/* Organizer */}
-              {appointment.organizer && (
-                <div className="d-flex align-items-center gap-3 mb-3 pb-3" style={{ borderBottom: '1px solid var(--neo-border-color)' }}>
-                  <div
-                    className="d-flex align-items-center justify-content-center rounded-circle"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      backgroundColor: 'var(--neo-primary)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
+            <Card flush>
+              <div style={{ padding: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {actions.map((action) => (
+                  <Btn
+                    key={action.key}
+                    variant={action.variant}
+                    icon={action.icon}
+                    disabled={actionLoading === action.key}
+                    onClick={() => {
+                      if (action.key === 'cancel') {
+                        setShowCancelModal(true);
+                      } else if (action.key === 'complete') {
+                        setCompleteDuration(appointment.duration);
+                        setShowCompleteModal(true);
+                      } else {
+                        handleAction(action.key);
+                      }
                     }}
                   >
-                    {appointment.organizer.firstName.charAt(0)}{appointment.organizer.lastName.charAt(0)}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 500 }}>
-                      {appointment.organizer.firstName} {appointment.organizer.lastName}
-                    </div>
-                    <small className="text-muted">Organisateur</small>
-                  </div>
-                </div>
-              )}
+                    {action.label}
+                  </Btn>
+                ))}
+              </div>
+            </Card>
+          )}
 
-              {/* Participants */}
-              {appointment.participants && appointment.participants.length > 0 ? (
-                <div className="d-flex flex-column gap-2">
-                  {appointment.participants.map((participant) => (
-                    <div key={participant.id} className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-3">
-                        <div
-                          className="d-flex align-items-center justify-content-center rounded-circle"
-                          style={{
-                            width: 36,
-                            height: 36,
-                            backgroundColor: 'var(--neo-bg-light)',
-                            color: 'var(--neo-text-secondary)',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                          }}
-                        >
-                          {participant.user
-                            ? `${participant.user.firstName.charAt(0)}${participant.user.lastName.charAt(0)}`
-                            : <i className="bi bi-person"></i>}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
-                            {participant.user
-                              ? `${participant.user.firstName} ${participant.user.lastName}`
-                              : participant.userId}
-                          </div>
-                          <small className="text-muted">
-                            {participant.role === 'organisateur' ? 'Organisateur' : participant.role === 'optionnel' ? 'Optionnel' : 'Participant'}
-                          </small>
-                        </div>
-                      </div>
-                      <span className={`badge ${getParticipantStatusBadge(participant.status)}`}>
-                        {getParticipantStatusLabel(participant.status)}
-                      </span>
-                    </div>
-                  ))}
+          <Card head="Participants" icon="users">
+            {appointment.organizer && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  marginBottom: 14,
+                  paddingBottom: 14,
+                  borderBottom: '1px solid var(--line)',
+                }}
+              >
+                <Avatar name={`${appointment.organizer.firstName} ${appointment.organizer.lastName}`} size={40} tone="blue" />
+                <div>
+                  <div style={{ fontWeight: 500 }}>
+                    {appointment.organizer.firstName} {appointment.organizer.lastName}
+                  </div>
+                  <small className="t-sub">Organisateur</small>
                 </div>
-              ) : (
-                <p className="text-muted mb-0">Aucun participant ajouté</p>
-              )}
-            </CardBody>
+              </div>
+            )}
+
+            {appointment.participants && appointment.participants.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {appointment.participants.map((participant) => (
+                  <div key={participant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <Avatar
+                        name={participant.user ? `${participant.user.firstName} ${participant.user.lastName}` : participant.userId}
+                        size={36}
+                        tone="ink"
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: 14 }}>
+                          {participant.user
+                            ? `${participant.user.firstName} ${participant.user.lastName}`
+                            : participant.userId}
+                        </div>
+                        <small className="t-sub">
+                          {participant.role === 'organisateur'
+                            ? 'Organisateur'
+                            : participant.role === 'optionnel'
+                              ? 'Optionnel'
+                              : 'Participant'}
+                        </small>
+                      </div>
+                    </div>
+                    <Pill tone={participantTone(participant.status)} dot>
+                      {participantStatusLabel(participant.status)}
+                    </Pill>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="t-sub" style={{ margin: 0 }}>Aucun participant ajouté</p>
+            )}
           </Card>
 
-          {/* Notes */}
           {appointment.notes && (
-            <Card className="mb-4">
-              <CardHeader>
-                <i className="bi bi-journal-text me-2"></i>
-                Notes
-              </CardHeader>
-              <CardBody>
-                <p className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>{appointment.notes}</p>
-              </CardBody>
+            <Card head="Notes" icon="fileText">
+              <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.6 }}>
+                {appointment.notes}
+              </p>
             </Card>
           )}
 
-          {/* Outcome */}
           {appointment.outcome && (
-            <Card className="mb-4">
-              <CardHeader>
-                <i className="bi bi-flag me-2"></i>
-                Compte-rendu
-              </CardHeader>
-              <CardBody>
-                <p className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>{appointment.outcome}</p>
-              </CardBody>
+            <Card head="Compte-rendu" icon="flame">
+              <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.6 }}>
+                {appointment.outcome}
+              </p>
             </Card>
           )}
 
-          {/* Cancellation Reason */}
           {appointment.cancellationReason && (
-            <Card className="mb-4">
-              <CardHeader>
-                <i className="bi bi-x-circle me-2 text-danger"></i>
-                Raison de l'annulation
-              </CardHeader>
-              <CardBody>
-                <p className="mb-0">{appointment.cancellationReason}</p>
-              </CardBody>
+            <Card head="Raison de l'annulation" icon="x">
+              <p style={{ margin: 0, color: 'var(--danger-ink)' }}>{appointment.cancellationReason}</p>
             </Card>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="col-lg-4">
-          {/* Linked Entities */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {(appointment.lead || appointment.client || appointment.projectId) && (
-            <Card className="mb-4">
-              <CardHeader>
-                <i className="bi bi-link-45deg me-2"></i>
-                Liens
-              </CardHeader>
-              <CardBody>
-                {appointment.lead && (
-                  <div className="mb-3">
-                    <div className="text-muted small mb-1">Lead</div>
-                    <button
-                      className="btn btn-link p-0 text-start"
-                      onClick={() => navigate(`/leads/${appointment.lead!.id}`)}
-                    >
-                      <i className="bi bi-person me-1"></i>
-                      {appointment.lead.firstName} {appointment.lead.lastName}
-                      {appointment.lead.title && (
-                        <span className="text-muted ms-1">- {appointment.lead.title}</span>
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {appointment.client && (
-                  <div className="mb-3">
-                    <div className="text-muted small mb-1">Client</div>
-                    <div>
-                      <i className="bi bi-building me-1"></i>
-                      {appointment.client.firstName} {appointment.client.lastName}
-                    </div>
-                  </div>
-                )}
-
-                {appointment.projectId && (
-                  <div className="mb-3">
-                    <div className="text-muted small mb-1">Projet</div>
-                    <div>
-                      <i className="bi bi-folder me-1"></i>
-                      {appointment.projectId}
-                    </div>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          )}
-
-          {/* Metadata */}
-          <Card className="mb-4">
-            <CardHeader>Informations</CardHeader>
-            <CardBody>
-              <dl className="mb-0" style={{ fontSize: '0.9rem' }}>
-                <dt className="text-muted small">Créé le</dt>
-                <dd>{formatDateTime(appointment.createdAt)}</dd>
-                <dt className="text-muted small">Modifié le</dt>
-                <dd className="mb-0">{formatDateTime(appointment.updatedAt)}</dd>
-              </dl>
-            </CardBody>
-          </Card>
-
-          {/* Danger Zone */}
-          <Card>
-            <CardBody>
-              {!showDeleteConfirm ? (
-                <button
-                  className="btn btn-outline-danger btn-sm w-100"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <i className="bi bi-trash me-2"></i>
-                  Supprimer ce rendez-vous
-                </button>
-              ) : (
-                <div>
-                  <p className="text-danger mb-2" style={{ fontSize: '0.875rem' }}>
-                    <i className="bi bi-exclamation-triangle me-1"></i>
-                    Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action est irréversible.
-                  </p>
-                  <div className="d-flex gap-2">
-                    <button
-                      className="btn btn-danger btn-sm flex-grow-1"
-                      onClick={() => handleAction('delete')}
-                      disabled={actionLoading === 'delete'}
-                    >
-                      {actionLoading === 'delete' ? (
-                        <span className="spinner-border spinner-border-sm me-1"></span>
-                      ) : (
-                        <i className="bi bi-trash me-1"></i>
-                      )}
-                      Confirmer
-                    </button>
-                    <button
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => setShowDeleteConfirm(false)}
-                    >
-                      Annuler
-                    </button>
+            <Card head="Liens" icon="folder">
+              {appointment.lead && (
+                <div style={{ marginBottom: 14 }}>
+                  <div className="field-label">Lead</div>
+                  <button className="contact-link" onClick={() => navigate(`/leads/${appointment.lead!.id}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <Icon name="user" size={14} />
+                    {appointment.lead.firstName} {appointment.lead.lastName}
+                    {appointment.lead.title && <span className="t-sub"> – {appointment.lead.title}</span>}
+                  </button>
+                </div>
+              )}
+              {appointment.client && (
+                <div style={{ marginBottom: 14 }}>
+                  <div className="field-label">Client</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="building" size={14} />
+                    {appointment.client.firstName} {appointment.client.lastName}
                   </div>
                 </div>
               )}
-            </CardBody>
+              {appointment.projectId && (
+                <div>
+                  <div className="field-label">Projet</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="folder" size={14} />
+                    {appointment.projectId}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
+          <Card head="Informations" icon="inbox">
+            <div style={{ fontSize: 13.5 }}>
+              <div className="field-label">Créé le</div>
+              <div style={{ marginBottom: 12 }}>{formatDateTime(appointment.createdAt)}</div>
+              <div className="field-label">Modifié le</div>
+              <div>{formatDateTime(appointment.updatedAt)}</div>
+            </div>
+          </Card>
+
+          <Card flush>
+            <div style={{ padding: 16 }}>
+              {!showDeleteConfirm ? (
+                <Btn variant="danger-ghost" icon="trash" onClick={() => setShowDeleteConfirm(true)} style={{ width: '100%' }}>
+                  Supprimer ce rendez-vous
+                </Btn>
+              ) : (
+                <div>
+                  <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 0, marginBottom: 10 }}>
+                    Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action est irréversible.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Btn
+                      variant="danger"
+                      icon="trash"
+                      onClick={() => handleAction('delete')}
+                      disabled={actionLoading === 'delete'}
+                      style={{ flex: 1 }}
+                    >
+                      Confirmer
+                    </Btn>
+                    <Btn variant="subtle" onClick={() => setShowDeleteConfirm(false)}>
+                      Annuler
+                    </Btn>
+                  </div>
+                </div>
+              )}
+            </div>
           </Card>
         </div>
       </div>
 
-      {/* Cancel Modal */}
       {showCancelModal && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Annuler le rendez-vous</h5>
-                <button type="button" className="btn-close" onClick={() => setShowCancelModal(false)}></button>
+        <div className="neo-modal-scrim" onClick={() => setShowCancelModal(false)}>
+          <div className="neo-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="neo-modal-head">
+              <b>Annuler le rendez-vous</b>
+              <button className="icon-btn" aria-label="Fermer" onClick={() => setShowCancelModal(false)}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <div className="neo-modal-body">
+              <div className="field-label">
+                Raison de l'annulation <span style={{ color: 'var(--danger)' }}>*</span>
               </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Raison de l'annulation <span className="text-danger">*</span></label>
-                  <textarea
-                    className="form-control"
-                    rows={3}
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Indiquez la raison de l'annulation..."
-                  ></textarea>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowCancelModal(false)}>
+              <textarea
+                className="neo-field"
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Indiquez la raison de l'annulation..."
+                style={{ resize: 'vertical' }}
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <Btn variant="subtle" onClick={() => setShowCancelModal(false)}>
                   Fermer
-                </button>
-                <Button
+                </Btn>
+                <Btn
                   variant="danger"
-                  loading={actionLoading === 'cancel'}
                   onClick={() => handleAction('cancel')}
-                  disabled={!cancelReason.trim()}
+                  disabled={!cancelReason.trim() || actionLoading === 'cancel'}
                 >
                   Annuler le rendez-vous
-                </Button>
+                </Btn>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Complete Modal */}
       {showCompleteModal && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Terminer le rendez-vous</h5>
-                <button type="button" className="btn-close" onClick={() => setShowCompleteModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Compte-rendu</label>
-                  <textarea
-                    className="form-control"
-                    rows={4}
-                    value={completeOutcome}
-                    onChange={(e) => setCompleteOutcome(e.target.value)}
-                    placeholder="Résumé du rendez-vous, décisions prises, prochaines étapes..."
-                  ></textarea>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Durée réelle (minutes)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={completeDuration || ''}
-                    onChange={(e) => setCompleteDuration(e.target.value ? parseInt(e.target.value) : undefined)}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowCompleteModal(false)}>
+        <div className="neo-modal-scrim" onClick={() => setShowCompleteModal(false)}>
+          <div className="neo-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="neo-modal-head">
+              <b>Terminer le rendez-vous</b>
+              <button className="icon-btn" aria-label="Fermer" onClick={() => setShowCompleteModal(false)}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <div className="neo-modal-body">
+              <div className="field-label">Compte-rendu</div>
+              <textarea
+                className="neo-field"
+                rows={4}
+                value={completeOutcome}
+                onChange={(e) => setCompleteOutcome(e.target.value)}
+                placeholder="Résumé du rendez-vous, décisions prises, prochaines étapes..."
+                style={{ resize: 'vertical' }}
+              />
+              <div className="field-label" style={{ marginTop: 14 }}>Durée réelle (minutes)</div>
+              <input
+                className="neo-field"
+                type="number"
+                value={completeDuration || ''}
+                onChange={(e) => setCompleteDuration(e.target.value ? parseInt(e.target.value) : undefined)}
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <Btn variant="subtle" onClick={() => setShowCompleteModal(false)}>
                   Fermer
-                </button>
-                <Button
-                  variant="success"
-                  icon="bi-check-circle"
-                  loading={actionLoading === 'complete'}
-                  onClick={() => handleAction('complete')}
-                >
+                </Btn>
+                <Btn variant="success" icon="checkCircle" onClick={() => handleAction('complete')} disabled={actionLoading === 'complete'}>
                   Terminer
-                </Button>
+                </Btn>
               </div>
             </div>
           </div>

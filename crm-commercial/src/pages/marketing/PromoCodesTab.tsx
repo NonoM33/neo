@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Button, Table } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
 import { marketingService } from '../../services';
 import { useUIStore } from '../../stores';
 import type { PromoCode, PromoCodePayload, PromoDiscountType } from '../../types/marketing.types';
@@ -146,96 +147,117 @@ export function PromoCodesTab() {
 
   return (
     <>
-      <div className="d-flex justify-content-end mb-3">
-        <Button icon="bi-plus-lg" onClick={openCreate}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Btn icon="plus" onClick={openCreate}>
           Nouveau code promo
-        </Button>
+        </Btn>
       </div>
 
-      <Table
-        data={items}
-        loading={loading}
-        keyExtractor={(p) => p.id}
-        emptyMessage="Aucun code promo"
-        columns={[
-          {
-            key: 'code',
-            header: 'Code',
-            render: (p) => <span className="fw-semibold">{p.code}</span>,
-          },
-          { key: 'discount', header: 'Remise', render: formatDiscount },
-          {
-            key: 'uses',
-            header: 'Utilisations',
-            render: (p) => `${p.usedCount}${p.maxUses != null ? ` / ${p.maxUses}` : ''}`,
-          },
-          {
-            key: 'expiresAt',
-            header: 'Expiration',
-            render: (p) =>
-              p.expiresAt ? new Date(p.expiresAt).toLocaleDateString('fr-FR') : '—',
-          },
-          {
-            key: 'active',
-            header: 'Statut',
-            render: (p) =>
-              p.active ? (
-                <span className="badge" style={{ background: 'var(--neo-status-gagne)' }}>
-                  Actif
-                </span>
+      <Card flush>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Remise</th>
+                <th>Utilisations</th>
+                <th>Expiration</th>
+                <th>Statut</th>
+                <th style={{ textAlign: 'right' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6}>
+                    <Spinner />
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="receipt" size={22} />
+                      </span>
+                      <b>Aucun code promo</b>
+                      <p>Créez un premier code de réduction pour vos clients.</p>
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                <span className="badge border text-body-secondary">Inactif</span>
-              ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            className: 'text-end',
-            render: (p) => (
-              <div className="d-flex gap-2 justify-content-end" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="outline-secondary" icon="bi-pencil" onClick={() => openEdit(p)}>
-                  {''}
-                </Button>
-                <Button size="sm" variant="danger" icon="bi-trash" onClick={() => remove(p)}>
-                  {''}
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+                items.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <span className="t-main">{p.code}</span>
+                    </td>
+                    <td className="t-sub">{formatDiscount(p)}</td>
+                    <td className="t-sub">
+                      {p.usedCount}
+                      {p.maxUses != null ? ` / ${p.maxUses}` : ''}
+                    </td>
+                    <td className="t-sub">
+                      {p.expiresAt ? new Date(p.expiresAt).toLocaleDateString('fr-FR') : '—'}
+                    </td>
+                    <td>
+                      {p.active ? (
+                        <Pill tone="success" dot>
+                          Actif
+                        </Pill>
+                      ) : (
+                        <Pill tone="neutral">Inactif</Pill>
+                      )}
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button className="icon-btn" aria-label="Modifier" onClick={() => openEdit(p)}>
+                          <Icon name="edit" size={16} />
+                        </button>
+                        <button className="icon-btn" aria-label="Supprimer" onClick={() => remove(p)}>
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {showForm && (
         <MarketingModal
           title={editing ? 'Modifier le code promo' : 'Nouveau code promo'}
-          icon="bi-ticket-perforated"
+          icon="receipt"
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <Button variant="outline-secondary" onClick={() => setShowForm(false)}>
+              <Btn variant="subtle" onClick={() => setShowForm(false)}>
                 Annuler
-              </Button>
-              <Button onClick={save} loading={saving}>
-                Enregistrer
-              </Button>
+              </Btn>
+              <Btn onClick={save} disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Btn>
             </>
           }
         >
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Code</label>
+          <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            <div>
+              <div className="field-label">Code</div>
               <input
-                className="form-control text-uppercase"
+                className="neo-field"
+                style={{ textTransform: 'uppercase' }}
                 value={form.code}
                 disabled={!!editing}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 placeholder="NOEL10"
               />
             </div>
-            <div className="col-md-3">
-              <label className="form-label">Type</label>
+            <div>
+              <div className="field-label">Type</div>
               <select
-                className="form-select"
+                className="neo-field"
                 value={form.discountType}
                 onChange={(e) =>
                   setForm({ ...form, discountType: e.target.value as PromoDiscountType })
@@ -245,91 +267,89 @@ export function PromoCodesTab() {
                 <option value="montant_fixe">Montant fixe</option>
               </select>
             </div>
-            <div className="col-md-3">
-              <label className="form-label">
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">
                 Valeur {form.discountType === 'pourcentage' ? '(%)' : '(€)'}
-              </label>
+              </div>
               <input
                 type="number"
-                className="form-control"
+                className="neo-field"
                 value={form.discountValue}
                 onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
               />
             </div>
-            <div className="col-12">
-              <label className="form-label">Description</label>
+            <div>
+              <div className="field-label">Description</div>
               <input
-                className="form-control"
+                className="neo-field"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Montant min. commande HT (€)</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Montant min. commande HT (€)</div>
               <input
                 type="number"
-                className="form-control"
+                className="neo-field"
                 value={form.minOrderHT}
                 onChange={(e) => setForm({ ...form, minOrderHT: e.target.value })}
                 placeholder="Aucun"
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Utilisations max</label>
+            <div>
+              <div className="field-label">Utilisations max</div>
               <input
                 type="number"
-                className="form-control"
+                className="neo-field"
                 value={form.maxUses}
                 onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
                 placeholder="Illimité"
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Début</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Début</div>
               <input
                 type="datetime-local"
-                className="form-control"
+                className="neo-field"
                 value={form.startsAt}
                 onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Expiration</label>
+            <div>
+              <div className="field-label">Expiration</div>
               <input
                 type="datetime-local"
-                className="form-control"
+                className="neo-field"
                 value={form.expiresAt}
                 onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <div className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="promo-perclient"
-                  checked={form.perClientOnce}
-                  onChange={(e) => setForm({ ...form, perClientOnce: e.target.checked })}
-                />
-                <label className="form-check-label" htmlFor="promo-perclient">
-                  Une seule fois par client
-                </label>
-              </div>
-            </div>
-            <div className="col-md-6">
-              <div className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="promo-active"
-                  checked={form.active}
-                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                />
-                <label className="form-check-label" htmlFor="promo-active">
-                  Actif
-                </label>
-              </div>
-            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.perClientOnce}
+                onChange={(e) => setForm({ ...form, perClientOnce: e.target.checked })}
+                style={{ accentColor: 'var(--komun)', width: 16, height: 16 }}
+              />
+              Une seule fois par client
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                style={{ accentColor: 'var(--komun)', width: 16, height: 16 }}
+              />
+              Actif
+            </label>
           </div>
         </MarketingModal>
       )}

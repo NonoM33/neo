@@ -37,6 +37,7 @@ import {
   TicketFormPage,
   TemplatesPage,
   MarketingPage,
+  DesignSystemPage,
 } from './pages';
 import { useAuthStore } from './stores';
 
@@ -299,6 +300,10 @@ export const router = createBrowserRouter([
             <MarketingPage />
           </RoleRoute>
         ),
+      },
+      {
+        path: 'design-system',
+        element: <DesignSystemPage />,
       },
       {
         path: 'users',

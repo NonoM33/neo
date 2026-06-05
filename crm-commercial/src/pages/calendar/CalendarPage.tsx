@@ -6,16 +6,23 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import type { EventInput, DatesSetArg, EventClickArg, DateSelectArg } from '@fullcalendar/core';
-import { Card, CardBody, CardHeader, Button, Spinner } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Card } from '../../components/neo';
 import { useCalendarStore } from '../../stores/calendar.store';
 import type { AppointmentType, AppointmentStatus } from '../../types/appointment.types';
 import {
   APPOINTMENT_TYPE_LABELS,
   APPOINTMENT_TYPE_COLORS,
-  APPOINTMENT_TYPE_ICONS,
   APPOINTMENT_STATUS_LABELS,
   APPOINTMENT_STATUS_COLORS,
 } from '../../types/appointment.types';
+
+const VIEW_MODES: { mode: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'listWeek'; label: string }[] = [
+  { mode: 'dayGridMonth', label: 'Mois' },
+  { mode: 'timeGridWeek', label: 'Semaine' },
+  { mode: 'timeGridDay', label: 'Jour' },
+  { mode: 'listWeek', label: 'Liste' },
+];
 
 export function CalendarPage() {
   const navigate = useNavigate();
@@ -31,7 +38,6 @@ export function CalendarPage() {
     setFilters,
   } = useCalendarStore();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [typeFilters, setTypeFilters] = useState<Set<AppointmentType>>(new Set());
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | ''>('');
 
@@ -75,6 +81,7 @@ export function CalendarPage() {
       type: typeFilters.size === 1 ? Array.from(typeFilters)[0] : undefined,
       status: statusFilter || undefined,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typeFilters, statusFilter]);
 
   // When filters change, reload using current calendar range
@@ -87,6 +94,7 @@ export function CalendarPage() {
       const toDate = end.toISOString().split('T')[0];
       loadAppointments(fromDate, toDate);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const handleEventClick = (clickInfo: EventClickArg) => {
@@ -142,18 +150,18 @@ export function CalendarPage() {
       status: AppointmentStatus;
     };
     return (
-      <div className="d-flex align-items-center gap-1 w-100 overflow-hidden" style={{ fontSize: '0.8rem', padding: '1px 3px' }}>
-        <i className={`bi ${APPOINTMENT_TYPE_ICONS[appointment.type]}`} style={{ fontSize: '0.7rem' }}></i>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', overflow: 'hidden', fontSize: '0.8rem', padding: '1px 3px' }}>
         <span
-          className="d-inline-block rounded-circle flex-shrink-0"
           style={{
             width: 6,
             height: 6,
+            flexShrink: 0,
+            borderRadius: '50%',
             backgroundColor: APPOINTMENT_STATUS_COLORS[appointment.status],
           }}
         ></span>
-        <span className="text-truncate">
-          {eventInfo.timeText && <b className="me-1">{eventInfo.timeText}</b>}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {eventInfo.timeText && <b style={{ marginRight: 4 }}>{eventInfo.timeText}</b>}
           {eventInfo.event.title}
         </span>
       </div>
@@ -162,140 +170,100 @@ export function CalendarPage() {
 
   return (
     <div className="calendar-page">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex align-items-center gap-3">
-          <h2 className="mb-0" style={{ fontWeight: 600 }}>
-            <i className="bi bi-calendar3 me-2"></i>
-            Agenda
-          </h2>
-          <button
-            className="btn btn-sm btn-outline-secondary d-lg-none"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <i className="bi bi-funnel"></i>
-          </button>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Agenda</h1>
+          <p>Rendez-vous, visites et interventions</p>
         </div>
-
-        <div className="d-flex align-items-center gap-2">
-          {/* View Mode Buttons */}
-          <div className="btn-group">
-            <button
-              className={`btn btn-sm ${viewMode === 'dayGridMonth' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleViewChange('dayGridMonth')}
-            >
-              Mois
-            </button>
-            <button
-              className={`btn btn-sm ${viewMode === 'timeGridWeek' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleViewChange('timeGridWeek')}
-            >
-              Semaine
-            </button>
-            <button
-              className={`btn btn-sm ${viewMode === 'timeGridDay' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleViewChange('timeGridDay')}
-            >
-              Jour
-            </button>
-            <button
-              className={`btn btn-sm ${viewMode === 'listWeek' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleViewChange('listWeek')}
-            >
-              Liste
-            </button>
+        <div className="page-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="seg">
+            {VIEW_MODES.map(({ mode, label }) => (
+              <button
+                key={mode}
+                className={viewMode === mode ? 'on' : ''}
+                onClick={() => handleViewChange(mode)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-
-          <Button icon="bi-plus-lg" onClick={() => navigate('/calendar/new')}>
+          <Btn icon="plus" onClick={() => navigate('/calendar/new')}>
             Nouveau RDV
-          </Button>
+          </Btn>
         </div>
       </div>
 
-      <div className="row g-4">
-        {/* Sidebar */}
-        <div className={`col-lg-3 ${sidebarOpen ? '' : 'd-none d-lg-block'}`}>
-          {/* Mini Stats */}
-          <div className="row g-2 mb-3">
-            <div className="col-6">
-              <Card>
-                <CardBody className="p-3 text-center">
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--neo-primary)' }}>
-                    {appointmentsToday.length}
-                  </div>
-                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    Aujourd'hui
-                  </div>
-                </CardBody>
-              </Card>
+      <div className="cal-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 18, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="stat-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="stat">
+              <div className="st-val" style={{ color: 'var(--komun)' }}>{appointmentsToday.length}</div>
+              <div className="st-label">Aujourd'hui</div>
             </div>
-            <div className="col-6">
-              <Card>
-                <CardBody className="p-3 text-center">
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--neo-success, #198754)' }}>
-                    {appointmentsThisWeek.length}
-                  </div>
-                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    Cette semaine
-                  </div>
-                </CardBody>
-              </Card>
+            <div className="stat">
+              <div className="st-val" style={{ color: 'var(--success)' }}>{appointmentsThisWeek.length}</div>
+              <div className="st-label">Cette semaine</div>
             </div>
           </div>
 
-          {/* Type Filters */}
-          <Card className="mb-3">
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Types</span>
-                {typeFilters.size > 0 && (
-                  <button
-                    className="btn btn-link btn-sm text-muted p-0"
-                    onClick={() => setTypeFilters(new Set())}
-                    style={{ fontSize: '0.75rem' }}
-                  >
-                    Tout afficher
-                  </button>
-                )}
-              </div>
-            </CardHeader>
-            <CardBody className="p-2">
-              {allTypes.map((type) => (
-                <label
-                  key={type}
-                  className="d-flex align-items-center gap-2 px-2 py-1 rounded"
-                  style={{
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    backgroundColor: typeFilters.has(type) ? 'var(--neo-primary-light)' : 'transparent',
-                    transition: 'background 0.2s',
-                  }}
+          <Card
+            head="Types"
+            action={
+              typeFilters.size > 0 ? (
+                <button
+                  className="link-btn"
+                  onClick={() => setTypeFilters(new Set())}
+                  style={{ background: 'none', border: 'none', color: 'var(--komun)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
                 >
-                  <input
-                    type="checkbox"
-                    className="form-check-input m-0"
-                    checked={typeFilters.size === 0 || typeFilters.has(type)}
-                    onChange={() => toggleTypeFilter(type)}
+                  Tout afficher
+                </button>
+              ) : undefined
+            }
+            flush
+          >
+            <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {allTypes.map((type) => {
+                const active = typeFilters.size === 0 || typeFilters.has(type);
+                return (
+                  <label
+                    key={type}
                     style={{
-                      borderColor: APPOINTMENT_TYPE_COLORS[type],
-                      backgroundColor: (typeFilters.size === 0 || typeFilters.has(type)) ? APPOINTMENT_TYPE_COLORS[type] : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '7px 9px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontSize: 13.5,
+                      background: typeFilters.has(type) ? 'var(--komun-soft)' : 'transparent',
                     }}
-                  />
-                  <i className={`bi ${APPOINTMENT_TYPE_ICONS[type]}`} style={{ color: APPOINTMENT_TYPE_COLORS[type], fontSize: '0.9rem' }}></i>
-                  <span>{APPOINTMENT_TYPE_LABELS[type]}</span>
-                </label>
-              ))}
-            </CardBody>
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={() => toggleTypeFilter(type)}
+                      style={{ accentColor: APPOINTMENT_TYPE_COLORS[type], margin: 0 }}
+                    />
+                    <span
+                      style={{
+                        width: 9,
+                        height: 9,
+                        borderRadius: '50%',
+                        backgroundColor: APPOINTMENT_TYPE_COLORS[type],
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>{APPOINTMENT_TYPE_LABELS[type]}</span>
+                  </label>
+                );
+              })}
+            </div>
           </Card>
 
-          {/* Status Filter */}
-          <Card className="mb-3">
-            <CardHeader>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Statut</span>
-            </CardHeader>
-            <CardBody className="p-2">
+          <Card head="Statut" flush>
+            <div style={{ padding: 12 }}>
               <select
-                className="form-select form-select-sm"
+                className="neo-field"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as AppointmentStatus | '')}
               >
@@ -306,85 +274,82 @@ export function CalendarPage() {
                   </option>
                 ))}
               </select>
-            </CardBody>
+            </div>
           </Card>
 
-          {/* Availability Link */}
-          <Card>
-            <CardBody className="p-3">
-              <button
-                className="btn btn-outline-primary btn-sm w-100"
-                onClick={() => navigate('/calendar/availability')}
+          <Btn variant="subtle" icon="clock" onClick={() => navigate('/calendar/availability')} style={{ width: '100%' }}>
+            Gérer mes disponibilités
+          </Btn>
+        </div>
+
+        <Card flush>
+          <div style={{ position: 'relative', minHeight: 600, padding: 16 }}>
+            {isLoading && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(250,249,246,0.7)',
+                  borderRadius: 12,
+                }}
               >
-                <i className="bi bi-clock me-2"></i>
-                Gérer mes disponibilités
-              </button>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Calendar Main Area */}
-        <div className={`${sidebarOpen ? 'col-lg-9' : 'col-12'}`}>
-          <Card>
-            <CardBody>
-              {isLoading && (
-                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ zIndex: 10, background: 'rgba(255,255,255,0.7)', borderRadius: '10px' }}>
-                  <Spinner />
-                </div>
-              )}
-              <div style={{ position: 'relative', minHeight: '600px' }}>
-                <FullCalendar
-                  ref={calendarRef}
-                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                  initialView={viewMode}
-                  locale="fr"
-                  headerToolbar={{
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: '',
-                  }}
-                  buttonText={{
-                    today: "Aujourd'hui",
-                    month: 'Mois',
-                    week: 'Semaine',
-                    day: 'Jour',
-                    list: 'Liste',
-                  }}
-                  events={events}
-                  eventContent={renderEventContent}
-                  selectable={true}
-                  selectMirror={true}
-                  dayMaxEvents={true}
-                  weekends={true}
-                  datesSet={handleDatesSet}
-                  eventClick={handleEventClick}
-                  select={handleDateSelect}
-                  height="auto"
-                  slotMinTime="07:00:00"
-                  slotMaxTime="21:00:00"
-                  slotDuration="00:30:00"
-                  allDaySlot={false}
-                  nowIndicator={true}
-                  firstDay={1}
-                  eventDisplay="block"
-                  eventTimeFormat={{
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  }}
-                  slotLabelFormat={{
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  }}
-                  dateClick={(info) => {
-                    setSelectedDate(info.date);
-                  }}
-                />
+                <Spinner />
               </div>
-            </CardBody>
-          </Card>
-        </div>
+            )}
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+              initialView={viewMode}
+              locale="fr"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: '',
+              }}
+              buttonText={{
+                today: "Aujourd'hui",
+                month: 'Mois',
+                week: 'Semaine',
+                day: 'Jour',
+                list: 'Liste',
+              }}
+              events={events}
+              eventContent={renderEventContent}
+              selectable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              weekends={true}
+              datesSet={handleDatesSet}
+              eventClick={handleEventClick}
+              select={handleDateSelect}
+              height="auto"
+              slotMinTime="07:00:00"
+              slotMaxTime="21:00:00"
+              slotDuration="00:30:00"
+              allDaySlot={false}
+              nowIndicator={true}
+              firstDay={1}
+              eventDisplay="block"
+              eventTimeFormat={{
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              }}
+              slotLabelFormat={{
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              }}
+              dateClick={(info) => {
+                setSelectedDate(info.date);
+              }}
+            />
+          </div>
+        </Card>
       </div>
     </div>
   );

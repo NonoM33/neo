@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Button, Spinner } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon } from '../../components/neo';
 import { clientsService, ticketsService } from '../../services';
 import {
   ticketPriorityLabels,
@@ -77,42 +78,35 @@ export function TicketFormPage() {
       navigate(`/tickets/${ticket.id}`);
     } catch (error) {
       console.error('Failed to create ticket:', error);
-      toast.error("Échec de la création");
+      toast.error('Échec de la création');
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="content-area">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="content-area">
-      <div className="d-flex align-items-center gap-2 mb-4">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          icon="bi-arrow-left"
-          onClick={() => navigate('/tickets')}
-        >
-          Retour
-        </Button>
-        <h1 className="page-title mb-0">Nouveau ticket</h1>
+    <div style={{ padding: 28, maxWidth: 820, margin: '0 auto' }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/tickets')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux tickets
+          </button>
+          <h1>Nouveau ticket</h1>
+        </div>
       </div>
 
-      <Card>
-        <CardBody>
-          <form onSubmit={handleSubmit}>
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label className="form-label">Client</label>
+      <form onSubmit={handleSubmit}>
+        <Card head="Ticket" icon="ticket">
+          <div className="card-body">
+            <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+              <div>
+                <div className="field-label">Client *</div>
                 <select
-                  className="form-select"
+                  className="neo-field"
                   required
                   value={form.clientId}
                   onChange={(e) => update('clientId', e.target.value)}
@@ -127,29 +121,31 @@ export function TicketFormPage() {
                   ))}
                 </select>
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Titre</label>
+              <div>
+                <div className="field-label">Titre *</div>
                 <input
-                  className="form-control"
+                  className="neo-field"
                   required
                   value={form.title}
                   onChange={(e) => update('title', e.target.value)}
                 />
               </div>
-              <div className="col-12">
-                <label className="form-label">Description</label>
-                <textarea
-                  className="form-control"
-                  rows={5}
-                  required
-                  value={form.description}
-                  onChange={(e) => update('description', e.target.value)}
-                />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label">Priorité</label>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <div className="field-label">Description *</div>
+              <textarea
+                className="neo-field"
+                rows={5}
+                required
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+              />
+            </div>
+            <div className="field-grid">
+              <div>
+                <div className="field-label">Priorité</div>
                 <select
-                  className="form-select"
+                  className="neo-field"
                   value={form.priority}
                   onChange={(e) => update('priority', e.target.value as TicketPriority)}
                 >
@@ -160,10 +156,10 @@ export function TicketFormPage() {
                   ))}
                 </select>
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Source</label>
+              <div>
+                <div className="field-label">Source</div>
                 <select
-                  className="form-select"
+                  className="neo-field"
                   value={form.source}
                   onChange={(e) => update('source', e.target.value as TicketSource)}
                 >
@@ -175,18 +171,18 @@ export function TicketFormPage() {
                 </select>
               </div>
             </div>
+          </div>
+        </Card>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
-              <Button type="button" variant="outline-secondary" onClick={() => navigate('/tickets')}>
-                Annuler
-              </Button>
-              <Button type="submit" loading={saving} icon="bi-check-lg">
-                Créer
-              </Button>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+          <Btn type="button" variant="subtle" onClick={() => navigate('/tickets')}>
+            Annuler
+          </Btn>
+          <Btn type="submit" icon="check" disabled={saving}>
+            {saving ? 'Création…' : 'Créer'}
+          </Btn>
+        </div>
+      </form>
     </div>
   );
 }

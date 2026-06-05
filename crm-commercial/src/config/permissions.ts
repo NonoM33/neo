@@ -31,6 +31,7 @@ export type Feature =
   | 'objectives'
   | 'templates'
   | 'marketing'
+  | 'design-system'
   | 'users';
 
 const ALL_ROLES: RoleType[] = ['admin', 'integrateur', 'auditeur', 'commercial'];
@@ -45,6 +46,7 @@ export const featureRoles: Record<Feature, RoleType[]> = {
   catalogue: ALL_ROLES,
   availability: ALL_ROLES,
   profile: ALL_ROLES,
+  'design-system': ALL_ROLES,
 
   // Pôle commercial
   prospection: ['admin', 'commercial'],
