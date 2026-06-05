@@ -37,3 +37,31 @@ export function addRoom(active: readonly string[], key: string): string[] {
 export function removeRoom(active: readonly string[], key: string): string[] {
   return active.filter((k) => k !== key);
 }
+
+export interface CategorizedRoom {
+  cats?: readonly string[];
+}
+
+/**
+ * Catégories d'équipements proposées dans une pièce. Règle métier : CHAQUE
+ * pièce donne accès à TOUT le catalogue — on n'enferme plus une pièce
+ * prédéfinie (Cuisine, Entrée…) dans un sous-ensemble, sinon elle offre moins
+ * de choix qu'une pièce sur-mesure. On conserve un ordre lisible : les
+ * catégories « favorites » de la pièce d'abord (sans doublon, si présentes au
+ * catalogue), puis le reste du catalogue dans son ordre naturel.
+ */
+export function roomCategories(
+  allCategories: readonly string[],
+  room?: CategorizedRoom,
+): string[] {
+  const favorites: string[] = [];
+  const seen = new Set<string>();
+  for (const cat of room?.cats ?? []) {
+    if (allCategories.includes(cat) && !seen.has(cat)) {
+      favorites.push(cat);
+      seen.add(cat);
+    }
+  }
+  const rest = allCategories.filter((cat) => !seen.has(cat));
+  return [...favorites, ...rest];
+}

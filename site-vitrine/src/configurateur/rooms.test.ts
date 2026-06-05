@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { addRoom, removeRoom, slugifyRoomKey } from './rooms';
+import { addRoom, removeRoom, roomCategories, slugifyRoomKey } from './rooms';
 
 describe('slugifyRoomKey', () => {
   it('translitère accents et espaces en kebab-case', () => {
@@ -30,5 +30,40 @@ describe('addRoom / removeRoom', () => {
     addRoom(src, 'cuisine');
     removeRoom(src, 'salon');
     expect(src).toEqual(['salon']);
+  });
+});
+
+describe('roomCategories', () => {
+  const all = ['Audio', 'Éclairage', 'Chauffage', 'Volets', 'Sécurité', 'Réseau'];
+
+  it('expose TOUT le catalogue même pour une pièce au sous-ensemble restreint', () => {
+    // Régression : la Cuisine n'offrait que 3 catégories alors qu'une pièce
+    // sur-mesure offrait tout → certaines pièces avaient moins de choix.
+    const cuisine = { cats: ['Éclairage', 'Chauffage', 'Sécurité'] };
+    expect(roomCategories(all, cuisine).slice().sort()).toEqual(all.slice().sort());
+  });
+
+  it('place les catégories favorites de la pièce en premier', () => {
+    const entree = { cats: ['Sécurité', 'Éclairage'] };
+    expect(roomCategories(all, entree)).toEqual([
+      'Sécurité', 'Éclairage', 'Audio', 'Chauffage', 'Volets', 'Réseau',
+    ]);
+  });
+
+  it('renvoie le catalogue tel quel pour une pièce sans favoris', () => {
+    expect(roomCategories(all, {})).toEqual(all);
+    expect(roomCategories(all)).toEqual(all);
+  });
+
+  it('ignore les favoris absents du catalogue', () => {
+    expect(roomCategories(all, { cats: ['Inexistant', 'Audio'] })).toEqual([
+      'Audio', 'Éclairage', 'Chauffage', 'Volets', 'Sécurité', 'Réseau',
+    ]);
+  });
+
+  it('ne duplique pas une catégorie favorite répétée', () => {
+    const out = roomCategories(all, { cats: ['Audio', 'Audio'] });
+    expect(out.filter((c) => c === 'Audio')).toHaveLength(1);
+    expect(out).toHaveLength(all.length);
   });
 });

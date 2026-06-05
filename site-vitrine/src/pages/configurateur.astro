@@ -412,7 +412,7 @@ const schema = {
 <script>
 import { House3D } from '../configurateur/house3d';
 import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
-import { addRoom, removeRoom, slugifyRoomKey } from '../configurateur/rooms';
+import { addRoom, removeRoom, roomCategories, slugifyRoomKey } from '../configurateur/rooms';
 import { filterProducts } from '../configurateur/search';
 (function () {
   var main = document.querySelector('.cfg-main');
@@ -539,12 +539,14 @@ import { filterProducts } from '../configurateur/search';
     });
   }
 
+  function allCats() { return Object.keys(PRODUCTS_BY_CAT); }
+  // Catégories proposées dans une pièce : tout le catalogue (favorites d'abord).
+  function catsForRoom(room) { return roomCategories(allCats(), room); }
   // ── Pièces disponibles (≥ 1 produit) ──
   function roomHasProducts(room) {
-    return room.cats.some(function (c) { return (PRODUCTS_BY_CAT[c] || []).length; });
+    return catsForRoom(room).some(function (c) { return (PRODUCTS_BY_CAT[c] || []).length; });
   }
   function availableRooms() { return ROOMS.filter(roomHasProducts); }
-  function allCats() { return Object.keys(PRODUCTS_BY_CAT); }
 
   // Pièces actuellement dans la maison (prédéfinies actives + sur-mesure).
   function ensureActiveRooms() {
@@ -814,7 +816,7 @@ import { filterProducts } from '../configurateur/search';
   function targetRoom(x, y, category) {
     var key = house3d.roomAtClient(x, y);
     var room = key && ROOM_BY_KEY[key];
-    return room && roomAcceptsCategory(room.cats, category) ? key : null;
+    return room && roomAcceptsCategory(catsForRoom(room), category) ? key : null;
   }
 
   function onDragMove(e) {
@@ -957,7 +959,7 @@ import { filterProducts } from '../configurateur/search';
       }
     } else if (room) {
       var rendered = 0;
-      room.cats.forEach(function (catName) {
+      catsForRoom(room).forEach(function (catName) {
         var prods = PRODUCTS_BY_CAT[catName] || [];
         if (!prods.length) return;
         rendered += 1;
