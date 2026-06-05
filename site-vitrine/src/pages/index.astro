@@ -716,13 +716,15 @@ const localBusinessSchema = {
   defer
 ></script>
 
-<!-- Widget de feedback (signalement) servi par le backend -->
-<script
-  is:inline
-  src={`${SITE_CONFIG.apiBaseUrl}/feedback-widget.js`}
-  data-api={SITE_CONFIG.apiBaseUrl}
-  defer
-></script>
+<!-- Widget de feedback (signalement) — RECETTE UNIQUEMENT, jamais en prod -->
+{SITE_CONFIG.isStaging && (
+  <script
+    is:inline
+    src={`${SITE_CONFIG.apiBaseUrl}/feedback-widget.js`}
+    data-api={SITE_CONFIG.apiBaseUrl}
+    defer
+  ></script>
+)}
 
 <MarketingPopup />
 </body>

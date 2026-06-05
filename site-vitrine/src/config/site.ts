@@ -1,6 +1,11 @@
 // Configuration centralisée du site Neo Domotique
 // TODO: remplacer toutes les valeurs par les vraies informations
 
+import { isStagingApiUrl } from './environment';
+
+const API_BASE_URL =
+  (import.meta.env.PUBLIC_API_BASE_URL || '').trim() || 'https://api.neo-domotique.fr';
+
 export const SITE_CONFIG = {
   // Informations entreprise
   name: 'Neo Domotique',
@@ -60,7 +65,9 @@ export const SITE_CONFIG = {
   // API — surchargé par env (staging vs prod), défaut = backend prod.
   // On retombe sur le fallback même si la variable est définie mais vide
   // (sinon data-api="" et le configurateur fetch en relatif => catalogue vide).
-  apiBaseUrl:
-    (import.meta.env.PUBLIC_API_BASE_URL || '').trim() ||
-    'https://api.neo-domotique.fr',
+  apiBaseUrl: API_BASE_URL,
+
+  // Recette (staging) déduite de l'URL d'API. Sert à n'exposer certains outils
+  // internes (widget de feedback/signalement) QU'EN recette, jamais en prod.
+  isStaging: isStagingApiUrl(API_BASE_URL),
 } as const;
