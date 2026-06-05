@@ -35,9 +35,13 @@ const schema = {
 <script type="application/ld+json" set:html={JSON.stringify(schema)} />
 <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
 <style is:global>
-  .cfg-main { padding: 90px 0 160px; min-height: 100vh; }
-  .cfg-head { text-align: center; margin-bottom: 32px; }
-  .cfg-steps { display: flex; gap: 8px; justify-content: center; margin: 24px 0 8px; flex-wrap: wrap; }
+  .cfg-main { padding: 64px 0 120px; min-height: 100vh; }
+  .cfg-head { text-align: center; margin-bottom: 18px; }
+  .cfg-head .scene-title { margin: 6px 0; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.12; }
+  .cfg-head .lead { margin: 0 auto; max-width: 520px; font-size: 15px; line-height: 1.5; }
+  .cfg-head .eyebrow { font-size: 12px; }
+  @media (max-width: 980px) { .cfg-main { padding: 48px 0 100px; } .cfg-head .scene-title { font-size: 26px; } }
+  .cfg-steps { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap; }
   .cfg-step { font-size: 13px; color: #8a8f98; display: flex; align-items: center; gap: 6px; }
   .cfg-step .num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 12px; }
   .cfg-step.active { color: #fff; }
@@ -131,7 +135,15 @@ const schema = {
   .cfg-linkrow input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 13px; }
   /* ── Builder 3D ── */
   .cfg-builder { position: relative; }
-  .cfg-stage { width: 100%; height: min(38vh, 340px); min-height: 240px; border-radius: 20px; overflow: hidden; background: radial-gradient(120% 120% at 50% 0%, rgba(110,168,254,.12), rgba(11,13,18,0) 60%), #0b0d12; border: 1px solid rgba(255,255,255,.08); touch-action: none; cursor: grab; }
+  .cfg-builder__body { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: 22px; align-items: start; margin-top: 16px; }
+  .cfg-3d { position: sticky; top: 84px; }
+  .cfg-builder__body .cfg-roominline { margin-top: 0; border-top: 0; padding-top: 0; }
+  @media (max-width: 1100px) {
+    .cfg-builder__body { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .cfg-3d { position: static; order: 2; }
+    .cfg-builder__body .cfg-roominline { order: 1; }
+  }
+  .cfg-stage { width: 100%; height: min(46vh, 380px); min-height: 260px; border-radius: 20px; overflow: hidden; background: radial-gradient(120% 120% at 50% 0%, rgba(110,168,254,.12), rgba(11,13,18,0) 60%), #0b0d12; border: 1px solid rgba(255,255,255,.08); touch-action: none; cursor: grab; }
   .cfg-stage:active { cursor: grabbing; }
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
   .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
@@ -274,15 +286,19 @@ const schema = {
             <input id="cfg-search" class="cfg-search__input" type="search" autocomplete="off" placeholder="Rechercher un équipement (caméra, ampoule, thermostat…)" />
           </div>
           <div id="cfg-rooms-bar" class="cfg-rooms-bar"></div>
-          <!-- Produits de la pièce sélectionnée, toujours affichés (sans modale) -->
-          <div id="cfg-roominline" class="cfg-roominline"></div>
-          <!-- Vue 3D + glisser-déposer, en complément, sous les produits -->
-          <div class="cfg-stage-wrap">
-            <div id="cfg-stage" class="cfg-stage"></div>
-            <div id="cfg-floors" class="cfg-floors" aria-label="Étages"></div>
+          <div class="cfg-builder__body">
+            <!-- Vue 3D + glisser-déposer (sticky à gauche) -->
+            <div class="cfg-3d">
+              <div class="cfg-stage-wrap">
+                <div id="cfg-stage" class="cfg-stage"></div>
+                <div id="cfg-floors" class="cfg-floors" aria-label="Étages"></div>
+              </div>
+              <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
+              <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
+            </div>
+            <!-- Produits de la pièce sélectionnée, toujours affichés (sans modale) -->
+            <div id="cfg-roominline" class="cfg-roominline"></div>
           </div>
-          <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
-          <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
         </div>
         <!-- Modale d'ajout de pièce -->
         <div id="cfg-addroom" class="cfg-addroom" hidden aria-hidden="true">
