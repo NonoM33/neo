@@ -6,12 +6,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { boardSize, roomGridPositions } from './layout';
+import { groupRoomsByFloor } from './floors';
 import { makeBadgeSprite, makeLabelSprite, type BadgeSprite } from './sprites';
 
 export interface Room3DConfig {
   key: string;
   label: string;
   accent: string;
+  floor?: number;
 }
 
 export interface House3DOptions {
@@ -22,22 +24,35 @@ export interface House3DOptions {
 
 interface RoomObject {
   key: string;
+  floor: number;
+  baseY: number;
   accent: string;
   accentColor: THREE.Color;
   group: THREE.Group;
   tile: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   wallMat: THREE.MeshStandardMaterial;
   hotspot: THREE.Group;
+  label: THREE.Sprite;
   badge: BadgeSprite;
   baseHotspotY: number;
   lift: number;
+  dim: number;
   count: number;
   pop: number;
+}
+
+interface Level {
+  floor: number;
+  elevation: number;
+  boardMat: THREE.MeshStandardMaterial;
+  gridMat: THREE.Material & { opacity: number };
+  baseGridOpacity: number;
 }
 
 const TILE_W = 1.7;
 const TILE_D = 1.9;
 const CLICK_TOLERANCE = 7;
+const FLOOR_HEIGHT = 3.1;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -54,10 +69,13 @@ export class House3D {
   private readonly pointer = new THREE.Vector2();
   private readonly rooms: RoomObject[] = [];
   private readonly tiles: THREE.Object3D[] = [];
+  private readonly levels: Level[] = [];
   private readonly resizeObserver: ResizeObserver;
 
   private hoverKey: string | null = null;
   private dropKey: string | null = null;
+  private focusedFloor: number | null = null;
+  private centerY = 0.4;
   private pointerDown: { x: number; y: number } | null = null;
   private picking = true;
   private rafId = 0;
@@ -98,10 +116,10 @@ export class House3D {
       this.controls.autoRotate = false;
     });
 
-    this.scene.fog = new THREE.Fog(0x0b0d12, 16, 30);
+    this.scene.fog = new THREE.Fog(0x0b0d12, 18, 40);
     this.buildLights();
-    this.buildBoard(opts.rooms.length);
-    this.buildRooms(opts.rooms);
+    this.buildLevels(opts.rooms);
+    this.frameCamera();
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -123,29 +141,44 @@ export class House3D {
     this.scene.add(rim);
   }
 
-  private buildBoard(roomCount: number): void {
+  /** Construit un plateau par étage, empilés verticalement selon leur niveau. */
+  private buildLevels(configs: Room3DConfig[]): void {
+    const groups = groupRoomsByFloor(configs);
+    const maxPerFloor = groups.reduce((m, g) => Math.max(m, g.rooms.length), 1);
+    groups.forEach((g) => {
+      const elevation = g.floor * FLOOR_HEIGHT;
+      this.buildBoard(maxPerFloor, elevation, g.floor);
+      this.buildRooms(g.rooms, elevation, g.floor);
+    });
+  }
+
+  private buildBoard(roomCount: number, elevation: number, floor: number): void {
     const { width, depth } = boardSize(roomCount, 2.15, 2.35, 4, 1.2);
     const geo = new RoundedBoxGeometry(width, 0.4, depth, 4, 0.28);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x0e1117, roughness: 0.9, metalness: 0.05 });
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x0e1117, roughness: 0.9, metalness: 0.05, transparent: true, opacity: 1,
+    });
     const board = new THREE.Mesh(geo, mat);
-    board.position.y = -0.22;
+    board.position.y = elevation - 0.22;
     this.scene.add(board);
 
     const grid = new THREE.GridHelper(Math.max(width, depth), 14, 0x2b3656, 0x18202f);
-    const gridMat = grid.material as THREE.Material;
+    const gridMat = grid.material as THREE.Material & { opacity: number };
     gridMat.transparent = true;
     gridMat.opacity = 0.35;
-    grid.position.y = 0.002;
+    grid.position.y = elevation + 0.002;
     this.scene.add(grid);
+
+    this.levels.push({ floor, elevation, boardMat: mat, gridMat, baseGridOpacity: 0.35 });
   }
 
-  private buildRooms(configs: Room3DConfig[]): void {
+  private buildRooms(configs: Room3DConfig[], elevation: number, floor: number): void {
     const cells = roomGridPositions(configs.length, 2.15, 2.35, 4);
     configs.forEach((cfg, i) => {
       const cell = cells[i];
       const accentColor = new THREE.Color(cfg.accent);
       const group = new THREE.Group();
-      group.position.set(cell.x, 0, cell.z);
+      group.position.set(cell.x, elevation, cell.z);
 
       const tileMat = new THREE.MeshStandardMaterial({
         color: 0x161b25,
@@ -153,10 +186,13 @@ export class House3D {
         metalness: 0.15,
         emissive: accentColor,
         emissiveIntensity: 0.06,
+        transparent: true,
+        opacity: 1,
       });
       const tile = new THREE.Mesh(new RoundedBoxGeometry(TILE_W, 0.22, TILE_D, 3, 0.12), tileMat);
       tile.position.y = 0.11;
       tile.userData.roomKey = cfg.key;
+      tile.userData.floor = floor;
       group.add(tile);
       this.tiles.push(tile);
 
@@ -180,6 +216,7 @@ export class House3D {
 
       const label = makeLabelSprite(cfg.label, '#e4ebff');
       label.position.set(0, 0.16, TILE_D / 2 + 0.28);
+      label.material.transparent = true;
       group.add(label);
 
       const badge = makeBadgeSprite();
@@ -189,19 +226,35 @@ export class House3D {
       this.scene.add(group);
       this.rooms.push({
         key: cfg.key,
+        floor,
+        baseY: elevation,
         accent: cfg.accent,
         accentColor,
         group,
         tile,
         wallMat,
         hotspot,
+        label,
         badge,
         baseHotspotY: 0.95,
         lift: 0,
+        dim: 0,
         count: 0,
         pop: 0,
       });
     });
+  }
+
+  /** Cadre la caméra pour englober tous les étages empilés. */
+  private frameCamera(): void {
+    const elevs = this.levels.map((l) => l.elevation);
+    const maxE = elevs.length ? Math.max(...elevs) : 0;
+    const minE = elevs.length ? Math.min(...elevs) : 0;
+    const span = maxE - minE;
+    this.centerY = (maxE + minE) / 2 + 0.4;
+    this.camera.position.set(0.5, 8.2 + span * 0.55, 9.5 + span * 0.75);
+    this.controls.target.set(0, this.centerY, 0);
+    this.controls.maxDistance = 17 + span * 1.3;
   }
 
   private buildHotspot(accent: THREE.Color): THREE.Group {
@@ -230,7 +283,10 @@ export class House3D {
 
   private pick(): string | null {
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects(this.tiles, false);
+    const candidates = this.focusedFloor === null
+      ? this.tiles
+      : this.tiles.filter((t) => t.userData.floor === this.focusedFloor);
+    const hits = this.raycaster.intersectObjects(candidates, false);
     if (!hits.length) return null;
     const key = hits[0].object.userData.roomKey;
     return typeof key === 'string' ? key : null;
@@ -296,6 +352,24 @@ export class House3D {
     }
   }
 
+  /** Niveaux présents, du plus haut au plus bas (pour le sélecteur d'étage). */
+  getFloors(): number[] {
+    return this.levels.map((l) => l.floor);
+  }
+
+  /**
+   * Focalise un étage (caméra recentrée, autres niveaux estompés et non
+   * cliquables) ou `null` pour revenir à la vue d'ensemble auto-rotative.
+   */
+  focusFloor(floor: number | null): void {
+    this.focusedFloor = floor;
+    this.controls.autoRotate = floor === null;
+    if (floor !== null) {
+      this.hoverKey = null;
+      if (this.opts.onRoomHover) this.opts.onRoomHover(null);
+    }
+  }
+
   setActive(active: boolean): void {
     if (active === this.active) return;
     this.active = active;
@@ -324,17 +398,39 @@ export class House3D {
     const dt = Math.min(0.05, this.clock.getDelta());
     const t = this.clock.elapsedTime;
 
+    // Recentre la caméra sur l'étage focalisé (ou le centre de la maison).
+    const focusY = this.focusedFloor === null
+      ? this.centerY
+      : this.focusedFloor * FLOOR_HEIGHT + 0.4;
+    this.controls.target.y = lerp(this.controls.target.y, focusY, 0.1);
+
+    this.levels.forEach((lvl) => {
+      const dimmed = this.focusedFloor !== null && lvl.floor !== this.focusedFloor;
+      lvl.boardMat.opacity = lerp(lvl.boardMat.opacity, dimmed ? 0.12 : 1, 0.12);
+      lvl.gridMat.opacity = lerp(lvl.gridMat.opacity, dimmed ? 0.04 : lvl.baseGridOpacity, 0.12);
+    });
+
     this.rooms.forEach((room) => {
-      const targeted = room.key === this.dropKey;
-      const hovered = room.key === this.hoverKey || targeted;
+      const offFocus = this.focusedFloor !== null && room.floor !== this.focusedFloor;
+      room.dim = lerp(room.dim, offFocus ? 1 : 0, 0.12);
+      const targeted = !offFocus && room.key === this.dropKey;
+      const hovered = !offFocus && (room.key === this.hoverKey || targeted);
       const targetLift = targeted ? 0.24 : hovered ? 0.14 : 0;
       room.lift = lerp(room.lift, targetLift, 0.15);
-      room.group.position.y = room.lift;
+      room.group.position.y = room.baseY + room.lift;
 
       const targetEmissive = targeted ? 0.55 : hovered ? 0.3 : room.count > 0 ? 0.2 : 0.06;
       const m = room.tile.material;
       m.emissiveIntensity = lerp(m.emissiveIntensity, targetEmissive, 0.15);
-      room.wallMat.opacity = lerp(room.wallMat.opacity, hovered || room.count > 0 ? 0.38 : 0.2, 0.15);
+      m.opacity = lerp(m.opacity, offFocus ? 0.16 : 1, 0.12);
+      room.wallMat.opacity = lerp(
+        room.wallMat.opacity,
+        offFocus ? 0.05 : hovered || room.count > 0 ? 0.38 : 0.2,
+        0.15,
+      );
+      room.label.material.opacity = lerp(room.label.material.opacity, offFocus ? 0.12 : 1, 0.12);
+      room.badge.sprite.material.opacity = lerp(room.badge.sprite.material.opacity, offFocus ? 0.12 : 1, 0.12);
+      room.hotspot.visible = room.dim < 0.85;
 
       // hotspot : flottement + pop quand on ajoute un équipement
       room.pop *= 0.9;

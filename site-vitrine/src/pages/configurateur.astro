@@ -136,6 +136,13 @@ const schema = {
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
   .cfg-stage-hint { text-align: center; color: #8a8f98; font-size: 13px; margin: 12px 0 0; }
   .cfg-stage-hint b { color: #cfe0ff; font-weight: 700; }
+  .cfg-stage-wrap { position: relative; }
+  .cfg-floors { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+  .cfg-floorbtn { appearance: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: #cfe0ff; background: rgba(13,16,22,.72); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px 12px; backdrop-filter: blur(8px); transition: all .15s; white-space: nowrap; }
+  .cfg-floorbtn:hover { border-color: rgba(110,168,254,.55); color: #fff; }
+  .cfg-floorbtn.active { background: rgba(110,168,254,.2); border-color: #6ea8fe; color: #fff; }
+  .cfg-floorbtn i { font-style: normal; opacity: .7; }
+  .cfg-addroom__floors { display: flex; flex-wrap: wrap; gap: 6px; }
   /* Barre « Mes pièces » */
   .cfg-rooms-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
   .cfg-rooms-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8a8f98; font-weight: 700; margin-right: 2px; }
@@ -270,7 +277,10 @@ const schema = {
           <!-- Produits de la pièce sélectionnée, toujours affichés (sans modale) -->
           <div id="cfg-roominline" class="cfg-roominline"></div>
           <!-- Vue 3D + glisser-déposer, en complément, sous les produits -->
-          <div id="cfg-stage" class="cfg-stage"></div>
+          <div class="cfg-stage-wrap">
+            <div id="cfg-stage" class="cfg-stage"></div>
+            <div id="cfg-floors" class="cfg-floors" aria-label="Étages"></div>
+          </div>
           <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
           <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
         </div>
@@ -281,6 +291,8 @@ const schema = {
               <h3>Ajouter une pièce</h3>
               <button type="button" id="cfg-addroom-close" class="cfg-addroom__x" aria-label="Fermer">✕</button>
             </div>
+            <p class="cfg-addroom__sub">À quel étage&nbsp;?</p>
+            <div id="cfg-addroom-floors" class="cfg-addroom__floors"></div>
             <p class="cfg-addroom__sub">Cochez une pièce courante…</p>
             <div id="cfg-addroom-grid" class="cfg-addroom__grid"></div>
             <p class="cfg-addroom__sub">…ou créez la vôtre :</p>
@@ -400,7 +412,7 @@ import { House3D } from '../configurateur/house3d';
 import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
 import { addRoom, removeRoom, roomCategories, slugifyRoomKey } from '../configurateur/rooms';
 import { filterProducts } from '../configurateur/search';
-import { floorLabel } from '../configurateur/floors';
+import { floorLabel, floorsOf } from '../configurateur/floors';
 (function () {
   var main = document.querySelector('.cfg-main');
   var API = (main && main.getAttribute('data-api')) || '';
@@ -467,6 +479,8 @@ import { floorLabel } from '../configurateur/floors';
   var searchQuery = '';         // filtre de la barre de recherche produit
   var activeRoomKeys = null;    // pièces présentes dans la maison (lazy: toutes au départ)
   var customRooms = [];         // pièces sur-mesure ajoutées par le client
+  var focusFloor = null;        // étage focalisé en 3D (null = vue d'ensemble)
+  var pendingFloor = 0;         // étage choisi pour la prochaine pièce ajoutée
 
   function getQty(room, pid) { return (selection[room] && selection[room][pid]) || 0; }
   function setQty(room, pid, q) {
@@ -566,6 +580,7 @@ import { floorLabel } from '../configurateur/floors';
     if (!openRoomKey) { var first = houseRooms()[0]; openRoomKey = first ? first.key : null; }
     renderRoomsBar();
     renderRoomInline();
+    renderFloors();
     wireSearchInput();
   }
 
@@ -598,7 +613,7 @@ import { floorLabel } from '../configurateur/floors';
     var stage = document.getElementById('cfg-stage');
     try {
       house3d = new House3D(stage, {
-        rooms: houseRooms().map(function (r) { return { key: r.key, label: r.label, accent: r.accent }; }),
+        rooms: houseRooms().map(function (r) { return { key: r.key, label: r.label, accent: r.accent, floor: r.floor || 0 }; }),
         onRoomClick: function (key) { openRoom(key); },
       });
       return true;
@@ -619,11 +634,44 @@ import { floorLabel } from '../configurateur/floors';
     if (!house3d) { renderRoomsBar(); renderRoomInline(); return; }
     try { house3d.dispose(); } catch (_e) { /* noop */ }
     house3d = null;
-    if (!initBuilder()) { enableFlatMode(); renderRoomsBar(); renderRoomInline(); return; }
+    if (!initBuilder()) { enableFlatMode(); renderRoomsBar(); renderRoomInline(); renderFloors(); return; }
     house3d.setActive(true);
+    if (focusFloor != null) house3d.focusFloor(focusFloor);
     refreshBadges();
     renderRoomsBar();
     renderRoomInline();
+    renderFloors();
+  }
+
+  // ── Navigation par étage (sélecteur 3D) ──
+  function houseFloors() {
+    return floorsOf(houseRooms().map(function (r) { return { key: r.key, floor: r.floor || 0 }; }));
+  }
+
+  function setFocusFloor(floor) {
+    focusFloor = floor;
+    if (house3d) house3d.focusFloor(floor);
+    renderFloors();
+  }
+
+  function renderFloors() {
+    var host = document.getElementById('cfg-floors');
+    if (!host) return;
+    var floors = houseFloors();
+    // Le sélecteur n'a de sens qu'à partir de 2 niveaux ; sinon on le masque.
+    if (builderFailed || floors.length < 2) { host.hidden = true; host.innerHTML = ''; return; }
+    host.hidden = false;
+    var html = '<button type="button" class="cfg-floorbtn' + (focusFloor == null ? ' active' : '') + '" data-floor="all">🏠 Tout</button>';
+    floors.forEach(function (f) {
+      html += '<button type="button" class="cfg-floorbtn' + (focusFloor === f ? ' active' : '') + '" data-floor="' + f + '">' + esc(floorLabel(f)) + '</button>';
+    });
+    host.innerHTML = html;
+    host.querySelectorAll('.cfg-floorbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-floor');
+        setFocusFloor(v === 'all' ? null : Number(v));
+      });
+    });
   }
 
   // ── Barre « Mes pièces » + ajout de pièce (sur-mesure ou prédéfinie) ──
@@ -666,7 +714,9 @@ import { floorLabel } from '../configurateur/floors';
 
   function addPredefinedRoom(key) {
     ensureActiveRooms();
+    if (ROOM_BY_KEY[key]) ROOM_BY_KEY[key].floor = pendingFloor;
     activeRoomKeys = addRoom(activeRoomKeys, key);
+    if (pendingFloor != null) focusFloor = pendingFloor;
     rebuildHouse();
   }
 
@@ -677,10 +727,11 @@ import { floorLabel } from '../configurateur/floors';
     var existing = ROOMS.map(function (r) { return r.key; }).concat(customRooms.map(function (r) { return r.key; }));
     var key = slugifyRoomKey(clean, existing);
     var palette = ['#6ea8fe', '#ff9b6e', '#a98eff', '#5fe0b0', '#7bd88f', '#cfa8ff', '#6ee7ff', '#ffd66e'];
-    var room = { key: key, label: clean, emoji: '🏠', accent: palette[customRooms.length % palette.length], cats: allCats() };
+    var room = { key: key, label: clean, emoji: '🏠', accent: palette[customRooms.length % palette.length], cats: allCats(), floor: pendingFloor };
     customRooms.push(room);
     ROOM_BY_KEY[key] = room;
     activeRoomKeys = addRoom(activeRoomKeys, key);
+    if (pendingFloor != null) focusFloor = pendingFloor;
     rebuildHouse();
   }
 
@@ -720,11 +771,34 @@ import { floorLabel } from '../configurateur/floors';
     return true;
   }
 
+  // Choix de l'étage dans la modale : niveaux existants + un cran au-dessus et
+  // un sous-sol, pour permettre d'étendre la maison vers le haut ou le bas.
+  function renderAddRoomFloors() {
+    var host = document.getElementById('cfg-addroom-floors');
+    if (!host) return;
+    var present = houseFloors();          // déjà triés du haut vers le bas
+    var top = present.length ? present[0] : 0;
+    var bottom = present.length ? present[present.length - 1] : 0;
+    var options = present.slice();
+    if (options.indexOf(top + 1) === -1) options.unshift(top + 1);   // nouvel étage
+    if (options.indexOf(bottom - 1) === -1) options.push(bottom - 1); // nouveau sous-sol
+    if (options.indexOf(pendingFloor) === -1) pendingFloor = present.indexOf(0) !== -1 ? 0 : (present[0] || 0);
+    host.innerHTML = options.map(function (f) {
+      var isNew = present.indexOf(f) === -1;
+      return '<button type="button" class="cfg-floorbtn' + (f === pendingFloor ? ' active' : '') + '" data-floor="' + f + '">' +
+        esc(floorLabel(f)) + (isNew ? ' <i>+</i>' : '') + '</button>';
+    }).join('');
+    host.querySelectorAll('.cfg-floorbtn').forEach(function (b) {
+      b.addEventListener('click', function () { pendingFloor = Number(b.getAttribute('data-floor')); renderAddRoomFloors(); });
+    });
+  }
+
   function openAddRoom() {
     var modal = document.getElementById('cfg-addroom');
     var grid = document.getElementById('cfg-addroom-grid');
     var input = document.getElementById('cfg-addroom-name');
     grid.innerHTML = '';
+    renderAddRoomFloors();
     var active = activeKeySet();
     availableRooms().forEach(function (room) {
       if (active[room.key]) return; // déjà dans la maison

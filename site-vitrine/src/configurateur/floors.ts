@@ -11,10 +11,10 @@ export interface RoomOnFloor {
   floor?: number;
 }
 
-export interface FloorGroup {
+export interface FloorGroup<T extends RoomOnFloor = RoomOnFloor> {
   floor: number;
   label: string;
-  rooms: RoomOnFloor[];
+  rooms: T[];
 }
 
 /** Niveau normalisé d'une pièce (absent → RDC). */
@@ -43,7 +43,9 @@ export function floorsOf(rooms: readonly RoomOnFloor[]): number[] {
  * Regroupe les pièces par niveau, du plus haut au plus bas. L'ordre source des
  * pièces est préservé au sein de chaque étage. Un groupe RDC existe toujours.
  */
-export function groupRoomsByFloor(rooms: readonly RoomOnFloor[]): FloorGroup[] {
+export function groupRoomsByFloor<T extends RoomOnFloor>(
+  rooms: readonly T[],
+): FloorGroup<T>[] {
   return floorsOf(rooms).map((floor) => ({
     floor,
     label: floorLabel(floor),
