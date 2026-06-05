@@ -35,12 +35,12 @@ const schema = {
 <script type="application/ld+json" set:html={JSON.stringify(schema)} />
 <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
 <style is:global>
-  .cfg-main { padding: 64px 0 120px; min-height: 100vh; }
-  .cfg-head { text-align: center; margin-bottom: 18px; }
-  .cfg-head .scene-title { margin: 6px 0; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.12; }
-  .cfg-head .lead { margin: 0 auto; max-width: 520px; font-size: 15px; line-height: 1.5; }
-  .cfg-head .eyebrow { font-size: 12px; }
-  @media (max-width: 980px) { .cfg-main { padding: 48px 0 100px; } .cfg-head .scene-title { font-size: 26px; } }
+  .cfg-main { padding: 44px 0 116px; min-height: 100vh; }
+  .cfg-head { text-align: center; margin-bottom: 14px; }
+  .cfg-head .scene-title { margin: 4px 0; font-size: clamp(24px, 3vw, 32px); line-height: 1.12; }
+  .cfg-head .lead { margin: 0 auto; max-width: 500px; font-size: 14.5px; line-height: 1.45; }
+  .cfg-head .eyebrow { font-size: 11.5px; }
+  @media (max-width: 980px) { .cfg-main { padding: 36px 0 100px; } .cfg-head .scene-title { font-size: 24px; } }
   .cfg-steps { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap; }
   .cfg-step { font-size: 13px; color: #8a8f98; display: flex; align-items: center; gap: 6px; }
   .cfg-step .num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 12px; }
@@ -81,7 +81,15 @@ const schema = {
   .cfg-roominline__total b { font-size: 17px; color: #cfe0ff; }
   .cfg-catlabel { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #8a8f98; margin: 22px 0 12px; display: flex; align-items: center; gap: 7px; }
   .cfg-catlabel-ic { width: 16px; height: 16px; }
-  .cfg-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px,1fr)); gap: 16px; }
+  .cfg-cattabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 18px; }
+  .cfg-cattab { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 600; color: #aab4c4; cursor: pointer; padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); transition: color .15s, border-color .15s, background .15s; }
+  .cfg-cattab:hover { color: #fff; border-color: rgba(255,255,255,.22); }
+  .cfg-cattab.active { color: #fff; border-color: color-mix(in srgb, var(--accent,#6ea8fe) 70%, transparent); background: color-mix(in srgb, var(--accent,#6ea8fe) 16%, transparent); }
+  .cfg-cattab__ic { display: inline-flex; color: var(--accent,#6ea8fe); }
+  .cfg-cattab__ic svg { width: 15px; height: 15px; }
+  .cfg-cattab__n { font-size: 11px; font-weight: 700; color: #8a8f98; background: rgba(255,255,255,.06); border-radius: 999px; padding: 1px 7px; }
+  .cfg-cattab.active .cfg-cattab__n { color: #0b0d12; background: var(--accent,#6ea8fe); }
+  .cfg-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px,1fr)); gap: 14px; }
   .cfg-card { position: relative; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; background: rgba(255,255,255,.025); display: flex; flex-direction: column; overflow: hidden; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
   .cfg-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.22); box-shadow: 0 18px 40px -18px rgba(0,0,0,.75); }
   .cfg-card.sel { border-color: transparent; box-shadow: 0 0 0 1.5px var(--accent,#6ea8fe), 0 18px 44px -16px color-mix(in srgb, var(--accent,#6ea8fe) 50%, transparent); }
@@ -135,7 +143,7 @@ const schema = {
   .cfg-linkrow input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 13px; }
   /* ── Builder 3D ── */
   .cfg-builder { position: relative; }
-  .cfg-builder__body { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: 22px; align-items: start; margin-top: 16px; }
+  .cfg-builder__body { display: grid; grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr); gap: 22px; align-items: start; margin-top: 16px; }
   .cfg-3d { position: sticky; top: 84px; }
   .cfg-builder__body .cfg-roominline { margin-top: 0; border-top: 0; padding-top: 0; }
   @media (max-width: 1100px) {
@@ -492,6 +500,7 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
   var house3d = null;           // instance Three.js (lazy)
   var builderFailed = false;    // bascule grille 2D si WebGL KO
   var openRoomKey = null;       // pièce sélectionnée (produits affichés inline)
+  var activeCat = null;         // onglet de catégorie actif dans le panneau produits
   var searchQuery = '';         // filtre de la barre de recherche produit
   var activeRoomKeys = null;    // pièces présentes dans la maison (lazy: toutes au départ)
   var customRooms = [];         // pièces sur-mesure ajoutées par le client
@@ -1035,22 +1044,38 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
         body.appendChild(sgrid);
       }
     } else if (room) {
-      var rendered = 0;
-      catsForRoom(room).forEach(function (catName) {
-        var prods = PRODUCTS_BY_CAT[catName] || [];
-        if (!prods.length) return;
-        rendered += 1;
-        var label = document.createElement('div');
-        label.className = 'cfg-catlabel';
-        label.innerHTML = '<span style="color:' + catAccent(catName) + '">' +
-          catSvg(catName, 'cfg-catlabel-ic') + '</span><span>' + esc(catName) + '</span>';
-        body.appendChild(label);
+      // Catégories disponibles (avec produits) pour la pièce courante.
+      var availCats = catsForRoom(room).filter(function (c) {
+        return (PRODUCTS_BY_CAT[c] || []).length > 0;
+      });
+      if (!availCats.length) {
+        body.innerHTML = '<p class="cfg-room-intro">Aucun équipement pour cette pièce pour le moment.</p>';
+      } else {
+        if (availCats.indexOf(activeCat) === -1) activeCat = availCats[0];
+        // Barre d'onglets de catégorie : on n'affiche qu'une catégorie à la fois.
+        var tabs = document.createElement('div');
+        tabs.className = 'cfg-cattabs';
+        tabs.setAttribute('role', 'tablist');
+        availCats.forEach(function (catName) {
+          var n = (PRODUCTS_BY_CAT[catName] || []).length;
+          var tab = document.createElement('button');
+          tab.type = 'button';
+          tab.className = 'cfg-cattab' + (catName === activeCat ? ' active' : '');
+          tab.setAttribute('role', 'tab');
+          tab.style.setProperty('--accent', catAccent(catName));
+          tab.innerHTML = '<span class="cfg-cattab__ic">' + catSvg(catName, 'cfg-catlabel-ic') +
+            '</span><span>' + esc(catName) + '</span><span class="cfg-cattab__n">' + n + '</span>';
+          tab.addEventListener('click', function () { activeCat = catName; renderRoomInline(); });
+          tabs.appendChild(tab);
+        });
+        body.appendChild(tabs);
         var grid = document.createElement('div');
         grid.className = 'cfg-cards';
-        prods.forEach(function (p) { grid.appendChild(productCard(p, openRoomKey)); });
+        (PRODUCTS_BY_CAT[activeCat] || []).forEach(function (p) {
+          grid.appendChild(productCard(p, openRoomKey));
+        });
         body.appendChild(grid);
-      });
-      if (!rendered) body.innerHTML = '<p class="cfg-room-intro">Aucun équipement pour cette pièce pour le moment.</p>';
+      }
     } else {
       body.innerHTML = '<p class="cfg-room-intro">Ajoutez une pièce pour commencer.</p>';
     }
