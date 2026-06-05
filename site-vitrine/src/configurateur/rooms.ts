@@ -38,6 +38,25 @@ export function removeRoom(active: readonly string[], key: string): string[] {
   return active.filter((k) => k !== key);
 }
 
+/**
+ * Décide paresseusement de la liste des pièces actives de la maison.
+ *
+ * `current` vaut `null` tant qu'on n'a jamais initialisé la liste, et un tableau
+ * (éventuellement vide) une fois un choix figé. Tant qu'aucune pièce n'est
+ * disponible (`available` vide, typiquement parce que le catalogue n'est pas
+ * encore chargé), on NE fige PAS la liste : on renvoie `null` pour réessayer
+ * plus tard. Sinon, on figerait `[]` au boot et la maison resterait vide même
+ * après l'arrivée du catalogue. Un choix déjà figé (même volontairement vide)
+ * est toujours préservé.
+ */
+export function resolveActiveRooms(
+  current: readonly string[] | null,
+  available: readonly string[],
+): readonly string[] | null {
+  if (current) return current;
+  return available.length ? [...available] : null;
+}
+
 export interface CategorizedRoom {
   cats?: readonly string[];
 }

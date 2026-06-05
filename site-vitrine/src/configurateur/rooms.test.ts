@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { addRoom, removeRoom, roomCategories, slugifyRoomKey } from './rooms';
+import {
+  addRoom,
+  removeRoom,
+  resolveActiveRooms,
+  roomCategories,
+  slugifyRoomKey,
+} from './rooms';
 
 describe('slugifyRoomKey', () => {
   it('translitère accents et espaces en kebab-case', () => {
@@ -65,5 +71,31 @@ describe('roomCategories', () => {
     const out = roomCategories(all, { cats: ['Audio', 'Audio'] });
     expect(out.filter((c) => c === 'Audio')).toHaveLength(1);
     expect(out).toHaveLength(all.length);
+  });
+});
+
+describe('resolveActiveRooms', () => {
+  it('ne fige PAS la liste tant qu’aucune pièce n’est disponible', () => {
+    // Régression : au boot, show(1) → updateCount() → houseRooms() appelait
+    // ensureActiveRooms AVANT le chargement du catalogue. availableRooms()
+    // renvoyait [] et la liste se figeait à vide → 0 pièce pour toujours,
+    // même une fois le catalogue arrivé.
+    expect(resolveActiveRooms(null, [])).toBeNull();
+  });
+
+  it('initialise sur les pièces disponibles dès qu’il y en a', () => {
+    expect(resolveActiveRooms(null, ['salon', 'cuisine'])).toEqual(['salon', 'cuisine']);
+  });
+
+  it('renvoie une COPIE des pièces disponibles (pas la référence)', () => {
+    const available = ['salon'];
+    const out = resolveActiveRooms(null, available);
+    expect(out).toEqual(['salon']);
+    expect(out).not.toBe(available);
+  });
+
+  it('préserve un choix déjà figé, même volontairement vide', () => {
+    expect(resolveActiveRooms([], ['salon'])).toEqual([]);
+    expect(resolveActiveRooms(['chambre'], ['salon', 'cuisine'])).toEqual(['chambre']);
   });
 });

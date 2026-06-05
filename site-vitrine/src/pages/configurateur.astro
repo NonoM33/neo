@@ -35,20 +35,6 @@ const schema = {
 <script type="application/ld+json" set:html={JSON.stringify(schema)} />
 <script defer data-domain={SITE_CONFIG.plausibleDomain} src="https://plausible.io/js/script.js"></script>
 <style is:global>
-  .cfg-main { padding: 44px 0 116px; min-height: 100vh; }
-  .cfg-head { text-align: center; margin-bottom: 14px; }
-  .cfg-head .scene-title { margin: 4px 0; font-size: clamp(24px, 3vw, 32px); line-height: 1.12; }
-  .cfg-head .lead { margin: 0 auto; max-width: 500px; font-size: 14.5px; line-height: 1.45; }
-  .cfg-head .eyebrow { font-size: 11.5px; }
-  @media (max-width: 980px) { .cfg-main { padding: 36px 0 100px; } .cfg-head .scene-title { font-size: 24px; } }
-  .cfg-steps { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap; }
-  .cfg-step { font-size: 13px; color: #8a8f98; display: flex; align-items: center; gap: 6px; }
-  .cfg-step .num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 12px; }
-  .cfg-step.active { color: #fff; }
-  .cfg-step.active .num { background: var(--grad, linear-gradient(135deg,#6ea8fe,#a98eff)); color: #0b0d12; font-weight: 600; }
-  .cfg-step.done .num { background: rgba(110,168,254,.25); color: #cfe0ff; }
-  .cfg-progress { height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin: 12px auto 36px; max-width: 520px; }
-  .cfg-progress span { display: block; height: 100%; width: 25%; background: linear-gradient(90deg,#6ea8fe,#a98eff); transition: width .35s ease; }
   .cfg-panel { display: none; }
   .cfg-panel.active { display: block; animation: cfgIn .35s ease; }
   @keyframes cfgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -123,11 +109,6 @@ const schema = {
   .cfg-recap-line { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 15px; }
   .cfg-recap-line .auto { font-size: 12px; color: #a98eff; margin-left: 6px; }
   .cfg-recap-empty { color: #8a8f98; padding: 24px 0; text-align: center; }
-  .cfg-pricebar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13,15,20,.92); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,.1); padding: 14px 0; z-index: 30; }
-  .cfg-pricebar .inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  .cfg-pricebar .total { font-size: 13px; color: #8a8f98; }
-  .cfg-pricebar .total b { display: block; font-size: 22px; color: #fff; font-variant-numeric: tabular-nums; }
-  .cfg-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
   .cfg-error { color: #ff8a8a; font-size: 14px; margin-top: 10px; min-height: 18px; }
   .cfg-hp { position: absolute; left: -9999px; opacity: 0; height: 0; }
   .cfg-done { text-align: center; padding: 40px 0; }
@@ -142,15 +123,6 @@ const schema = {
   .cfg-linkrow { display: flex; gap: 8px; }
   .cfg-linkrow input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #fff; font-size: 13px; }
   /* ── Builder 3D ── */
-  .cfg-builder { position: relative; }
-  .cfg-builder__body { display: grid; grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr); gap: 22px; align-items: start; margin-top: 16px; }
-  .cfg-3d { position: sticky; top: 84px; }
-  .cfg-builder__body .cfg-roominline { margin-top: 0; border-top: 0; padding-top: 0; }
-  @media (max-width: 1100px) {
-    .cfg-builder__body { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-    .cfg-3d { position: static; order: 2; }
-    .cfg-builder__body .cfg-roominline { order: 1; }
-  }
   .cfg-stage { width: 100%; height: min(46vh, 380px); min-height: 260px; border-radius: 20px; overflow: hidden; background: radial-gradient(120% 120% at 50% 0%, rgba(110,168,254,.12), rgba(11,13,18,0) 60%), #0b0d12; border: 1px solid rgba(255,255,255,.08); touch-action: none; cursor: grab; }
   .cfg-stage:active { cursor: grabbing; }
   .cfg-stage canvas { display: block; width: 100% !important; height: 100% !important; }
@@ -196,9 +168,6 @@ const schema = {
   .cfg-addroom__add { flex: none; padding: 11px 16px; border-radius: 12px; border: none; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-size: 14px; font-weight: 800; cursor: pointer; }
   .cfg-addroom__add:hover { filter: brightness(1.05); }
   /* Guide IA — chat embarqué à côté du configurateur */
-  .cfg-shell { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 28px; align-items: start; }
-  .cfg-wizard { min-width: 0; }
-  .cfg-chat { position: sticky; top: 84px; }
   .cfg-ai { display: flex; flex-direction: column; height: min(78vh, 660px); min-height: 480px; border-radius: 20px; border: 1px solid rgba(110,168,254,.28); background: #11151d; box-shadow: 0 24px 70px rgba(0,0,0,.45), 0 0 0 1px rgba(110,168,254,.08); overflow: hidden; }
   .cfg-ai__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; background: linear-gradient(135deg, rgba(110,168,254,.18), rgba(169,142,255,.14)); border-bottom: 1px solid rgba(255,255,255,.08); }
   .cfg-ai__id { display: flex; align-items: center; gap: 10px; }
@@ -224,11 +193,6 @@ const schema = {
   .cfg-ai__input:focus { outline: none; border-color: #6ea8fe; }
   .cfg-ai__send { flex: none; width: 44px; border-radius: 12px; border: none; background: linear-gradient(135deg, #6ea8fe, #a98eff); color: #0b0d12; font-size: 16px; font-weight: 800; cursor: pointer; }
   .cfg-ai__send:disabled { opacity: .5; cursor: default; }
-  @media (max-width: 980px) {
-    .cfg-shell { grid-template-columns: 1fr; gap: 22px; padding: 0 18px; }
-    .cfg-chat { position: static; }
-    .cfg-ai { height: min(72vh, 560px); }
-  }
   /* Palette glisser-déposer */
   .cfg-palette { display: flex; gap: 10px; overflow-x: auto; padding: 12px 2px 4px; margin-top: 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
   .cfg-palette::-webkit-scrollbar { height: 6px; }
@@ -251,62 +215,182 @@ const schema = {
   /* Toast de confirmation de dépôt */
   .cfg-toast { position: fixed; z-index: 75; left: 50%; bottom: 84px; transform: translate(-50%, 14px); opacity: 0; pointer-events: none; padding: 10px 16px; border-radius: 999px; background: rgba(18,22,30,.96); border: 1px solid rgba(95,224,176,.5); color: #d8ffe9; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.45); transition: opacity .22s ease, transform .22s ease; }
   .cfg-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ============================================================
+     CLAUDE DESIGN — App shell « planner » (dense, plein écran)
+     ============================================================ */
+  .cfg-app {
+    --neo: #5b8cff; --neo-2: #86a9ff; --neo-press: #4a73e6; --neo-soft: rgba(91,140,255,.14);
+    --ink: #eef2f8; --ink-2: #a7b1c2; --ink-3: #6f7a90; --ink-4: #4a5468;
+    --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
+    --glass: rgba(255,255,255,.04); --glass-2: rgba(255,255,255,.07);
+    --panel: #0e1320; --bg-2: #0b0f1a; --ok: #46d98a;
+    --topbar: 58px; --pricebar: 66px; --chat-w: 340px;
+    position: fixed; inset: 0; z-index: 1;
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh; overflow: hidden;
+    font-family: 'Geist', system-ui, -apple-system, sans-serif; font-size: 14px; color: var(--ink);
+    background:
+      radial-gradient(120% 80% at 80% -10%, rgba(91,140,255,.10), transparent 55%),
+      radial-gradient(90% 70% at 0% 110%, rgba(255,178,89,.06), transparent 55%),
+      #070a12;
+  }
+
+  /* ── Topbar + wizard ── */
+  .cfg-topbar { flex: none; height: var(--topbar); display: flex; align-items: center; gap: 18px; padding: 0 18px; border-bottom: 1px solid var(--line); background: rgba(11,15,26,.6); }
+  .cfg-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+  .cfg-brand__logo { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: linear-gradient(145deg,#5b8cff,#3a5bd0); box-shadow: 0 4px 14px -4px rgba(91,140,255,.7); }
+  .cfg-brand__logo .dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; }
+  .cfg-brand b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .cfg-wsteps { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
+  .cfg-wstep { display: flex; align-items: center; gap: 9px; }
+  .cfg-wstep .wn { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; background: var(--glass-2); color: var(--ink-3); border: 1px solid var(--line-2); transition: background .2s, color .2s, border-color .2s, box-shadow .2s; }
+  .cfg-wstep .wl { font-size: 13px; font-weight: 600; color: var(--ink-3); transition: color .2s; }
+  .cfg-wstep.active .wn { background: var(--neo); color: #fff; border-color: var(--neo); box-shadow: 0 0 0 4px var(--neo-soft); }
+  .cfg-wstep.active .wl { color: var(--ink); }
+  .cfg-wstep.done .wn { background: var(--ok); border-color: var(--ok); color: #06140d; }
+  .cfg-wstep.done .wl { color: var(--ink-2); }
+  .cfg-wbar { width: 30px; height: 2px; border-radius: 2px; background: var(--line-2); transition: background .2s; }
+  .cfg-wbar.done { background: var(--ok); }
+  .cfg-top-r { display: flex; align-items: center; gap: 12px; }
+  .cfg-ticon { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line); background: var(--glass); display: grid; place-items: center; color: var(--ink-2); cursor: pointer; transition: background .15s, color .15s, opacity .15s; }
+  .cfg-ticon:hover:not(:disabled) { background: var(--glass-2); color: var(--ink); }
+  .cfg-ticon:disabled { opacity: .35; cursor: default; }
+  .cfg-top-link { font-size: 13px; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+  .cfg-top-link:hover { color: var(--ink); }
+  .cfg-top-total { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+  .cfg-top-total .l { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .cfg-top-total .v { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cfg-top-x { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line); background: var(--glass); display: grid; place-items: center; color: var(--ink-2); text-decoration: none; font-size: 15px; }
+  .cfg-top-x:hover { background: var(--glass-2); color: var(--ink); }
+
+  /* ── Body : 3 zones ── */
+  .cfg-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+  .cfg-form { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .cfg-panel { display: none; }
+  .cfg-panel.active { display: flex; animation: cfgIn .3s var(--ease, ease); }
+  .cfg-panel--zones.active { flex: 1; min-height: 0; flex-direction: column; }
+  .cfg-panel--zones .cfg-loading { margin: auto; }
+  .cfg-zones { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.04fr 1fr; }
+  .cfg-zone { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); padding: 14px 16px 18px; }
+  .cfg-zone--house { background: radial-gradient(80% 70% at 50% 30%, rgba(91,140,255,.07), transparent 70%); }
+  .cfg-zone--prod { background: var(--bg-2); }
+  .cfg-zone--chat { width: var(--chat-w); flex: none; border-left: 1px solid var(--line); border-right: none; background: var(--panel); overflow: hidden; padding: 0; }
+  .cfg-zone__head { flex: none; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .cfg-zone__head h2 { font-size: 14px; font-weight: 600; margin: 0; }
+  .cfg-zone--house .cfg-stage { height: min(38vh, 340px); min-height: 220px; }
+  .cfg-zone--house .cfg-rooms-bar { margin-top: 14px; }
+  .cfg-zone--chat .cfg-ai { height: 100%; min-height: 0; border: none; border-radius: 0; box-shadow: none; }
+  .cfg-roominline { margin-top: 0; border-top: 0; padding-top: 0; }
+
+  /* ── Pack essentiel (pièce vide) ── */
+  .cfg-emptypack { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; padding: 14px 16px; border-radius: 13px; border: 1px solid var(--line-2); background: linear-gradient(135deg, rgba(91,140,255,.12), rgba(177,140,255,.08)); }
+  .cfg-emptypack__l { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .cfg-emptypack__ic { width: 38px; height: 38px; border-radius: 11px; flex: none; display: grid; place-items: center; font-size: 18px; background: var(--neo); box-shadow: 0 4px 14px -4px rgba(91,140,255,.7); }
+  .cfg-emptypack b { font-size: 14px; font-weight: 600; }
+  .cfg-emptypack p { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+  .cfg-emptypack__btn { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; border: none; background: var(--neo); color: #fff; font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .15s, transform .12s; }
+  .cfg-emptypack__btn:hover { background: var(--neo-press); transform: translateY(-1px); }
+  @media (max-width: 1024px) { .cfg-emptypack__btn { margin-left: 0; } }
+
+  /* ── Étapes 2/3/done : carte centrée scrollable ── */
+  .cfg-panel--center.active { flex: 1; min-height: 0; overflow-y: auto; justify-content: center; align-items: flex-start; padding: 36px 22px 28px; }
+  .cfg-centercard { width: 100%; max-width: 640px; margin: 0 auto; }
+  .cfg-centercard__title { font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+
+  /* ── Pricebar ── */
+  .cfg-pricebar { position: static; flex: none; min-height: var(--pricebar); display: flex; align-items: center; gap: 16px; padding: 10px 18px; border-top: 1px solid var(--line); background: rgba(11,15,26,.9); flex-wrap: wrap; }
+  .cfg-pb-summary { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .cfg-pb-stat { display: flex; flex-direction: column; line-height: 1.15; }
+  .cfg-pb-stat .l { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .cfg-pb-stat .v { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cfg-pb-total .l { color: var(--neo-2); }
+  .cfg-pb-total .v { font-size: 22px; letter-spacing: -.01em; }
+  .cfg-pb-sep { width: 1px; height: 30px; background: var(--line); }
+  .cfg-bridge-note { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 99px; border: 1px solid rgba(70,217,138,.3); background: rgba(70,217,138,.1); color: var(--ok); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
+  .cfg-bridge-note[hidden] { display: none; }
+  .cfg-bridge-note:hover { background: rgba(70,217,138,.18); }
+  .cfg-pb-actions { margin-left: auto; display: flex; gap: 10px; }
+  .cfg-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 11px; border: 1px solid transparent; font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: var(--neo); cursor: pointer; white-space: nowrap; transition: background .15s, transform .12s; }
+  .cfg-btn:hover { background: var(--neo-press); }
+  .cfg-btn.ghost { background: var(--glass); border-color: var(--line-2); color: var(--ink); }
+  .cfg-btn.ghost:hover { background: var(--glass-2); }
+  .cfg-btn.lg { padding: 12px 22px; font-size: 15px; }
+  .cfg-btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── Responsive : iPad paysage garde 3 colonnes, portrait empile ── */
+  @media (max-width: 1080px) { .cfg-wstep .wl { display: none; } }
+  @media (max-width: 920px) {
+    .cfg-app { position: static; inset: auto; height: auto; min-height: 100vh; overflow: visible; }
+    .cfg-body { flex-direction: column; overflow: visible; }
+    .cfg-form { overflow: visible; }
+    .cfg-zones { grid-template-columns: 1fr; }
+    .cfg-zone { overflow: visible; border-right: none; border-bottom: 1px solid var(--line); }
+    .cfg-zone--prod { order: 1; }
+    .cfg-zone--house { order: 2; }
+    .cfg-zone--chat { width: auto; border-left: none; border-top: 1px solid var(--line); }
+    .cfg-zone--chat .cfg-ai { height: min(68vh, 540px); }
+    .cfg-panel--center.active { min-height: 60vh; }
+    .cfg-pricebar { position: sticky; bottom: 0; z-index: 30; }
+    .cfg-top-link { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<div class="sky" aria-hidden="true"></div>
-
-<nav class="nav scrolled">
-  <a class="brand" href="/">
-    <span class="logo"><span class="dot"></span></span>
-    <b>Neo</b>
-  </a>
-  <div class="nav-cta">
-    <a class="nav-phone" href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
-    <a class="btn ghost" href="/">Retour au site</a>
-  </div>
-</nav>
-
-<main class="cfg-main" data-api={SITE_CONFIG.apiBaseUrl}>
-  <div class="cfg-shell">
-   <div class="cfg-wizard">
-    <div class="cfg-head">
-      <span class="eyebrow">Configurateur · estimation instantanée</span>
-      <h1 class="scene-title">Composez votre <span class="serif grad">maison connectée</span></h1>
-      <p class="lead">Choisissez une pièce, ajoutez vos équipements, voyez le prix en temps réel. On s'occupe du reste — ou vous installez vous-même.</p>
+<div class="cfg-app" data-api={SITE_CONFIG.apiBaseUrl}>
+  <!-- ───────── TOPBAR + WIZARD ───────── -->
+  <header class="cfg-topbar">
+    <a class="cfg-brand" href="/">
+      <span class="cfg-brand__logo" aria-hidden="true"><span class="dot"></span></span>
+      <b>Neo</b>
+    </a>
+    <nav class="cfg-wsteps" aria-label="Étapes du configurateur">
+      <div class="cfg-wstep" data-step="1"><span class="wn">1</span><span class="wl">Pièces</span></div>
+      <span class="cfg-wbar" data-bar="1"></span>
+      <div class="cfg-wstep" data-step="2"><span class="wn">2</span><span class="wl">Estimation</span></div>
+      <span class="cfg-wbar" data-bar="2"></span>
+      <div class="cfg-wstep" data-step="3"><span class="wn">3</span><span class="wl">Coordonnées</span></div>
+    </nav>
+    <div class="cfg-top-r">
+      <button type="button" class="cfg-ticon" id="cfg-undo" title="Annuler" aria-label="Annuler" disabled>
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+      </button>
+      <button type="button" class="cfg-ticon" id="cfg-redo" title="Rétablir" aria-label="Rétablir" disabled>
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+      </button>
+      <a class="cfg-top-link" href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
+      <div class="cfg-top-total"><span class="l">Total</span><span class="v" id="cfg-total-top">—</span></div>
+      <a class="cfg-top-x" href="/" aria-label="Quitter le configurateur" title="Retour au site">✕</a>
     </div>
+  </header>
 
-    <div class="cfg-steps">
-      <div class="cfg-step" data-step="1"><span class="num">1</span> Pièces</div>
-      <div class="cfg-step" data-step="2"><span class="num">2</span> Estimation</div>
-      <div class="cfg-step" data-step="3"><span class="num">3</span> Coordonnées</div>
-    </div>
-    <div class="cfg-progress"><span id="cfg-bar"></span></div>
-
-    <form id="cfg-form" novalidate>
-      <!-- ÉTAPE 1 — Pièces (builder 3D) -->
-      <section class="cfg-panel" data-panel="1">
+  <!-- ───────── BODY : 3 zones (maison · produits · Léo) ───────── -->
+  <div class="cfg-body">
+   <form id="cfg-form" class="cfg-form" novalidate>
+      <!-- ÉTAPE 1 — Pièces (planner 3 zones) -->
+      <section class="cfg-panel cfg-panel--zones" data-panel="1">
         <div id="cfg-catalog" class="cfg-loading">Chargement du catalogue…</div>
-        <div id="cfg-builder" class="cfg-builder" hidden>
-          <div class="cfg-search">
-            <svg class="cfg-search__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
-            <input id="cfg-search" class="cfg-search__input" type="search" autocomplete="off" placeholder="Rechercher un équipement (caméra, ampoule, thermostat…)" />
-          </div>
-          <div id="cfg-rooms-bar" class="cfg-rooms-bar"></div>
-          <div class="cfg-builder__body">
-            <!-- Vue 3D + glisser-déposer (sticky à gauche) -->
-            <div class="cfg-3d">
-              <div class="cfg-stage-wrap">
-                <div id="cfg-stage" class="cfg-stage"></div>
-                <div id="cfg-floors" class="cfg-floors" aria-label="Étages"></div>
-              </div>
-              <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
-              <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
+        <div id="cfg-builder" class="cfg-zones" hidden>
+          <!-- ZONE 1 — Maison 3D -->
+          <section class="cfg-zone cfg-zone--house">
+            <div class="cfg-zone__head"><h2>Votre maison</h2></div>
+            <div class="cfg-stage-wrap">
+              <div id="cfg-stage" class="cfg-stage"></div>
+              <div id="cfg-floors" class="cfg-floors" aria-label="Étages"></div>
             </div>
-            <!-- Produits de la pièce sélectionnée, toujours affichés (sans modale) -->
+            <p class="cfg-stage-hint">🖱️ Tournez la maison · cliquez une pièce — ou <b>glissez</b> un équipement dessus 👇</p>
+            <div id="cfg-palette" class="cfg-palette" aria-label="Équipements à glisser sur une pièce"></div>
+            <div id="cfg-rooms-bar" class="cfg-rooms-bar"></div>
+          </section>
+          <!-- ZONE 2 — Produits -->
+          <section class="cfg-zone cfg-zone--prod">
+            <div class="cfg-search">
+              <svg class="cfg-search__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+              <input id="cfg-search" class="cfg-search__input" type="search" autocomplete="off" placeholder="Rechercher un produit, une marque…" />
+            </div>
             <div id="cfg-roominline" class="cfg-roominline"></div>
-          </div>
+          </section>
         </div>
         <!-- Modale d'ajout de pièce -->
         <div id="cfg-addroom" class="cfg-addroom" hidden aria-hidden="true">
@@ -333,25 +417,26 @@ const schema = {
       </section>
 
       <!-- ÉTAPE 2 — Estimation -->
-      <section class="cfg-panel" data-panel="2">
-        <div class="cfg-field">
-          <label>Qui installe&nbsp;?</label>
-          <div class="cfg-choices cfg-choices--inline" data-radio="installMode">
-            <div class="cfg-choice sel" data-value="pro"><div class="t">Un pro Neo</div><div class="s">Installation clé en main</div></div>
-            <div class="cfg-choice" data-value="autonome"><div class="t">Moi-même</div><div class="s">Livré avec notice de pose</div></div>
+      <section class="cfg-panel cfg-panel--center" data-panel="2">
+        <div class="cfg-centercard">
+          <h2 class="cfg-centercard__title">Votre estimation</h2>
+          <div class="cfg-field">
+            <label>Qui installe&nbsp;?</label>
+            <div class="cfg-choices cfg-choices--inline" data-radio="installMode">
+              <div class="cfg-choice sel" data-value="pro"><div class="t">Un pro Neo</div><div class="s">Installation clé en main</div></div>
+              <div class="cfg-choice" data-value="autonome"><div class="t">Moi-même</div><div class="s">Livré avec notice de pose</div></div>
+            </div>
           </div>
+          <div id="cfg-recap"></div>
+          <p class="lead" style="font-size:14px;margin-top:16px;color:#8a8f98">
+            Estimation indicative TTC. Le devis final est confirmé par un conseiller.
+          </p>
         </div>
-        <div id="cfg-recap"></div>
-        <p class="lead" style="font-size:14px;margin-top:16px;color:#8a8f98">
-          Estimation indicative TTC. Le devis final est confirmé par un conseiller.
-        </p>
-        <button type="button" class="btn ghost" id="cfg-save" style="margin-top:8px">
-          💾 Sauvegarder & obtenir mon code
-        </button>
       </section>
 
       <!-- ÉTAPE 3 — Coordonnées -->
-      <section class="cfg-panel" data-panel="3">
+      <section class="cfg-panel cfg-panel--center" data-panel="3">
+       <div class="cfg-centercard">
         <div class="cfg-field"><label for="cfg-firstName">Prénom</label><input id="cfg-firstName" name="firstName" /></div>
         <div class="cfg-field"><label for="cfg-lastName">Nom</label><input id="cfg-lastName" name="lastName" /></div>
         <div class="cfg-field"><label for="cfg-email">Email</label><input id="cfg-email" name="email" type="email" /></div>
@@ -364,10 +449,11 @@ const schema = {
           <span>J'accepte que mes données soient utilisées pour me recontacter au sujet de ma demande.</span>
         </label>
         <input class="cfg-hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+       </div>
       </section>
 
       <!-- SUCCÈS -->
-      <section class="cfg-panel" data-panel="done">
+      <section class="cfg-panel cfg-panel--center" data-panel="done">
         <div class="cfg-done">
           <div class="ic">✅</div>
           <h2 class="scene-title">Configuration envoyée&nbsp;!</h2>
@@ -377,35 +463,50 @@ const schema = {
       </section>
 
       <div class="cfg-error" id="cfg-error"></div>
-
-      <div class="cfg-nav" id="cfg-nav">
-        <button type="button" class="btn ghost" id="cfg-prev">Précédent</button>
-        <button type="button" class="btn" id="cfg-next">Continuer</button>
-      </div>
     </form>
-   </div>
-   <aside class="cfg-chat">
-    <div id="cfg-ai" class="cfg-ai">
-      <div class="cfg-ai__head">
-        <div class="cfg-ai__id">
-          <span class="cfg-ai__avatar" aria-hidden="true">🤖</span>
-          <div>
-            <b>Léo, votre guide domotique</b>
-            <span class="cfg-ai__sub">Conseils, budget &amp; dépendances</span>
+
+    <!-- ZONE 3 — Léo (toujours visible) -->
+    <aside class="cfg-zone cfg-zone--chat">
+      <div id="cfg-ai" class="cfg-ai">
+        <div class="cfg-ai__head">
+          <div class="cfg-ai__id">
+            <span class="cfg-ai__avatar" aria-hidden="true">🤖</span>
+            <div>
+              <b>Léo, votre guide domotique</b>
+              <span class="cfg-ai__sub">Conseils, budget &amp; dépendances</span>
+            </div>
           </div>
         </div>
+        <div id="cfg-ai-log" class="cfg-ai__log" aria-live="polite"></div>
+        <div class="cfg-ai__suggest" id="cfg-ai-suggest"></div>
+        <form id="cfg-ai-form" class="cfg-ai__form">
+          <input id="cfg-ai-input" class="cfg-ai__input" type="text" autocomplete="off"
+            placeholder="Ex : j'ai 800 € pour sécuriser ma maison…" maxlength="500" />
+          <button type="submit" id="cfg-ai-send" class="cfg-ai__send" aria-label="Envoyer">➤</button>
+        </form>
       </div>
-      <div id="cfg-ai-log" class="cfg-ai__log" aria-live="polite"></div>
-      <div class="cfg-ai__suggest" id="cfg-ai-suggest"></div>
-      <form id="cfg-ai-form" class="cfg-ai__form">
-        <input id="cfg-ai-input" class="cfg-ai__input" type="text" autocomplete="off"
-          placeholder="Ex : j'ai 800 € pour sécuriser ma maison…" maxlength="500" />
-        <button type="submit" id="cfg-ai-send" class="cfg-ai__send" aria-label="Envoyer">➤</button>
-      </form>
-    </div>
-   </aside>
+    </aside>
   </div>
-</main>
+
+  <!-- ───────── PRICEBAR ───────── -->
+  <footer class="cfg-pricebar" id="cfg-pricebar">
+    <div class="cfg-pb-summary">
+      <div class="cfg-pb-stat"><span class="l">Pièces</span><span class="v" id="cfg-pb-rooms">0</span></div>
+      <div class="cfg-pb-stat"><span class="l">Équipements</span><span class="v" id="cfg-count">0</span></div>
+      <button type="button" class="cfg-bridge-note" id="cfg-bridge-note" title="En savoir plus sur la passerelle" hidden>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
+        1 passerelle incluse
+      </button>
+      <div class="cfg-pb-sep"></div>
+      <div class="cfg-pb-stat cfg-pb-total"><span class="l">Total estimé TTC</span><span class="v" id="cfg-total">—</span></div>
+    </div>
+    <div class="cfg-pb-actions" id="cfg-nav">
+      <button type="button" class="cfg-btn ghost" id="cfg-prev">Précédent</button>
+      <button type="button" class="cfg-btn ghost" id="cfg-save">💾 Sauvegarder</button>
+      <button type="button" class="cfg-btn lg" id="cfg-next">Estimation →</button>
+    </div>
+  </footer>
+</div>
 
 <!-- Modale code + QR -->
 <div class="cfg-modal" id="cfg-modal" style="display:none">
@@ -424,25 +525,20 @@ const schema = {
   </div>
 </div>
 
-<div class="cfg-pricebar" id="cfg-pricebar" style="display:none">
-  <div class="narrow inner">
-    <div class="total">Estimation TTC<b id="cfg-total">—</b></div>
-    <div class="cfg-step-hint" style="font-size:13px;color:#8a8f98" id="cfg-count">0 équipement</div>
-  </div>
-</div>
-
 <script>
 import { House3D } from '../configurateur/house3d';
 import { gestureFromDelta, paletteItems, roomAcceptsCategory } from '../configurateur/drag-drop';
-import { addRoom, removeRoom, roomCategories, slugifyRoomKey } from '../configurateur/rooms';
+import { addRoom, removeRoom, resolveActiveRooms, roomCategories, slugifyRoomKey } from '../configurateur/rooms';
 import { filterProducts } from '../configurateur/search';
 import { floorLabel, floorsOf } from '../configurateur/floors';
+import { essentialPack } from '../configurateur/packs';
+import { createHistory, pushHistory, canUndo, canRedo, undo, redo, current as historyCurrent } from '../configurateur/history';
 (function () {
-  var main = document.querySelector('.cfg-main');
+  var main = document.querySelector('.cfg-app');
   var API = (main && main.getAttribute('data-api')) || '';
   var form = document.getElementById('cfg-form');
-  var bar = document.getElementById('cfg-bar');
-  var stepEls = Array.prototype.slice.call(document.querySelectorAll('.cfg-step'));
+  var stepEls = Array.prototype.slice.call(document.querySelectorAll('.cfg-wstep'));
+  var wbars = Array.prototype.slice.call(document.querySelectorAll('.cfg-wbar'));
   var panels = Array.prototype.slice.call(document.querySelectorAll('.cfg-panel'));
   var errorEl = document.getElementById('cfg-error');
   var navEl = document.getElementById('cfg-nav');
@@ -454,6 +550,13 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
 
   var EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   var current = 1;
+  // Le total s'affiche à deux endroits : la topbar et la pricebar.
+  function setTotal(v) {
+    var s = EUR.format(v || 0);
+    if (totalEl) totalEl.textContent = s;
+    var top = document.getElementById('cfg-total-top');
+    if (top) top.textContent = s;
+  }
 
   // Pièces de la maison → catégories pertinentes (mapping front).
   var ROOMS = [
@@ -467,6 +570,9 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
   ];
   var ROOM_BY_KEY = {};
   ROOMS.forEach(function (r) { ROOM_BY_KEY[r.key] = r; });
+  // Barème de quantités du « Pack essentiel » : l'éclairage se pose en plusieurs
+  // points, l'audio par paire, une serrure/caméra reste unitaire.
+  var PACK_QTY_BY_CAT = { 'Éclairage': 3, 'Audio': 2, 'Volets': 2, 'Chauffage': 1, 'Sécurité': 1, 'Réseau': 1 };
   // Icônes vectorielles premium par catégorie (remplacent les emojis sur les cartes).
   var CAT_ICON = {
     'Audio': '<rect x="6.5" y="3" width="11" height="18" rx="3"/><circle cx="12" cy="14" r="3.3"/><circle cx="12" cy="6.8" r="1"/>',
@@ -576,15 +682,20 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
 
   // Pièces actuellement dans la maison (prédéfinies actives + sur-mesure).
   function ensureActiveRooms() {
-    if (!activeRoomKeys) activeRoomKeys = availableRooms().map(function (r) { return r.key; });
+    // Tant que le catalogue n'est pas chargé, availableRooms() est vide :
+    // resolveActiveRooms renvoie null pour NE PAS figer la maison à 0 pièce.
+    activeRoomKeys = resolveActiveRooms(
+      activeRoomKeys,
+      availableRooms().map(function (r) { return r.key; }),
+    );
   }
   function houseRooms() {
     ensureActiveRooms();
-    return activeRoomKeys.map(function (k) { return ROOM_BY_KEY[k]; }).filter(Boolean);
+    return (activeRoomKeys || []).map(function (k) { return ROOM_BY_KEY[k]; }).filter(Boolean);
   }
   function activeKeySet() {
     ensureActiveRooms();
-    var s = {}; activeRoomKeys.forEach(function (k) { s[k] = true; }); return s;
+    var s = {}; (activeRoomKeys || []).forEach(function (k) { s[k] = true; }); return s;
   }
 
   // ── Builder 3D (étape 2) ──
@@ -607,6 +718,8 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
     renderRoomInline();
     renderFloors();
     wireSearchInput();
+    updateCount(); // rafraîchit le compteur de pièces (boot : maison vide)
+    commitHistory(); // seed : état initial de la maison
   }
 
   // Mode plat (WebGL indisponible) : masque la scène 3D et son indice de
@@ -656,16 +769,92 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
 
   // Reconstruit la scène 3D quand la liste des pièces change (dispose + recrée).
   function rebuildHouse() {
-    if (!house3d) { renderRoomsBar(); renderRoomInline(); return; }
+    if (!house3d) { renderRoomsBar(); renderRoomInline(); commitHistory(); return; }
     try { house3d.dispose(); } catch (_e) { /* noop */ }
     house3d = null;
-    if (!initBuilder()) { enableFlatMode(); renderRoomsBar(); renderRoomInline(); renderFloors(); return; }
+    if (!initBuilder()) { enableFlatMode(); renderRoomsBar(); renderRoomInline(); renderFloors(); commitHistory(); return; }
     house3d.setActive(true);
     if (focusFloor != null) house3d.focusFloor(focusFloor);
     refreshBadges();
     renderRoomsBar();
     renderRoomInline();
     renderFloors();
+    commitHistory();
+  }
+
+  // ── Historique annuler / rétablir ──
+  // On capture un instantané sérialisable de tout l'état métier (sélection,
+  // pièces actives, pièces sur-mesure, étages, pièce ouverte) pour pouvoir le
+  // restaurer à l'identique. La pile est dédupliquée : un état inchangé n'est
+  // jamais ré-empilé.
+  var historyState = null;
+  var applyingHistory = false;
+
+  function snapshotState() {
+    var floors = {};
+    Object.keys(ROOM_BY_KEY).forEach(function (k) {
+      if (ROOM_BY_KEY[k] && ROOM_BY_KEY[k].floor != null) floors[k] = ROOM_BY_KEY[k].floor;
+    });
+    return JSON.stringify({
+      selection: selection,
+      activeRoomKeys: activeRoomKeys,
+      customRooms: customRooms,
+      floors: floors,
+      openRoomKey: openRoomKey,
+      focusFloor: focusFloor,
+      pendingFloor: pendingFloor,
+    });
+  }
+
+  function restoreState(json) {
+    var s;
+    try { s = JSON.parse(json); } catch (_e) { return; }
+    selection = s.selection || {};
+    customRooms = s.customRooms || [];
+    customRooms.forEach(function (r) { ROOM_BY_KEY[r.key] = r; });
+    if (s.floors) Object.keys(s.floors).forEach(function (k) { if (ROOM_BY_KEY[k]) ROOM_BY_KEY[k].floor = s.floors[k]; });
+    activeRoomKeys = s.activeRoomKeys || null;
+    openRoomKey = s.openRoomKey || null;
+    focusFloor = (s.focusFloor != null) ? s.focusFloor : null;
+    pendingFloor = (s.pendingFloor != null) ? s.pendingFloor : 0;
+  }
+
+  function commitHistory() {
+    if (applyingHistory) return;
+    var snap = snapshotState();
+    if (historyState == null) { historyState = createHistory(snap); updateUndoButtons(); return; }
+    if (snap === historyCurrent(historyState)) return;
+    historyState = pushHistory(historyState, snap, 50);
+    updateUndoButtons();
+  }
+
+  function updateUndoButtons() {
+    var u = document.getElementById('cfg-undo');
+    var r = document.getElementById('cfg-redo');
+    if (u) u.disabled = !(historyState && canUndo(historyState));
+    if (r) r.disabled = !(historyState && canRedo(historyState));
+  }
+
+  function applyHistorySnapshot() {
+    applyingHistory = true;
+    restoreState(historyCurrent(historyState));
+    rebuildHouse();
+    refreshBadges();
+    updateCount();
+    runEstimate();
+    updateUndoButtons();
+    applyingHistory = false;
+  }
+
+  function doUndo() {
+    if (!historyState || !canUndo(historyState)) return;
+    historyState = undo(historyState);
+    applyHistorySnapshot();
+  }
+  function doRedo() {
+    if (!historyState || !canRedo(historyState)) return;
+    historyState = redo(historyState);
+    applyHistorySnapshot();
   }
 
   // ── Navigation par étage (sélecteur 3D) ──
@@ -1051,6 +1240,11 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
       if (!availCats.length) {
         body.innerHTML = '<p class="cfg-room-intro">Aucun équipement pour cette pièce pour le moment.</p>';
       } else {
+        // Pièce vide : on propose de la remplir en un clic (Pack essentiel).
+        if (roomCount(openRoomKey) === 0) {
+          var pack = buildEssentialPack(room);
+          if (pack.length) body.appendChild(emptyPackCta(room, pack));
+        }
         if (availCats.indexOf(activeCat) === -1) activeCat = availCats[0];
         // Barre d'onglets de catégorie : on n'affiche qu'une catégorie à la fois.
         var tabs = document.createElement('div');
@@ -1080,6 +1274,57 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
       body.innerHTML = '<p class="cfg-room-intro">Ajoutez une pièce pour commencer.</p>';
     }
     host.appendChild(body);
+  }
+
+  // Pack essentiel : sélection de démarrage construite depuis le vrai catalogue
+  // (catégories favorites de la pièce → premier produit facturable de chacune).
+  function buildEssentialPack(room) {
+    var favCats = roomCategories(allCats(), room);
+    return essentialPack(favCats, PRODUCTS_BY_CAT, PACK_QTY_BY_CAT, 3);
+  }
+
+  function emptyPackCta(room, pack) {
+    var box = document.createElement('div');
+    box.className = 'cfg-emptypack';
+    box.innerHTML =
+      '<div class="cfg-emptypack__l">' +
+        '<span class="cfg-emptypack__ic">✨</span>' +
+        '<div><b>Cette pièce est vide</b><p>Démarrez en un clic, ajustez ensuite.</p></div>' +
+      '</div>' +
+      '<button type="button" class="cfg-emptypack__btn">+ Pack essentiel ' + esc(room.label) + '</button>';
+    box.querySelector('.cfg-emptypack__btn').addEventListener('click', function () {
+      applyPack(openRoomKey, pack);
+    });
+    return box;
+  }
+
+  function applyPack(roomKey, pack) {
+    if (!roomKey || !pack || !pack.length) return;
+    pack.forEach(function (item) {
+      setQty(roomKey, item.id, getQty(roomKey, item.id) + item.qty);
+    });
+    renderRoomInline();
+    renderRoomsBar();
+    scheduleEstimate();
+  }
+
+  // Synchronise la pastille « Pack essentiel » sans re-render complet : on
+  // ajoute/retire les cartes produit en place (renderFoot), donc on doit aussi
+  // faire apparaître/disparaître le CTA selon que la pièce est vide ou non.
+  function syncEmptyPackCta() {
+    if (searchQuery) return;
+    var host = document.getElementById('cfg-roominline');
+    var body = host && host.querySelector('.cfg-roominline__body');
+    if (!body) return;
+    var existing = body.querySelector('.cfg-emptypack');
+    var room = openRoomKey ? ROOM_BY_KEY[openRoomKey] : null;
+    var shouldShow = !!room && roomCount(openRoomKey) === 0;
+    if (shouldShow && !existing) {
+      var pack = buildEssentialPack(room);
+      if (pack.length) body.insertBefore(emptyPackCta(room, pack), body.firstChild);
+    } else if (!shouldShow && existing) {
+      existing.remove();
+    }
   }
 
   function productCard(p, roomKey) {
@@ -1139,8 +1384,10 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
     updateCount();
     refreshBadges();
     renderRoomsBar();
+    syncEmptyPackCta();
     if (estTimer) clearTimeout(estTimer);
     estTimer = setTimeout(runEstimate, 400);
+    commitHistory();
   }
 
   function updatePanelTotal() {
@@ -1161,8 +1408,20 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
 
   function updateCount() {
     var n = totalCount();
-    countEl.textContent = n + (n > 1 ? ' équipements' : ' équipement');
-    priceBar.style.display = current !== 'done' ? 'block' : 'none';
+    if (countEl) countEl.textContent = String(n);
+    var roomsEl = document.getElementById('cfg-pb-rooms');
+    if (roomsEl) roomsEl.textContent = String(houseRooms().length);
+    priceBar.style.display = current !== 'done' ? 'flex' : 'none';
+    updateBridgeNote();
+  }
+
+  // Pastille « 1 passerelle incluse » : visible dès qu'une passerelle a été
+  // ajoutée automatiquement par le moteur de prix (lignes `auto` de l'estimation).
+  function updateBridgeNote() {
+    var note = document.getElementById('cfg-bridge-note');
+    if (!note) return;
+    var autos = (lastEstimate && lastEstimate.lines || []).filter(function (l) { return l.auto; });
+    note.hidden = autos.length === 0;
   }
 
   // ── Guide IA (chat) ──
@@ -1328,13 +1587,13 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
 
   function runEstimate() {
     var items = selectionItems();
-    if (!items.length) { lastEstimate = { lines: [], totalTTC: 0 }; totalEl.textContent = EUR.format(0); updatePanelTotal(); renderRecap(); return; }
+    if (!items.length) { lastEstimate = { lines: [], totalTTC: 0 }; setTotal(0); updatePanelTotal(); renderRecap(); updateBridgeNote(); return; }
     fetch(API + '/api/public/configurateur/estimer', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: items }),
     })
       .then(function (r) { return r.json(); })
-      .then(function (data) { lastEstimate = data; totalEl.textContent = EUR.format(data.totalTTC || 0); updatePanelTotal(); renderRecap(); })
+      .then(function (data) { lastEstimate = data; setTotal(data.totalTTC || 0); updatePanelTotal(); renderRecap(); updateBridgeNote(); })
       .catch(function () {});
   }
 
@@ -1395,18 +1654,26 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
       if (step === 'done' || n < step) el.classList.add('done');
       else if (n === step) el.classList.add('active');
     });
-    var pct = step === 'done' ? 100 : Math.round((step / 3) * 100);
-    bar.style.width = pct + '%';
+    wbars.forEach(function (b) {
+      var n = Number(b.getAttribute('data-bar'));
+      b.classList.toggle('done', step === 'done' || n < step);
+    });
     errorEl.textContent = '';
     if (step === 1) { if (catalogLoaded) enterBuilder(); }
     else { if (house3d) house3d.setActive(false); if (openRoomKey) closeRoom(); }
-    if (step === 'done') { navEl.style.display = 'none'; priceBar.style.display = 'none'; return; }
+    var saveBtnEl = document.getElementById('cfg-save');
+    if (step === 'done') {
+      navEl.style.display = 'none';
+      if (saveBtnEl) saveBtnEl.style.display = 'none';
+      priceBar.style.display = 'none';
+      return;
+    }
     navEl.style.display = 'flex';
-    prevBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
-    nextBtn.textContent = step === 3 ? 'Envoyer ma demande' : 'Continuer';
+    prevBtn.style.display = step === 1 ? 'none' : 'inline-flex';
+    if (saveBtnEl) saveBtnEl.style.display = 'inline-flex';
+    nextBtn.textContent = step === 1 ? 'Estimation →' : (step === 2 ? 'Coordonnées →' : 'Envoyer ma demande');
     updateCount();
     aiRenderSuggestions();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function validate(step) {
@@ -1493,6 +1760,21 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
       var input = document.getElementById('cfg-ai-input');
       aiSubmit(input ? input.value : '');
     });
+    var bridgeNote = document.getElementById('cfg-bridge-note');
+    if (bridgeNote) bridgeNote.addEventListener('click', function () { aiSubmit('C’est quoi un bridge ?'); });
+    var undoBtn = document.getElementById('cfg-undo');
+    var redoBtn = document.getElementById('cfg-redo');
+    if (undoBtn) undoBtn.addEventListener('click', doUndo);
+    if (redoBtn) redoBtn.addEventListener('click', doRedo);
+    // Raccourcis clavier (hors champ de saisie) : Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y.
+    document.addEventListener('keydown', function (e) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      var t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      var k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
+      else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); doRedo(); }
+    });
     aiGreetOnce();
   })();
   // Ajout de pièce : formulaire sur-mesure + fermeture de la modale
@@ -1562,8 +1844,9 @@ import { floorLabel, floorsOf } from '../configurateur/floors';
       var chip = document.querySelector('[data-radio="installMode"] .cfg-choice[data-value="' + draft.installMode + '"]');
       if (chip) { document.querySelectorAll('[data-radio="installMode"] .cfg-choice').forEach(function (c) { c.classList.remove('sel'); }); chip.classList.add('sel'); }
     }
-    if (draft.estimate) { lastEstimate = draft.estimate; totalEl.textContent = EUR.format(draft.estimate.totalTTC || 0); }
+    if (draft.estimate) { lastEstimate = draft.estimate; setTotal(draft.estimate.totalTTC || 0); }
     renderRecap();
+    updateBridgeNote();
     show(2);
   }
 
