@@ -99,6 +99,103 @@ function pickBestProduct(
   return scored[0]!.product;
 }
 
+// ─── Pure line resolution (unit-testable, no DB) ─────────────────────────
+
+export interface DraftLine {
+  productId?: string;
+  description: string;
+  quantity: number;
+  unitPriceHT: number;
+  tvaRate: number;
+  clientOwned: boolean;
+}
+
+export interface ChecklistLineItem {
+  id: string;
+  label: string;
+  category: string;
+  /** Explicit product chosen in the wizard catalogue (overrides fuzzy match). */
+  productId?: string | null;
+  /** Quantity chosen in the wizard (defaults to 1). */
+  quantity?: number | null;
+}
+
+/**
+ * Decide which product (and at which quantity) a single checklist item maps to.
+ *
+ * Priority:
+ *   1. An explicit `productId` picked in the catalogue → used verbatim with the
+ *      item's quantity (no fuzzy matching, no guessing).
+ *   2. Otherwise fall back to category + token fuzzy matching.
+ *   3. If nothing matches, emit a manual "[À compléter]" line at price 0.
+ *
+ * Always honours `item.quantity` (>= 1).
+ */
+export function resolveChecklistLine(
+  item: ChecklistLineItem,
+  catalogue: Product[],
+  byId: Map<string, Product>,
+  byCategory: Map<string, Product[]>,
+): { line: DraftLine; match: ChecklistMatch } {
+  const qty = item.quantity && item.quantity > 0 ? item.quantity : 1;
+
+  const chosen =
+    item.productId && byId.has(item.productId) ? byId.get(item.productId)! : null;
+
+  const best =
+    chosen ??
+    (() => {
+      const tokens = tokenize(item.label);
+      const catAliases = CATEGORY_MAP[normalize(item.category)] ?? [
+        normalize(item.category),
+      ];
+      const candidates: Product[] = [];
+      for (const alias of catAliases) {
+        const bucket = byCategory.get(normalize(alias));
+        if (bucket) candidates.push(...bucket);
+      }
+      const pool = candidates.length ? candidates : catalogue;
+      return pickBestProduct(pool, tokens);
+    })();
+
+  if (best) {
+    return {
+      line: {
+        productId: best.id,
+        description: best.name,
+        quantity: qty,
+        unitPriceHT: parseFloat(best.priceHT),
+        tvaRate: parseFloat(best.tvaRate),
+        clientOwned: false,
+      },
+      match: {
+        checklistItemId: item.id,
+        label: item.label,
+        category: item.category,
+        matchedProductId: best.id,
+        matchedProductName: best.name,
+      },
+    };
+  }
+
+  return {
+    line: {
+      description: `[À compléter] ${item.label}`,
+      quantity: qty,
+      unitPriceHT: 0,
+      tvaRate: 20,
+      clientOwned: false,
+    },
+    match: {
+      checklistItemId: item.id,
+      label: item.label,
+      category: item.category,
+      matchedProductId: null,
+      matchedProductName: null,
+    },
+  };
+}
+
 // ─── Public entry point ──────────────────────────────────────────────────
 
 export interface QuoteFromChecklistInput {
@@ -186,69 +283,18 @@ export async function createQuoteFromChecklist(
   }
 
   // ── 4. Match each checklist item to a product ──────────────────────
+  // Index the catalogue by id so explicitly-chosen products are used verbatim.
+  const byId = new Map<string, Product>();
+  for (const p of catalogue) byId.set(p.id, p);
+
   const matches: ChecklistMatch[] = [];
-  const draftLines: Array<{
-    productId?: string;
-    description: string;
-    quantity: number;
-    unitPriceHT: number;
-    tvaRate: number;
-    clientOwned: boolean;
-    sortOrder: number;
-  }> = [];
+  const draftLines: Array<DraftLine & { sortOrder: number }> = [];
 
   let sortOrder = 0;
   for (const item of items) {
-    const tokens = tokenize(item.label);
-    const catAliases = CATEGORY_MAP[normalize(item.category)] ?? [
-      normalize(item.category),
-    ];
-
-    // Collect candidates from all matching categories
-    const candidates: Product[] = [];
-    for (const alias of catAliases) {
-      const bucket = byCategory.get(normalize(alias));
-      if (bucket) candidates.push(...bucket);
-    }
-    // If category mapping yielded nothing, fall back to the entire catalogue.
-    const pool = candidates.length ? candidates : catalogue;
-    const best = pickBestProduct(pool, tokens);
-
-    if (best) {
-      draftLines.push({
-        productId: best.id,
-        description: best.name,
-        quantity: 1,
-        unitPriceHT: parseFloat(best.priceHT),
-        tvaRate: parseFloat(best.tvaRate),
-        clientOwned: false,
-        sortOrder: sortOrder++,
-      });
-      matches.push({
-        checklistItemId: item.id,
-        label: item.label,
-        category: item.category,
-        matchedProductId: best.id,
-        matchedProductName: best.name,
-      });
-    } else {
-      // No product matched — keep the line as a manual "to fill" placeholder
-      draftLines.push({
-        description: `[À compléter] ${item.label}`,
-        quantity: 1,
-        unitPriceHT: 0,
-        tvaRate: 20,
-        clientOwned: false,
-        sortOrder: sortOrder++,
-      });
-      matches.push({
-        checklistItemId: item.id,
-        label: item.label,
-        category: item.category,
-        matchedProductId: null,
-        matchedProductName: null,
-      });
-    }
+    const { line, match } = resolveChecklistLine(item, catalogue, byId, byCategory);
+    draftLines.push({ ...line, sortOrder: sortOrder++ });
+    matches.push(match);
   }
 
   // ── 5. Defer to the regular createQuote() so totals/cost snapshots

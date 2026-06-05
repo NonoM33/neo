@@ -166,4 +166,26 @@ body.client-mode .exit-client:hover{background:rgba(0,0,0,.6)}
 .spin-sm{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .7s linear infinite;display:inline-block}
 .confetti{font-size:4rem;animation:pop .6s cubic-bezier(.2,.8,.3,1.4)}
 @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* Equipment catalogue */
+.equip-search{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.25);border:1px solid var(--panel-bd);border-radius:12px;padding:0 14px;margin-bottom:12px}
+.equip-search i{color:var(--muted)}
+.equip-search .inp{border:none;background:transparent;padding:12px 0;box-shadow:none}
+.equip-cats{margin-bottom:16px}
+.equip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.pcard{display:flex;flex-direction:column;border:1px solid var(--panel-bd);background:rgba(0,0,0,.2);border-radius:16px;overflow:hidden;transition:.15s}
+.pcard:hover{border-color:var(--accent);transform:translateY(-2px)}
+.pcard.on{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(34,211,238,.18)}
+.pcard-img{height:110px;background-size:cover;background-position:center;background-color:rgba(255,255,255,.04)}
+.pcard-img--ph{display:grid;place-items:center;font-size:2.2rem;color:var(--muted);background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(34,211,238,.12))}
+.pcard-body{padding:12px 13px 10px;flex:1}
+.pcard-cat{font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.pcard-name{font-weight:700;font-size:.92rem;margin:3px 0 6px;line-height:1.25}
+.pcard-price{font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.btn-add{margin:0 13px 13px;border-radius:11px;padding:10px;font-size:.9rem;width:calc(100% - 26px)}
+.qty{display:flex;align-items:center;justify-content:space-between;margin:0 13px 13px;background:rgba(0,0,0,.3);border:1px solid var(--panel-bd);border-radius:11px;padding:5px}
+.qty-btn{width:34px;height:34px;border-radius:9px;border:none;background:var(--grad);color:#06121f;font-size:1rem;cursor:pointer;display:grid;place-items:center}
+.qty-btn:hover{filter:brightness(1.08)}
+.qty-n{font-weight:800;font-size:1.05rem;min-width:28px;text-align:center}
+@media(max-width:720px){.equip-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}}
 `;

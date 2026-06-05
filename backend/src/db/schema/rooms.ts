@@ -1,5 +1,6 @@
-import { pgTable, uuid, varchar, text, timestamp, pgEnum, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, pgEnum, boolean, integer, jsonb } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
+import { products } from './products';
 
 export const roomTypeEnum = pgEnum('room_type', [
   'salon',
@@ -9,6 +10,10 @@ export const roomTypeEnum = pgEnum('room_type', [
   'bureau',
   'garage',
   'exterieur',
+  'toilette',
+  'entree',
+  'dressing',
+  'placard',
   'autre',
 ]);
 
@@ -19,6 +24,8 @@ export const rooms = pgTable('rooms', {
     .references(() => projects.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 100 }).notNull(),
   type: roomTypeEnum('type').notNull().default('autre'),
+  icon: varchar('icon', { length: 50 }),
+  linkedRoomIds: jsonb('linked_room_ids').$type<string[]>().default([]).notNull(),
   floor: integer('floor').default(0),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -43,6 +50,8 @@ export const checklistItems = pgTable('checklist_items', {
     .references(() => rooms.id, { onDelete: 'cascade' }),
   category: varchar('category', { length: 100 }).notNull(),
   label: varchar('label', { length: 255 }).notNull(),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+  quantity: integer('quantity').default(1).notNull(),
   checked: boolean('checked').default(false).notNull(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

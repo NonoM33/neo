@@ -84,23 +84,43 @@
     else { if (btn.dataset.label) btn.innerHTML = btn.dataset.label; btn.disabled = false; }
   }
 
-  var NEEDS = [
-    { cat: 'Éclairage', icon: 'bi-lightbulb', items: ['Plafonnier connecté', 'Variateur', 'Détecteur de présence', 'Ruban LED'] },
-    { cat: 'Ouvrants', icon: 'bi-door-open', items: ['Volet roulant', 'Store', 'Portail', 'Porte de garage'] },
-    { cat: 'Chauffage / Clim', icon: 'bi-thermometer-half', items: ['Thermostat', 'Tête thermostatique', 'Climatisation'] },
-    { cat: 'Sécurité', icon: 'bi-shield-lock', items: ['Caméra', 'Détecteur de fumée', "Détecteur d'ouverture", 'Serrure connectée', 'Sirène'] },
-    { cat: 'Énergie', icon: 'bi-plug', items: ['Prise connectée', 'Suivi de consommation', 'Recharge VE'] },
-    { cat: 'Confort', icon: 'bi-speaker', items: ['Enceinte', 'TV', 'Arrosage', 'Assistant vocal'] },
-  ];
+  // Catalogue produits (chargé depuis l'API, mis en cache pour la session).
+  var catalog = null;          // [{id,name,brand,category,priceHT,imageUrl,description}]
+  var catalogCats = null;      // ['Éclairage', ...]
+  var catalogLoading = false;
+  var catalogQuery = '';       // filtre recherche
+  var catalogCat = 'all';      // filtre catégorie active
+  var CAT_ICONS = {
+    'éclairage': 'bi-lightbulb', 'eclairage': 'bi-lightbulb',
+    'volets': 'bi-door-closed', 'ouvrants': 'bi-door-open',
+    'chauffage': 'bi-thermometer-half', 'climat': 'bi-thermometer-sun',
+    'sécurité': 'bi-shield-lock', 'securite': 'bi-shield-lock',
+    'audio': 'bi-speaker', 'multimedia': 'bi-speaker',
+    'réseau': 'bi-router', 'reseau': 'bi-router', 'energie': 'bi-plug', 'énergie': 'bi-plug',
+    'services': 'bi-tools',
+  };
+  function catIcon(cat) { return CAT_ICONS[(cat || '').toLowerCase()] || 'bi-box-seam'; }
+
   var ROOM_PRESETS = [
     { type: 'salon', name: 'Salon', icon: 'bi-tv' },
     { type: 'cuisine', name: 'Cuisine', icon: 'bi-egg-fried' },
     { type: 'chambre', name: 'Chambre', icon: 'bi-moon-stars' },
     { type: 'salle_de_bain', name: 'Salle de bain', icon: 'bi-droplet' },
+    { type: 'toilette', name: 'Toilette', icon: 'bi-droplet-half' },
+    { type: 'entree', name: 'Entrée', icon: 'bi-door-open' },
+    { type: 'dressing', name: 'Dressing', icon: 'bi-hanger' },
+    { type: 'placard', name: 'Placard', icon: 'bi-archive' },
     { type: 'bureau', name: 'Bureau', icon: 'bi-laptop' },
     { type: 'garage', name: 'Garage', icon: 'bi-car-front' },
     { type: 'exterieur', name: 'Extérieur', icon: 'bi-tree' },
     { type: 'autre', name: 'Autre', icon: 'bi-house' },
+  ];
+  var ROOM_ICONS = [
+    'bi-house', 'bi-house-door', 'bi-tv', 'bi-egg-fried', 'bi-cup-hot', 'bi-moon-stars',
+    'bi-droplet', 'bi-droplet-half', 'bi-bucket', 'bi-laptop', 'bi-book', 'bi-controller',
+    'bi-car-front', 'bi-tree', 'bi-flower1', 'bi-sun', 'bi-thermometer-half', 'bi-water',
+    'bi-stack', 'bi-box', 'bi-shop', 'bi-basket', 'bi-wrench', 'bi-music-note-beamed',
+    'bi-people', 'bi-door-open', 'bi-door-closed', 'bi-hanger', 'bi-archive',
   ];
 
   // ----- Steps -------------------------------------------------------------
@@ -242,10 +262,12 @@
     var cur = S.rooms.filter(function (r) { return r.id === S.currentRoomId; })[0];
     var roomsHtml = S.rooms.length ? S.rooms.map(function (r) {
       var on = r.id === S.currentRoomId;
+      var links = linkedRooms(r);
+      var linkBadge = links.length ? '<span class="s"><i class="bi bi-link-45deg"></i> ' + links.map(function (l) { return esc(l.name); }).join(', ') + '</span>' : '';
       return '<div class="tile ' + (on ? 'on' : '') + '" data-act="pick-room" data-id="' + r.id + '">' +
-        '<span class="ic"><i class="bi ' + roomIcon(r.type) + '"></i></span>' +
+        '<span class="ic"><i class="bi ' + roomIcon(r) + '"></i></span>' +
         '<div style="flex:1"><div class="t">' + esc(r.name) + '</div>' +
-        '<div class="s">' + (r.needs ? r.needs.length : 0) + ' besoin(s)</div></div>' +
+        '<div class="s" id="room-count-' + r.id + '">' + (r.needs ? r.needs.length : 0) + ' besoin(s)</div>' + linkBadge + '</div>' +
         '<button class="btn-ghost" data-act="del-room" data-id="' + r.id + '"><i class="bi bi-trash"></i></button></div>';
     }).join('') : '<div class="muted">Ajoutez les pièces à équiper.</div>';
 
@@ -254,28 +276,174 @@
         return '<span class="chip" data-act="add-room" data-type="' + rp.type + '" data-name="' + esc(rp.name) + '"><i class="bi ' + rp.icon + '"></i> ' + esc(rp.name) + '</span>';
       }).join('') + '</div>';
 
-    var needsPanel = '';
+    var customizePanel = '';
     if (cur) {
-      needsPanel = '<div class="card"><div style="font-weight:700;margin-bottom:4px"><i class="bi ' + roomIcon(cur.type) + '"></i> Besoins — ' + esc(cur.name) + '</div>' +
-        '<p class="h-sub" style="margin:0 0 14px">Touchez les équipements souhaités.</p>';
-      NEEDS.forEach(function (g) {
-        needsPanel += '<div style="margin-bottom:12px"><div class="muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px"><i class="bi ' + g.icon + '"></i> ' + esc(g.cat) + '</div><div class="chips">';
-        g.items.forEach(function (label) {
-          var on = (cur.needs || []).some(function (n) { return n.label === label && n.category === g.cat; });
-          needsPanel += '<span class="chip ' + (on ? 'on' : '') + '" data-act="toggle-need" data-cat="' + esc(g.cat) + '" data-label="' + esc(label) + '">' + (on ? '<i class="bi bi-check2"></i> ' : '') + esc(label) + '</span>';
-        });
-        needsPanel += '</div></div>';
-      });
-      needsPanel += '</div>';
+      var others = S.rooms.filter(function (r) { return r.id !== cur.id; });
+      var curLinks = (cur.linkedRoomIds) || [];
+      var iconPicker = uiIconPicker ? ('<div class="chips" style="margin-top:10px">' +
+        ROOM_ICONS.map(function (ic) {
+          var on = roomIcon(cur) === ic;
+          return '<span class="chip ' + (on ? 'on' : '') + '" data-act="set-icon" data-icon="' + ic + '" style="font-size:1.1rem"><i class="bi ' + ic + '"></i></span>';
+        }).join('') + '</div>') : '';
+      var linkPicker = uiLinkPicker ? ('<div class="chips" style="margin-top:10px">' +
+        (others.length ? others.map(function (r) {
+          var on = curLinks.indexOf(r.id) >= 0;
+          return '<span class="chip ' + (on ? 'on' : '') + '" data-act="toggle-link" data-id="' + r.id + '">' + (on ? '<i class="bi bi-check2"></i> ' : '') + '<i class="bi ' + roomIcon(r) + '"></i> ' + esc(r.name) + '</span>';
+        }).join('') : '<span class="muted" style="font-size:.85rem">Ajoutez d\'autres pièces pour pouvoir les lier.</span>') + '</div>') : '';
+      customizePanel = '<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<span class="ic"><i class="bi ' + roomIcon(cur) + '"></i></span>' +
+        '<div style="flex:1;min-width:120px;font-weight:700">' + esc(cur.name) + '</div>' +
+        '<button class="btn-ghost" data-act="rename-room" data-id="' + cur.id + '"><i class="bi bi-pencil"></i> Renommer</button>' +
+        '<button class="btn-ghost ' + (uiIconPicker ? 'on' : '') + '" data-act="toggle-icon-picker"><i class="bi bi-emoji-smile"></i> Icône</button>' +
+        '<button class="btn-ghost ' + (uiLinkPicker ? 'on' : '') + '" data-act="toggle-link-picker"><i class="bi bi-link-45deg"></i> Lier</button>' +
+        '</div>' + iconPicker + linkPicker + '</div>';
     }
 
-    var totalNeeds = S.rooms.reduce(function (a, r) { return a + (r.needs ? r.needs.length : 0); }, 0);
-    return '<h1 class="h-lead">Audit des besoins</h1>' +
-      '<p class="h-sub">' + S.rooms.length + ' pièce(s) · ' + totalNeeds + ' besoin(s) identifié(s).</p>' +
+    var equipPanel = cur ? '<div class="card" id="equip-panel">' + equipmentInner(cur) + '</div>' : '';
+
+    var totalNeeds = auditTotalQty();
+    return '<h1 class="h-lead">Audit & équipements</h1>' +
+      '<p class="h-sub" id="audit-sub">' + auditSubText() + '</p>' +
       '<div class="card"><div style="font-weight:700;margin-bottom:8px">Pièces du logement</div>' +
         '<div class="grid">' + roomsHtml + '</div>' + addRoom + '</div>' +
-      needsPanel +
+      customizePanel +
+      equipPanel +
       nav({ next: 'Générer le devis', nextDisabled: totalNeeds === 0 });
+  }
+  stepAudit.mounted = function () {
+    if (!S.currentRoomId) return;
+    if (!catalog) loadCatalog();
+    bindEquipSearch();
+  };
+
+  // ----- Equipment / catalogue --------------------------------------------
+  function loadCatalog() {
+    if (catalog || catalogLoading) return;
+    catalogLoading = true;
+    api('GET', '/produits?isActive=true&limit=500').then(function (res) {
+      var list = (res && res.data) || [];
+      catalog = list.map(function (p) {
+        return { id: p.id, name: p.name, brand: p.brand || '', category: p.category || 'Autre', priceHT: parseFloat(p.priceHT) || 0, imageUrl: p.imageUrl || null, description: p.description || '' };
+      });
+      catalogCats = [];
+      catalog.forEach(function (p) { if (catalogCats.indexOf(p.category) < 0) catalogCats.push(p.category); });
+      catalogCats.sort();
+      catalogLoading = false;
+      refreshEquipPanel();
+    }).catch(function (err) { catalogLoading = false; toast(err.message, true); });
+  }
+
+  function curRoom() { return S.rooms.filter(function (r) { return r.id === S.currentRoomId; })[0]; }
+  function productById(id) { return (catalog || []).filter(function (p) { return p.id === id; })[0]; }
+  function needFor(room, productId) { return (room.needs || []).filter(function (n) { return n.productId === productId; })[0]; }
+  function auditTotalQty() { return S.rooms.reduce(function (a, r) { return a + (r.needs || []).reduce(function (b, n) { return b + (n.quantity || 1); }, 0); }, 0); }
+  function roomTotalHT(room) {
+    return (room.needs || []).reduce(function (sum, n) { var p = productById(n.productId); return sum + (p ? p.priceHT * (n.quantity || 1) : 0); }, 0);
+  }
+  function auditSubText() {
+    var pieces = S.rooms.length;
+    var qty = auditTotalQty();
+    var ht = S.rooms.reduce(function (a, r) { return a + roomTotalHT(r); }, 0);
+    return pieces + ' pièce(s) · ' + qty + ' équipement(s) · ' + fmtEUR(ht) + ' HT estimés';
+  }
+
+  function equipmentInner(cur) {
+    var head = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
+      '<i class="bi ' + roomIcon(cur) + '" style="font-size:1.2rem"></i>' +
+      '<div style="font-weight:700;flex:1">Équiper — ' + esc(cur.name) + '</div>' +
+      '<span class="pill" id="equip-room-total">' + fmtEUR(roomTotalHT(cur)) + ' HT</span></div>';
+    if (!catalog) {
+      return head + '<div class="muted" style="text-align:center;padding:30px"><span class="spin-sm"></span> Chargement du catalogue…</div>';
+    }
+    var search = '<div class="equip-search"><i class="bi bi-search"></i>' +
+      '<input id="equip-search" class="inp" placeholder="Rechercher un produit…" value="' + esc(catalogQuery) + '" autocomplete="off"></div>';
+    var cats = '<div class="chips equip-cats">' +
+      '<span class="chip ' + (catalogCat === 'all' ? 'on' : '') + '" data-act="equip-cat" data-cat="all"><i class="bi bi-grid"></i> Tout</span>' +
+      catalogCats.map(function (c) {
+        return '<span class="chip ' + (catalogCat === c ? 'on' : '') + '" data-act="equip-cat" data-cat="' + esc(c) + '"><i class="bi ' + catIcon(c) + '"></i> ' + esc(c) + '</span>';
+      }).join('') + '</div>';
+    return head + search + cats + '<div class="equip-grid" id="equip-grid">' + equipGridInner(cur) + '</div>';
+  }
+
+  function equipGridInner(cur) {
+    var q = catalogQuery.toLowerCase().trim();
+    var list = (catalog || []).filter(function (p) {
+      if (catalogCat !== 'all' && p.category !== catalogCat) return false;
+      if (q && (p.name + ' ' + p.brand + ' ' + p.description).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    if (!list.length) return '<div class="muted" style="grid-column:1/-1;padding:20px;text-align:center">Aucun produit ne correspond.</div>';
+    return list.map(function (p) { return productCardHtml(p, cur); }).join('');
+  }
+
+  function productCardHtml(p, cur) {
+    var need = needFor(cur, p.id);
+    var qty = need ? (need.quantity || 1) : 0;
+    var media = p.imageUrl
+      ? '<div class="pcard-img" style="background-image:url(\'' + esc(p.imageUrl) + '\')"></div>'
+      : '<div class="pcard-img pcard-img--ph"><i class="bi ' + catIcon(p.category) + '"></i></div>';
+    var footer = need
+      ? '<div class="qty"><button class="qty-btn" data-act="dec-prod" data-id="' + p.id + '"><i class="bi bi-dash-lg"></i></button>' +
+        '<span class="qty-n">' + qty + '</span>' +
+        '<button class="qty-btn" data-act="inc-prod" data-id="' + p.id + '"><i class="bi bi-plus-lg"></i></button></div>'
+      : '<button class="btn btn-soft btn-add" data-act="add-prod" data-id="' + p.id + '"><i class="bi bi-plus-lg"></i> Ajouter</button>';
+    return '<div class="pcard ' + (need ? 'on' : '') + '" id="prod-' + p.id + '">' + media +
+      '<div class="pcard-body">' +
+        '<div class="pcard-cat">' + esc(p.category) + (p.brand ? ' · ' + esc(p.brand) : '') + '</div>' +
+        '<div class="pcard-name">' + esc(p.name) + '</div>' +
+        '<div class="pcard-price">' + fmtEUR(p.priceHT) + ' HT</div>' +
+      '</div>' + footer + '</div>';
+  }
+
+  function bindEquipSearch() {
+    var inp = document.getElementById('equip-search');
+    if (!inp || inp.dataset.bound) return;
+    inp.dataset.bound = '1';
+    inp.addEventListener('input', function () {
+      catalogQuery = inp.value;
+      var grid = document.getElementById('equip-grid');
+      var cur = curRoom();
+      if (grid && cur) grid.innerHTML = equipGridInner(cur);
+    });
+  }
+
+  function refreshEquipPanel() {
+    var panel = document.getElementById('equip-panel');
+    var cur = curRoom();
+    if (panel && cur) { panel.innerHTML = equipmentInner(cur); bindEquipSearch(); }
+  }
+
+  // Patch only the parts touched by an add/qty/remove — no full render, no scroll jump.
+  function patchEquip(cur, productId) {
+    var card = document.getElementById('prod-' + productId);
+    var p = productById(productId);
+    if (card && p) card.outerHTML = productCardHtml(p, cur);
+    var rt = document.getElementById('equip-room-total');
+    if (rt) rt.textContent = fmtEUR(roomTotalHT(cur)) + ' HT';
+    var rc = document.getElementById('room-count-' + cur.id);
+    if (rc) rc.textContent = (cur.needs ? cur.needs.length : 0) + ' besoin(s)';
+    var sub = document.getElementById('audit-sub');
+    if (sub) sub.textContent = auditSubText();
+    var nb = document.querySelector('[data-act="next"]');
+    if (nb) nb.disabled = auditTotalQty() === 0;
+  }
+
+  function changeQty(productId, delta) {
+    var cur = curRoom();
+    if (!cur) return;
+    var need = needFor(cur, productId);
+    if (!need) return;
+    var newQty = (need.quantity || 1) + delta;
+    if (newQty < 1) {
+      api('DELETE', '/checklist/' + need.id).then(function () {
+        cur.needs = cur.needs.filter(function (n) { return n !== need; });
+        save(); patchEquip(cur, productId);
+      }).catch(function (err) { toast(err.message, true); });
+      return;
+    }
+    api('PUT', '/checklist/' + need.id, { quantity: newQty }).then(function () {
+      need.quantity = newQty; save(); patchEquip(cur, productId);
+    }).catch(function (err) { toast(err.message, true); });
   }
 
   // ===== STEP 4 — QUOTE ====================================================
@@ -440,9 +608,15 @@
   function fld(id, label, val, type) {
     return '<label class="fld"><span>' + esc(label) + '</span><input class="inp" id="' + id + '" type="' + (type || 'text') + '" value="' + esc(val) + '"></label>';
   }
-  function roomIcon(type) {
-    var m = { salon: 'bi-tv', cuisine: 'bi-egg-fried', chambre: 'bi-moon-stars', salle_de_bain: 'bi-droplet', bureau: 'bi-laptop', garage: 'bi-car-front', exterieur: 'bi-tree' };
+  function roomIcon(room) {
+    if (room && typeof room === 'object' && room.icon) return room.icon;
+    var type = room && typeof room === 'object' ? room.type : room;
+    var m = { salon: 'bi-tv', cuisine: 'bi-egg-fried', chambre: 'bi-moon-stars', salle_de_bain: 'bi-droplet', toilette: 'bi-droplet-half', entree: 'bi-door-open', dressing: 'bi-hanger', placard: 'bi-archive', bureau: 'bi-laptop', garage: 'bi-car-front', exterieur: 'bi-tree' };
     return m[type] || 'bi-house';
+  }
+  function linkedRooms(room) {
+    var ids = (room && room.linkedRoomIds) || [];
+    return S.rooms.filter(function (r) { return r.id !== room.id && ids.indexOf(r.id) >= 0; });
   }
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
 
@@ -466,6 +640,8 @@
   });
 
   var pendingPct = 30;
+  var uiIconPicker = false;
+  var uiLinkPicker = false;
   var ACTIONS = {
     goto: function (a) { var i = +a.dataset.i; if (i <= S.step) goTo(i); },
     next: next,
@@ -515,34 +691,86 @@
       var n = S.rooms.filter(function (r) { return r.type === type; }).length;
       if (n > 0) name = name + ' ' + (n + 1);
       api('POST', '/projets/' + S.project.id + '/pieces', { name: name, type: type }).then(function (r) {
-        r.needs = []; S.rooms.push(r); S.currentRoomId = r.id; save(); render();
+        r.needs = []; r.linkedRoomIds = r.linkedRoomIds || []; S.rooms.push(r);
+        S.currentRoomId = r.id; uiIconPicker = false; uiLinkPicker = false; save(); render();
       }).catch(function (err) { toast(err.message, true); });
     },
-    'pick-room': function (a) { S.currentRoomId = a.dataset.id; save(); render(); },
+    'pick-room': function (a) { S.currentRoomId = a.dataset.id; uiIconPicker = false; uiLinkPicker = false; save(); render(); },
+    'rename-room': function (a) {
+      var id = a.dataset.id;
+      var room = S.rooms.filter(function (r) { return r.id === id; })[0];
+      if (!room) return;
+      var name = window.prompt('Nom de la pièce', room.name);
+      if (name == null) return;
+      name = name.trim();
+      if (!name || name === room.name) return;
+      api('PUT', '/pieces/' + id, { name: name }).then(function (r) {
+        room.name = (r && r.name) || name; save(); render();
+      }).catch(function (err) { toast(err.message, true); });
+    },
+    'toggle-icon-picker': function () { uiIconPicker = !uiIconPicker; uiLinkPicker = false; render(); },
+    'toggle-link-picker': function () { uiLinkPicker = !uiLinkPicker; uiIconPicker = false; render(); },
+    'set-icon': function (a) {
+      var cur = S.rooms.filter(function (r) { return r.id === S.currentRoomId; })[0];
+      if (!cur) return;
+      var icon = a.dataset.icon;
+      api('PUT', '/pieces/' + cur.id, { icon: icon }).then(function (r) {
+        cur.icon = (r && r.icon) || icon; uiIconPicker = false; save(); render();
+      }).catch(function (err) { toast(err.message, true); });
+    },
+    'toggle-link': function (a) {
+      var cur = S.rooms.filter(function (r) { return r.id === S.currentRoomId; })[0];
+      var target = S.rooms.filter(function (r) { return r.id === a.dataset.id; })[0];
+      if (!cur || !target) return;
+      cur.linkedRoomIds = cur.linkedRoomIds || [];
+      target.linkedRoomIds = target.linkedRoomIds || [];
+      var linked = cur.linkedRoomIds.indexOf(target.id) >= 0;
+      var curIds = linked
+        ? cur.linkedRoomIds.filter(function (x) { return x !== target.id; })
+        : cur.linkedRoomIds.concat([target.id]);
+      var tgtIds = linked
+        ? target.linkedRoomIds.filter(function (x) { return x !== cur.id; })
+        : target.linkedRoomIds.concat([cur.id]);
+      Promise.all([
+        api('PUT', '/pieces/' + cur.id, { linkedRoomIds: curIds }),
+        api('PUT', '/pieces/' + target.id, { linkedRoomIds: tgtIds }),
+      ]).then(function () {
+        cur.linkedRoomIds = curIds; target.linkedRoomIds = tgtIds; save(); render();
+      }).catch(function (err) { toast(err.message, true); });
+    },
     'del-room': function (a) {
       var id = a.dataset.id;
       api('DELETE', '/pieces/' + id).then(function () {
         S.rooms = S.rooms.filter(function (r) { return r.id !== id; });
+        S.rooms.forEach(function (r) {
+          if (r.linkedRoomIds && r.linkedRoomIds.indexOf(id) >= 0) {
+            r.linkedRoomIds = r.linkedRoomIds.filter(function (x) { return x !== id; });
+          }
+        });
         if (S.currentRoomId === id) S.currentRoomId = S.rooms.length ? S.rooms[0].id : null;
         save(); render();
       }).catch(function (err) { toast(err.message, true); });
     },
-    'toggle-need': function (a) {
-      var cur = S.rooms.filter(function (r) { return r.id === S.currentRoomId; })[0];
-      if (!cur) return;
-      cur.needs = cur.needs || [];
-      var cat = a.dataset.cat, label = a.dataset.label;
-      var existing = cur.needs.filter(function (n) { return n.label === label && n.category === cat; })[0];
-      if (existing) {
-        api('DELETE', '/checklist/' + existing.id).then(function () {
-          cur.needs = cur.needs.filter(function (n) { return n !== existing; }); save(); render();
-        }).catch(function (err) { toast(err.message, true); });
-      } else {
-        api('POST', '/pieces/' + cur.id + '/checklist', { category: cat, label: label, checked: true }).then(function (item) {
-          cur.needs.push({ id: item.id, category: cat, label: label }); save(); render();
-        }).catch(function (err) { toast(err.message, true); });
-      }
+    'equip-cat': function (a) {
+      catalogCat = a.dataset.cat;
+      var cur = curRoom();
+      document.querySelectorAll('.equip-cats .chip').forEach(function (c) { c.classList.toggle('on', c === a); });
+      var grid = document.getElementById('equip-grid');
+      if (grid && cur) grid.innerHTML = equipGridInner(cur);
     },
+    'add-prod': function (a) {
+      var cur = curRoom();
+      var p = productById(a.dataset.id);
+      if (!cur || !p) return;
+      cur.needs = cur.needs || [];
+      if (needFor(cur, p.id)) return;
+      api('POST', '/pieces/' + cur.id + '/checklist', { productId: p.id, category: p.category, label: p.name, quantity: 1, checked: true }).then(function (item) {
+        cur.needs.push({ id: item.id, productId: p.id, category: p.category, label: p.name, quantity: 1 });
+        save(); patchEquip(cur, p.id);
+      }).catch(function (err) { toast(err.message, true); });
+    },
+    'inc-prod': function (a) { changeQty(a.dataset.id, 1); },
+    'dec-prod': function (a) { changeQty(a.dataset.id, -1); },
 
     'gen-quote': function (a) { genQuote(a); },
     'regen-quote': function (a) { S.quote = null; save(); render(); },
@@ -632,7 +860,7 @@
         if (c) S.client = c;
         return api('GET', '/projets/' + CFG.resumeProjectId + '/pieces');
       }).then(function (rooms) {
-        S.rooms = (rooms || []).map(function (r) { return { id: r.id, name: r.name, type: r.type, needs: (r.checklistItems || []).map(function (i) { return { id: i.id, category: i.category, label: i.label }; }) }; });
+        S.rooms = (rooms || []).map(function (r) { return { id: r.id, name: r.name, type: r.type, icon: r.icon || null, linkedRoomIds: r.linkedRoomIds || [], needs: (r.checklistItems || []).map(function (i) { return { id: i.id, productId: i.productId || null, category: i.category, label: i.label, quantity: i.quantity || 1 }; }) }; });
         S.step = 2; save(); render();
       }).catch(function () { render(); });
     } else {
