@@ -35,7 +35,8 @@ Ta mission :
 
 Style :
 - Réponds en français, ton amical et concret, 1 à 4 phrases. Pas de jargon inutile.
-- Ne donne JAMAIS un prix sans l'avoir obtenu via un outil. N'invente aucune référence produit.
+- Le catalogue exact (catégories, références et prix) t'est fourni ci-dessous : appuie-toi dessus, n'invente aucune référence ni aucun prix.
+- Utilise EXACTEMENT les noms de catégorie du catalogue fourni (ex : « Sécurité » pour les caméras, « Éclairage », « Volets »…), pas des mots-clés inventés.
 - Avant d'ajouter un équipement, assure-toi d'avoir une pièce de destination valide (utilise la liste des pièces fournie).
 - Quand tu ajoutes/retires quelque chose, dis-le clairement et explique pourquoi en une phrase.
 
@@ -62,7 +63,7 @@ function buildToolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
         parameters: {
           type: 'object',
           properties: {
-            category: { type: 'string', description: 'Catégorie exacte (ex : camera, capteur).' },
+            category: { type: 'string', description: 'Catégorie exacte telle qu’indiquée dans le catalogue fourni (ex : Sécurité, Éclairage).' },
             query: { type: 'string', description: 'Mot-clé dans le nom ou la marque.' },
             maxPriceTTC: { type: 'number', description: 'Prix TTC maximum.' },
           },
@@ -246,6 +247,25 @@ export async function runTool(
   }
 }
 
+export function buildCatalogDigest(catalog: SuggestProduct[]): string {
+  if (catalog.length === 0) return 'Catalogue : vide pour le moment.';
+  const byCategory = new Map<string, SuggestProduct[]>();
+  for (const p of catalog) {
+    const list = byCategory.get(p.category) ?? [];
+    list.push(p);
+    byCategory.set(p.category, list);
+  }
+  const lines = ['Catalogue disponible (catégorie exacte → produits) :'];
+  for (const [category, products] of byCategory) {
+    lines.push(`• ${category} :`);
+    for (const p of products) {
+      const brand = p.brand ? ` ${p.brand}` : '';
+      lines.push(`    - ${p.name}${brand} (id: ${p.id}) — ${EUR.format(p.priceTTC)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 export function buildContextMessage(
   input: AssistantInput,
   catalog: SuggestProduct[],
@@ -303,6 +323,7 @@ export async function runConfiguratorAssistant(
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: buildCatalogDigest(catalog) },
     { role: 'system', content: buildContextMessage(input, catalog) },
     ...input.messages.map((m) => ({ role: m.role, content: m.content }) as const),
   ];

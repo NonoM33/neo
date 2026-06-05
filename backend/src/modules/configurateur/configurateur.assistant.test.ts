@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  buildCatalogDigest,
   buildContextMessage,
   resolveRoom,
   runTool,
@@ -146,6 +147,23 @@ describe('runTool · rechercher_produits', () => {
       JSON.stringify({ query: 'aqara' }),
     )) as { products: Array<{ id: string }> };
     expect(out.products.map((p) => p.id)).toEqual(['capteur']);
+  });
+});
+
+describe('buildCatalogDigest', () => {
+  it('liste les produits groupés par leur catégorie réelle avec id et prix', () => {
+    // Régression : l'IA cherchait « camera » alors que la catégorie réelle est
+    // « Sécurité » → catalogue perçu comme vide. Le digest expose la vraie taxo.
+    const digest = buildCatalogDigest(catalog);
+    expect(digest).toContain('camera');
+    expect(digest).toContain('cam-pro');
+    expect(digest).toContain('Caméra Pro');
+    expect(digest).toMatch(/199/);
+    expect(digest).toContain('capteur');
+  });
+
+  it('reste vide-safe quand le catalogue est vide', () => {
+    expect(buildCatalogDigest([])).toContain('vide');
   });
 });
 
