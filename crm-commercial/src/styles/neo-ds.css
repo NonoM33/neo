@@ -577,3 +577,145 @@
   .neo-ds .sb-scrim { display:block; position:fixed; inset:0; background:rgba(20,33,61,.4); z-index:55; opacity:0; pointer-events:none; transition:opacity .3s; }
   .neo-ds .app.sb-open .sb-scrim { opacity:1; pointer-events:auto; }
 }
+
+/* ===== Parcours guidé (wizard) ============================================ */
+.neo-ds .parcours-stage .card { margin-bottom:16px; }
+.neo-ds .parcours-lead { font-family:var(--font-serif); font-size:26px; line-height:1.15; color:var(--ink); margin-bottom:4px; }
+.neo-ds .parcours-sub { color:var(--ink-3); font-size:14px; margin-bottom:18px; }
+
+.neo-ds .parcours-stepper { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+.neo-ds .parcours-step { display:flex; align-items:center; gap:8px; padding:8px 14px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); color:var(--ink-3); font-size:13px; font-weight:500; cursor:pointer; transition:all .2s var(--ease); }
+.neo-ds .parcours-step:disabled { cursor:not-allowed; opacity:.55; }
+.neo-ds .parcours-step.active { border-color:var(--komun); color:var(--komun-ink); background:var(--komun-soft); }
+.neo-ds .parcours-step.done { border-color:var(--success-soft); color:var(--success-ink); background:var(--success-soft); }
+.neo-ds .parcours-step .ps-num { display:grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--paper-2); font-size:12px; font-weight:600; }
+.neo-ds .parcours-step.active .ps-num { background:var(--komun); color:#fff; }
+.neo-ds .parcours-step.done .ps-num { background:var(--success); color:#fff; }
+.neo-ds .parcours-step .ps-label { white-space:nowrap; }
+
+.neo-ds .parcours-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.neo-ds .parcours-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+.neo-ds .parcours-row:last-child { border-bottom:none; }
+.neo-ds .parcours-row--clickable { width:100%; background:none; border:none; border-bottom:1px solid var(--line); cursor:pointer; text-align:left; padding:10px 4px; border-radius:var(--r-sm); transition:background .15s var(--ease); }
+.neo-ds .parcours-row--clickable:hover { background:var(--hover); }
+
+.neo-ds .parcours-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.neo-ds .parcours-chip { display:inline-flex; align-items:center; gap:5px; padding:7px 13px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); color:var(--ink-2); font-size:13px; cursor:pointer; transition:all .15s var(--ease); }
+.neo-ds .parcours-chip:hover { border-color:var(--line-2); background:var(--hover); }
+.neo-ds .parcours-chip.on { border-color:var(--komun); background:var(--komun-soft); color:var(--komun-ink); }
+
+.neo-ds .parcours-rooms { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+.neo-ds .parcours-tile { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--card); cursor:pointer; transition:all .15s var(--ease); }
+.neo-ds .parcours-tile:hover { border-color:var(--line-2); }
+.neo-ds .parcours-tile.on { border-color:var(--komun); box-shadow:var(--shadow-focus); }
+.neo-ds .parcours-tile--action:hover { transform:translateY(-2px); box-shadow:var(--shadow-2); }
+
+.neo-ds .parcours-equip-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-top:14px; }
+.neo-ds .parcours-pcard { display:flex; flex-direction:column; gap:4px; padding:14px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--card); }
+.neo-ds .parcours-pcard.on { border-color:var(--komun); background:var(--komun-soft); }
+.neo-ds .parcours-pcard .pcard-cat { font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-4); }
+.neo-ds .parcours-pcard .pcard-name { font-weight:600; font-size:14px; color:var(--ink); }
+.neo-ds .parcours-pcard .pcard-price { font-family:var(--font-mono); font-size:13px; color:var(--ink-2); margin-bottom:8px; }
+.neo-ds .parcours-qty { display:flex; align-items:center; gap:10px; }
+.neo-ds .parcours-qty .qty-n { font-weight:600; min-width:18px; text-align:center; }
+
+.neo-ds .parcours-kpi { display:flex; flex-direction:column; gap:4px; padding:14px; background:var(--paper-2); border-radius:var(--r-md); }
+.neo-ds .parcours-kpi .l { font-size:12px; color:var(--ink-3); }
+.neo-ds .parcours-kpi .v { font-size:22px; font-weight:700; color:var(--ink); }
+
+.neo-ds .parcours-pill { padding:4px 10px; border-radius:var(--r-pill); background:var(--komun-soft); color:var(--komun-ink); font-size:12px; font-weight:600; }
+.neo-ds .parcours-badge { display:grid; place-items:center; width:40px; height:40px; border-radius:var(--r-md); background:var(--komun); color:#fff; }
+.neo-ds .parcours-footnav { display:flex; align-items:center; gap:10px; margin-top:18px; }
+
+/* Créneaux équipe — éditeur de plages hebdomadaires */
+.neo-ds .creneau-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 140px auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+.neo-ds .creneau-row > :last-child {
+  margin-bottom: 2px;
+}
+
+/* Rôles & permissions — grille de cases à cocher */
+.neo-ds .roles-perms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.neo-ds .roles-perm-group {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  background: var(--paper-2);
+}
+.neo-ds .roles-perm-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.neo-ds .roles-perm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding: 3px 0;
+  cursor: pointer;
+}
+.neo-ds .roles-perm-item input {
+  accent-color: var(--komun);
+}
+
+/* --- Jetons API --- */
+.neo-ds .token-prefix,
+.neo-ds .token-secret {
+  font-family: var(--mono, ui-monospace, monospace);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm, 6px);
+  padding: 2px 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.neo-ds .token-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.neo-ds .token-role-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding: 3px 0;
+  cursor: pointer;
+}
+.neo-ds .token-role-item input {
+  accent-color: var(--komun);
+}
+.neo-ds .token-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+.neo-ds .token-reveal-warn {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.neo-ds .token-reveal .token-secret {
+  display: block;
+  width: 100%;
+  word-break: break-all;
+  padding: 10px 12px;
+}

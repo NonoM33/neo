@@ -29,10 +29,12 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Commercial',
     items: [
       { to: '/prospection', label: 'Prospection', icon: 'crosshair', feature: 'prospection' },
+      { to: '/parcours', label: 'Parcours guidé', icon: 'sparkles', feature: 'parcours' },
       { to: '/leads', label: 'Pipeline', icon: 'filter', feature: 'leads' },
       { to: '/activities', label: 'Activités', icon: 'calendar', feature: 'activities' },
       { to: '/calendar', label: 'Agenda', icon: 'calendar', feature: 'calendar' },
       { to: '/kpis', label: 'KPIs', icon: 'chart', feature: 'kpis' },
+      { to: '/objectifs', label: 'Objectifs', icon: 'target', feature: 'objectives' },
     ],
   },
   {
@@ -41,7 +43,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Mon espace',
-    items: [{ to: '/calendar/availability', label: 'Disponibilités', icon: 'clock', feature: 'availability' }],
+    items: [
+      { to: '/calendar/availability', label: 'Disponibilités', icon: 'clock', feature: 'availability' },
+      { to: '/calendar/creneaux', label: 'Créneaux équipe', icon: 'calendar', feature: 'creneaux' },
+    ],
   },
   {
     title: 'Gamification',
@@ -56,11 +61,30 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/clients', label: 'Clients', icon: 'users', feature: 'clients' },
       { to: '/projets', label: 'Projets', icon: 'folder', feature: 'projets' },
       { to: '/devis', label: 'Devis', icon: 'fileText', feature: 'devis' },
+      { to: '/signatures', label: 'Signatures', icon: 'edit', feature: 'signatures' },
+    ],
+  },
+  {
+    title: 'Commerce',
+    items: [
+      { to: '/commandes', label: 'Commandes', icon: 'cart', feature: 'commandes' },
+      { to: '/factures', label: 'Factures', icon: 'receipt', feature: 'factures' },
+      { to: '/paiements', label: 'Paiements', icon: 'euro', feature: 'paiements' },
+      { to: '/achats', label: 'Achats', icon: 'truck', feature: 'commandes-fournisseurs' },
+      { to: '/fournisseurs', label: 'Fournisseurs', icon: 'building', feature: 'fournisseurs' },
+      { to: '/stock', label: 'Stock', icon: 'boxes', feature: 'stock' },
     ],
   },
   {
     title: 'Support',
-    items: [{ to: '/tickets', label: 'Tickets', icon: 'ticket', feature: 'support' }],
+    items: [
+      { to: '/support/dashboard', label: 'Tableau de bord', icon: 'gauge', feature: 'support' },
+      { to: '/tickets', label: 'Tickets', icon: 'ticket', feature: 'support' },
+      { to: '/support/chat', label: 'Chat en direct', icon: 'message', feature: 'support' },
+      { to: '/support/kb', label: 'Base de connaissances', icon: 'book', feature: 'support' },
+      { to: '/support/faq', label: 'FAQ', icon: 'help', feature: 'support' },
+      { to: '/support/settings', label: 'Paramètres', icon: 'settings', feature: 'support' },
+    ],
   },
   {
     title: 'Infrastructure',
@@ -70,9 +94,14 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Administration',
     items: [
       { to: '/marketing', label: 'Marketing', icon: 'megaphone', feature: 'marketing' },
+      { to: '/newsletter', label: 'Newsletter', icon: 'mail', feature: 'newsletter' },
+      { to: '/release-notes', label: 'Notes de version', icon: 'rocket', feature: 'newsletter' },
       { to: '/templates', label: 'Templates', icon: 'palette', feature: 'templates' },
       { to: '/design-system', label: 'Design System', icon: 'sparkles', feature: 'design-system' },
       { to: '/users', label: 'Utilisateurs', icon: 'shield', feature: 'users' },
+      { to: '/roles', label: 'Rôles & permissions', icon: 'shield', feature: 'roles' },
+      { to: '/api-tokens', label: 'Jetons API', icon: 'shield', feature: 'api-tokens' },
+      { to: '/recette', label: 'Recette', icon: 'bug', feature: 'recette' },
     ],
   },
 ];

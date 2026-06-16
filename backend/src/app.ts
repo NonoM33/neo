@@ -18,19 +18,27 @@ import { quotesRoutes } from './modules/quotes';
 import { ordersRoutes } from './modules/orders';
 import { stockRoutes } from './modules/stock';
 import { supplierOrdersRoutes } from './modules/supplier-orders';
+import { suppliersRoutes } from './modules/suppliers';
 import { invoicesRoutes } from './modules/invoices';
+import {
+  paymentsRouter,
+  publicPayRouter,
+  paymentsWebhookRouter,
+} from './modules/payments';
 import { syncRoutes } from './modules/sync';
 import { leadsRoutes } from './modules/leads';
 import { activitiesRoutes } from './modules/activities';
 import { kpisRoutes } from './modules/kpis';
 import { appointmentsRoutes, availabilityRoutes } from './modules/appointments';
+import { rolesRoutes } from './modules/roles';
+import { systemTokensRoutes } from './modules/system-tokens';
 import { bookingRoutes } from './modules/booking';
 import { devisRoutes } from './modules/devis';
 import { configurateurRoutes } from './modules/configurateur';
 import { calendarSyncRoutes } from './modules/calendar-sync';
 import { callsRoutes } from './modules/calls';
 import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
-import { newsletterTrackingRoutes } from './modules/newsletter';
+import { newsletterTrackingRoutes, newsletterRoutes } from './modules/newsletter';
 import { cloudInstancesRoutes } from './modules/cloud-instances';
 import { floorPlansRoutes } from './modules/floor-plans';
 import { signaturesRouter, signingPageRouter, webhookRouter } from './modules/signatures';
@@ -43,7 +51,7 @@ import { clientAuthRoutes, ticketsRoutes, kbRoutes, chatRoutes } from './support
 import { scanSessionsRoutes } from './modules/scan-sessions';
 import adminRoutes from './admin/admin.routes';
 import backofficeRoutes from './backoffice/backoffice.routes';
-import { recetteExportRoutes } from './modules/recette';
+import { recetteExportRoutes, recetteRoutes } from './modules/recette';
 import { feedbackApiRoutes, feedbackWidgetRoutes } from './modules/feedback';
 import { chatbotRoutes } from './modules/chatbot';
 import templatesRoutes from './modules/templates/templates.routes';
@@ -126,12 +134,15 @@ app.route('/api', quotesRoutes);
 app.route('/api/commandes', ordersRoutes);
 app.route('/api/stock', stockRoutes);
 app.route('/api/commandes-fournisseurs', supplierOrdersRoutes);
+app.route('/api/fournisseurs', suppliersRoutes);
 app.route('/api/factures', invoicesRoutes);
+app.route('/api/payments', paymentsRouter);
 app.route('/api/sync', syncRoutes);
 app.route('/api/tickets', ticketsRoutes.staffRoutes);
 app.route('/api/kb', kbRoutes.staffRoutes);
 app.route('/api/templates', templatesRoutes);
 app.route('/api/marketing', marketingRoutes);
+app.route('/api/newsletter', newsletterRoutes);
 
 // CRM Routes
 app.route('/api/leads', leadsRoutes);
@@ -139,13 +150,20 @@ app.route('/api/activities', activitiesRoutes);
 app.route('/api/kpis', kpisRoutes);
 app.route('/api/appointments', appointmentsRoutes);
 app.route('/api/availability', availabilityRoutes);
+app.route('/api/roles', rolesRoutes);
+app.route('/api/system-tokens', systemTokensRoutes);
 app.route('/api/calls', callsRoutes);
 app.route('/api/tracking', trackingRoutes);
 app.route('/api/cloud-instances', cloudInstancesRoutes);
 app.route('/api', floorPlansRoutes);
 app.route('/api', signaturesRouter);
+app.route('/api/recette', recetteRoutes);
 app.route('/', signingPageRouter);
 app.route('/', webhookRouter);
+
+// Page de paiement publique (sans auth, jeton signé) + webhook Stripe
+app.route('/payer', publicPayRouter);
+app.route('/', paymentsWebhookRouter);
 
 // Public tracking page (no auth, token-based)
 app.route('/tracking', publicTrackingRoutes);

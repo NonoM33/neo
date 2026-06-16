@@ -16,10 +16,12 @@ import {
   ProfilePage,
   ProspectionHubPage,
   QualificationWizardPage,
+  ParcoursPage,
   CalendarPage,
   AppointmentFormPage,
   AppointmentDetailPage,
   AvailabilityPage,
+  CreneauxPage,
   CalendarSyncPage,
   CloudInstancesPage,
   CloudInstanceDetailPage,
@@ -32,12 +34,34 @@ import {
   ProjectFormPage,
   DevisPage,
   DevisDetailPage,
+  CommandesPage,
+  CommandeDetailPage,
+  FacturesPage,
+  FactureDetailPage,
+  PaiementsPage,
+  StockPage,
+  AchatsPage,
+  AchatDetailPage,
+  SuppliersPage,
+  ObjectivesPage,
   TicketsPage,
   TicketDetailPage,
   TicketFormPage,
+  KbPage,
+  FaqPage,
+  SupportSettingsPage,
+  SupportDashboardPage,
+  SupportChatPage,
+  NewsletterPage,
+  CampaignPage,
+  ReleaseNotesPage,
   TemplatesPage,
   MarketingPage,
   DesignSystemPage,
+  SignaturesPage,
+  RecettePage,
+  RolesPage,
+  ApiTokensPage,
 } from './pages';
 import { useAuthStore } from './stores';
 
@@ -136,6 +160,14 @@ export const router = createBrowserRouter([
         element: <AvailabilityPage />,
       },
       {
+        path: 'calendar/creneaux',
+        element: (
+          <RoleRoute feature="creneaux">
+            <CreneauxPage />
+          </RoleRoute>
+        ),
+      },
+      {
         path: 'calendar/sync',
         element: <CalendarSyncPage />,
       },
@@ -162,6 +194,14 @@ export const router = createBrowserRouter([
       {
         path: 'prospection/qualify/:id',
         element: <QualificationWizardPage />,
+      },
+      {
+        path: 'parcours',
+        element: (
+          <RoleRoute feature="parcours">
+            <ParcoursPage />
+          </RoleRoute>
+        ),
       },
       {
         path: 'produits',
@@ -244,6 +284,86 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'commandes',
+        element: (
+          <RoleRoute feature="commandes">
+            <CommandesPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'commandes/:id',
+        element: (
+          <RoleRoute feature="commandes">
+            <CommandeDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'factures',
+        element: (
+          <RoleRoute feature="factures">
+            <FacturesPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'factures/:id',
+        element: (
+          <RoleRoute feature="factures">
+            <FactureDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'paiements',
+        element: (
+          <RoleRoute feature="paiements">
+            <PaiementsPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'stock',
+        element: (
+          <RoleRoute feature="stock">
+            <StockPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'achats',
+        element: (
+          <RoleRoute feature="commandes-fournisseurs">
+            <AchatsPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'achats/:id',
+        element: (
+          <RoleRoute feature="commandes-fournisseurs">
+            <AchatDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'fournisseurs',
+        element: (
+          <RoleRoute feature="fournisseurs">
+            <SuppliersPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'objectifs',
+        element: (
+          <RoleRoute feature="objectives">
+            <ObjectivesPage />
+          </RoleRoute>
+        ),
+      },
+      {
         path: 'tickets',
         element: (
           <RoleRoute feature="support">
@@ -264,6 +384,70 @@ export const router = createBrowserRouter([
         element: (
           <RoleRoute feature="support">
             <TicketDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'support/kb',
+        element: (
+          <RoleRoute feature="support">
+            <KbPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'support/faq',
+        element: (
+          <RoleRoute feature="support">
+            <FaqPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'support/settings',
+        element: (
+          <RoleRoute feature="support">
+            <SupportSettingsPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'support/dashboard',
+        element: (
+          <RoleRoute feature="support">
+            <SupportDashboardPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'support/chat',
+        element: (
+          <RoleRoute feature="support">
+            <SupportChatPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'newsletter',
+        element: (
+          <RoleRoute feature="newsletter">
+            <NewsletterPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'newsletter/campaign/:id',
+        element: (
+          <RoleRoute feature="newsletter">
+            <CampaignPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'release-notes',
+        element: (
+          <RoleRoute feature="newsletter">
+            <ReleaseNotesPage />
           </RoleRoute>
         ),
       },
@@ -304,6 +488,38 @@ export const router = createBrowserRouter([
       {
         path: 'design-system',
         element: <DesignSystemPage />,
+      },
+      {
+        path: 'signatures',
+        element: (
+          <RoleRoute feature="signatures">
+            <SignaturesPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'recette',
+        element: (
+          <RoleRoute feature="recette">
+            <RecettePage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'roles',
+        element: (
+          <RoleRoute feature="roles">
+            <RolesPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'api-tokens',
+        element: (
+          <RoleRoute feature="api-tokens">
+            <ApiTokensPage />
+          </RoleRoute>
+        ),
       },
       {
         path: 'users',

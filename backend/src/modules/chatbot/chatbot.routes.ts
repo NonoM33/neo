@@ -1,13 +1,77 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { createBunWebSocket } from 'hono/bun';
 import type { WSContext } from 'hono/ws';
+import { verify } from 'jsonwebtoken';
+import { eq } from 'drizzle-orm';
+import { env } from '../../config/env';
+import { db } from '../../config/database';
+import { users } from '../../db/schema';
 import { getSessionUser } from '../../backoffice/middleware/admin-auth';
 import { hasPermission } from '../../modules/roles/permissions';
+import type { JWTPayload } from '../../middleware/auth.middleware';
 import * as hub from './chatbot.ws';
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 
 const chatbotRoutes = new Hono();
+
+/**
+ * Vérifie un jeton JWT staff et renvoie l'id du conseiller s'il est autorisé à
+ * piloter la console de chat live (permission `support.manage`, ou rôle admin).
+ * Logique pure (sans accès base) afin d'être testable en isolation. Renvoie
+ * null si le jeton est invalide/expiré ou si la permission manque.
+ */
+export function staffIdFromChatToken(token: string): string | null {
+  let payload: JWTPayload;
+  try {
+    payload = verify(token, env.JWT_SECRET) as JWTPayload;
+  } catch {
+    return null;
+  }
+  if (!payload || typeof payload.userId !== 'string') return null;
+
+  const permissions = payload.permissions ?? [];
+  const roles = payload.roles ?? [payload.role];
+  const isAdmin = payload.role === 'admin' || roles.includes('admin');
+  if (!hasPermission(permissions, 'support.manage', isAdmin)) {
+    return null;
+  }
+  return payload.userId;
+}
+
+/**
+ * Résout l'utilisateur staff autorisé à piloter la console de chat live.
+ * Deux sources d'authentification acceptées :
+ *   1. Cookie de session back-office legacy (getSessionUser).
+ *   2. Jeton JWT staff (app React) passé en query `?token=...` — le handshake
+ *      WebSocket du navigateur ne permet pas d'envoyer d'en-tête Authorization.
+ * Retourne l'id du conseiller si autorisé, sinon null.
+ */
+async function resolveStaffWsUserId(c: Context): Promise<string | null> {
+  const sessionUser = await getSessionUser(c);
+  if (
+    sessionUser &&
+    hasPermission(sessionUser.permissions, 'support.manage', sessionUser.isSuperAdmin)
+  ) {
+    return sessionUser.id;
+  }
+
+  const token = c.req.query('token');
+  if (!token) return null;
+
+  const userId = staffIdFromChatToken(token);
+  if (!userId) return null;
+
+  const [user] = await db
+    .select({ id: users.id, isActive: users.isActive })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user || !user.isActive) return null;
+
+  return user.id;
+}
 
 function parse(data: unknown): Record<string, any> | null {
   if (typeof data !== 'string') return null;
@@ -59,11 +123,9 @@ chatbotRoutes.get(
 chatbotRoutes.get(
   '/ws/chatbot/staff',
   upgradeWebSocket(async (c) => {
-    const user = await getSessionUser(c);
-    const authorized =
-      !!user && hasPermission(user.permissions, 'support.manage', user.isSuperAdmin);
+    const staffId = await resolveStaffWsUserId(c);
 
-    if (!authorized || !user) {
+    if (!staffId) {
       return {
         onOpen: (_evt, ws) => ws.close(1008, 'Unauthorized'),
       };
@@ -80,7 +142,7 @@ chatbotRoutes.get(
       onMessage: async (event, ws) => {
         const data = parse(event.data);
         if (!data || typeof data.type !== 'string') return;
-        await hub.handleStaffAction(ws, user.id, {
+        await hub.handleStaffAction(ws, staffId, {
           type: data.type,
           sessionId: typeof data.sessionId === 'string' ? data.sessionId : undefined,
           content: typeof data.content === 'string' ? data.content : undefined,

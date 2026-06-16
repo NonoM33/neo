@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, count, type SQL } from 'drizzle-orm';
 import { db } from '../../config/database';
 import {
   signatureRequests,
@@ -286,6 +286,108 @@ export async function getSignatureRequest(quoteId: string) {
     signerName: request.signerName,
     signerEmail: request.signerEmail,
     createdAt: request.createdAt,
+  };
+}
+
+export interface SignatureListItem {
+  id: string;
+  quoteId: string;
+  quoteNumber: string | null;
+  status: string;
+  mode: string;
+  signerName: string;
+  signerEmail: string;
+  signingUrl: string | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  clientName: string | null;
+  totalTTC: string | null;
+}
+
+export interface ListSignaturesParams {
+  status?: string;
+  mode?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface SignatureListResult {
+  data: SignatureListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Admin signatures dashboard: every signature request across all quotes,
+ * filterable by status/mode and paginated. Joins back to quote/project/client
+ * so the table can show the devis number, client name and amount.
+ */
+export async function listSignatureRequests(
+  params: ListSignaturesParams,
+): Promise<SignatureListResult> {
+  const { status, mode, page, pageSize } = params;
+
+  const conditions: SQL[] = [];
+  if (status) conditions.push(eq(signatureRequests.status, status as never));
+  if (mode) conditions.push(eq(signatureRequests.mode, mode));
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select({
+        id: signatureRequests.id,
+        quoteId: signatureRequests.quoteId,
+        quoteNumber: quotes.number,
+        status: signatureRequests.status,
+        mode: signatureRequests.mode,
+        signerName: signatureRequests.signerName,
+        signerEmail: signatureRequests.signerEmail,
+        signingUrl: signatureRequests.signingUrl,
+        completedAt: signatureRequests.completedAt,
+        createdAt: signatureRequests.createdAt,
+        totalTTC: quotes.totalTTC,
+        clientFirstName: clients.firstName,
+        clientLastName: clients.lastName,
+      })
+      .from(signatureRequests)
+      .leftJoin(quotes, eq(signatureRequests.quoteId, quotes.id))
+      .leftJoin(projects, eq(quotes.projectId, projects.id))
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(whereClause)
+      .orderBy(desc(signatureRequests.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db.select({ count: count() }).from(signatureRequests).where(whereClause),
+  ]);
+
+  const total = countResult[0]?.count ?? 0;
+
+  const data: SignatureListItem[] = rows.map((s) => ({
+    id: s.id,
+    quoteId: s.quoteId,
+    quoteNumber: s.quoteNumber,
+    status: s.status,
+    mode: s.mode,
+    signerName: s.signerName,
+    signerEmail: s.signerEmail,
+    signingUrl: s.signingUrl,
+    completedAt: s.completedAt,
+    createdAt: s.createdAt,
+    clientName:
+      s.clientFirstName || s.clientLastName
+        ? `${s.clientFirstName ?? ''} ${s.clientLastName ?? ''}`.trim()
+        : null,
+    totalTTC: s.totalTTC,
+  }));
+
+  return {
+    data,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
 }
 

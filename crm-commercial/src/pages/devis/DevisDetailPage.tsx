@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Spinner } from '../../components';
 import { Card, Btn, Icon, Pill } from '../../components/neo';
 import type { PillTone } from '../../components/neo';
-import { devisService } from '../../services';
+import { devisService, paymentsService } from '../../services';
 import {
   quoteStatusLabels,
   type QuoteDetail,
@@ -35,6 +35,33 @@ export function DevisDetailPage() {
   const [busy, setBusy] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [promoBusy, setPromoBusy] = useState(false);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
+
+  const DEPOSIT_PERCENT = 30;
+
+  const handleDepositLink = async () => {
+    if (!id) return;
+    setBusy(true);
+    try {
+      const { payUrl: url } = await paymentsService.createLink(
+        'quote_deposit',
+        id,
+        DEPOSIT_PERCENT
+      );
+      setPayUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Lien d’acompte copié dans le presse-papier');
+      } catch {
+        toast.success('Lien d’acompte généré');
+      }
+    } catch (error) {
+      console.error('Failed to create deposit link:', error);
+      toast.error('Génération du lien d’acompte impossible');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const loadQuote = useCallback(async () => {
     if (!id) return;
@@ -151,8 +178,49 @@ export function DevisDetailPage() {
           <Btn icon="mail" disabled={busy} onClick={handleSend}>
             Envoyer au client
           </Btn>
+          {(quote.status === 'envoye' || quote.status === 'accepte') && (
+            <Btn variant="subtle" icon="euro" disabled={busy} onClick={handleDepositLink}>
+              Lien d’acompte ({DEPOSIT_PERCENT}%)
+            </Btn>
+          )}
         </div>
       </div>
+
+      {payUrl && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            marginBottom: 18,
+            background: 'var(--neo-primary-light, rgba(13,110,253,0.08))',
+            border: '1px solid var(--line, #e9ecef)',
+            borderRadius: 10,
+          }}
+        >
+          <Icon name="euro" size={16} />
+          <input
+            readOnly
+            value={payUrl}
+            onFocus={(e) => e.currentTarget.select()}
+            className="neo-field"
+            style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }}
+          />
+          <Btn
+            variant="subtle"
+            icon="fileText"
+            onClick={() => {
+              navigator.clipboard.writeText(payUrl).then(
+                () => toast.success('Lien copié'),
+                () => toast.error('Copie impossible')
+              );
+            }}
+          >
+            Copier
+          </Btn>
+        </div>
+      )}
 
       <div className="lead-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

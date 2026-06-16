@@ -1,0 +1,1 @@
+export { SignaturesPage } from './SignaturesPage';
