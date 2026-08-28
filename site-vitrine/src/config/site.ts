@@ -13,8 +13,8 @@ export const SITE_CONFIG = {
   url: 'https://neo-domotique.fr',
 
   // Contact
-  phone: '06 58 07 62 70',
-  phoneHref: 'tel:+33658076270',
+  phone: '07 78 57 18 19',
+  phoneHref: 'tel:+33778571819',
   email: 'contact@neo-domotique.fr', // TODO: remplacer
   dpoEmail: 'dpo@neo-domotique.fr', // TODO: remplacer
 

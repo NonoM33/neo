@@ -132,6 +132,9 @@ const schema = {
   .cfg-hp { position: absolute; left: -9999px; opacity: 0; height: 0; }
   .cfg-done { text-align: center; padding: 40px 0; }
   .cfg-done .ic { font-size: 56px; }
+  .cfg-call { margin: 8px 0 20px; font-size: 15px; color: #b6bcc6; }
+  .cfg-call a { color: #fff; font-weight: 600; text-decoration: none;
+    border-bottom: 1px solid currentColor; white-space: nowrap; }
   .cfg-loading { text-align: center; color: #8a8f98; padding: 40px 0; }
   .cfg-modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(6px); z-index: 50; display: grid; place-items: center; padding: 20px; }
   .cfg-modal-card { background: #14171e; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 28px; max-width: 380px; width: 100%; text-align: center; position: relative; }
@@ -455,6 +458,7 @@ const schema = {
           <div class="ic">✅</div>
           <h2 class="scene-title">Configuration envoyée&nbsp;!</h2>
           <p class="lead" id="cfg-done-msg">Votre configuration a bien été enregistrée. Un conseiller vous recontacte sous 24h.</p>
+          <p class="cfg-call">Vous voulez aller plus vite&nbsp;? Appelez-nous au <a href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>.</p>
           <a class="btn" href="/">Retour à l'accueil</a>
         </div>
       </section>

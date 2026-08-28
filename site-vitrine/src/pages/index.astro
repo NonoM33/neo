@@ -153,7 +153,7 @@ const localBusinessSchema = {
     <a href="#avis">Avis</a>
   </div>
   <div class="nav-cta">
-    <a class="nav-phone" href="tel:+33658076270">06 58 07 62 70</a>
+    <a class="nav-phone" href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
     <a class="btn" href="/devis" data-magnetic>Devis gratuit</a>
   </div>
 </nav>
@@ -659,7 +659,7 @@ const localBusinessSchema = {
       <a class="btn lg" href="/devis" data-magnetic>Obtenir mon devis gratuit
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </a>
-      <a class="btn ghost lg" href="tel:+33658076270">06 58 07 62 70</a>
+      <a class="btn ghost lg" href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
     </div>
     <div class="ticks reveal" style="--d:320ms">
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>100% gratuit</span>
@@ -692,7 +692,7 @@ const localBusinessSchema = {
     </div>
     <div>
       <h5>Contact</h5>
-      <a href="tel:+33658076270">06 58 07 62 70</a>
+      <a href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>
       <a href="mailto:contact@neo-domotique.fr">contact@neo-domotique.fr</a>
       <a href="#top">Paris &amp; Île-de-France</a>
     </div>

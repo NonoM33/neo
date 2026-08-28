@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import QRCode from 'qrcode';
+import { CALL_US_SENTENCE } from '../../config/contact';
 import { db } from '../../config/database';
 import { env } from '../../config/env';
 import { products, configuratorDrafts } from '../../db/schema';
@@ -20,6 +21,11 @@ import {
   type SaveInput,
   type SubmitInput,
 } from './configurateur.schema';
+
+// Réponse renvoyée au site vitrine, affichée telle quelle sur l'écran de succès.
+export const CONFIGURATEUR_CONFIRMATION_MESSAGE =
+  'Votre configuration a bien été enregistrée. Un conseiller vous recontacte sous 24h. ' +
+  CALL_US_SENTENCE;
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
@@ -266,7 +272,7 @@ export async function submitConfiguration(input: SubmitInput) {
 
   return {
     success: true,
-    message: 'Votre configuration a bien été enregistrée. Un conseiller vous recontacte sous 24h.',
+    message: CONFIGURATEUR_CONFIRMATION_MESSAGE,
     estimate,
   };
 }

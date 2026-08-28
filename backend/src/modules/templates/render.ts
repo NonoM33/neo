@@ -7,6 +7,7 @@
  * if the headless browser is unavailable, so sending never fully breaks.
  */
 
+import { CONTACT_PHONE } from '../../config/contact';
 import { env } from '../../config/env';
 import { renderTemplateHtml, renderEmailTemplate } from './templates.service';
 import { htmlToPdf } from './html-pdf.service';
@@ -51,12 +52,14 @@ function companyContext() {
   const parts = [
     env.COMPANY_NAME,
     env.COMPANY_ADDRESS,
+    `Tél. ${CONTACT_PHONE}`,
     env.COMPANY_SIRET ? `SIRET ${env.COMPANY_SIRET}` : '',
     env.COMPANY_TVA ? `TVA ${env.COMPANY_TVA}` : '',
   ].filter(Boolean);
   return {
     name: env.COMPANY_NAME,
     address: env.COMPANY_ADDRESS || '',
+    phone: CONTACT_PHONE,
     siret: env.COMPANY_SIRET || '',
     tva: env.COMPANY_TVA || '',
     iban: env.COMPANY_IBAN || '',

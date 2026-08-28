@@ -60,4 +60,11 @@ describe('renderBookingConfirmationEmail', () => {
     const mail = renderBookingConfirmationEmail(base);
     expect(mail.html).not.toContain('Gérer mon rendez-vous');
   });
+
+  it('donne le numéro à appeler, en HTML et en texte brut', () => {
+    const mail = renderBookingConfirmationEmail(base);
+    expect(mail.html).toContain('07 78 57 18 19');
+    expect(mail.html).toContain('tel:+33778571819');
+    expect(mail.text).toContain('07 78 57 18 19');
+  });
 });
