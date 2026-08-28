@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  DEVIS_CONFIRMATION_MESSAGE,
   buildDevisDescription,
   buildDevisLeadValues,
   pickLeastBusyOwner,
@@ -158,5 +159,12 @@ describe('pickLeastBusyOwner', () => {
   it('traite un candidat absent de la map comme ayant 0 lead', () => {
     const load = new Map([['a', 4]]);
     expect(pickLeastBusyOwner(['a', 'b'], load)).toBe('b');
+  });
+});
+
+describe('DEVIS_CONFIRMATION_MESSAGE', () => {
+  it('invite le prospect à appeler le numéro de contact', () => {
+    expect(DEVIS_CONFIRMATION_MESSAGE).toContain('07 78 57 18 19');
+    expect(DEVIS_CONFIRMATION_MESSAGE.toLowerCase()).toContain('appelez-nous');
   });
 });

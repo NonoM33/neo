@@ -253,6 +253,7 @@ const schema = {
         </div>
         <h2 class="dz-title">Demande envoyée !</h2>
         <p class="lead" id="dz-success-msg">Merci, nous avons bien reçu votre demande. Un conseiller vous recontacte sous 24h.</p>
+        <p class="dz-call">Vous voulez aller plus vite&nbsp;? Appelez-nous au <a href={SITE_CONFIG.phoneHref}>{SITE_CONFIG.phone}</a>.</p>
         <a class="btn" href="/">Retour à l'accueil</a>
       </section>
     </form>
@@ -339,6 +340,9 @@ const schema = {
     background: rgba(70,217,138,.12); border: 1px solid rgba(70,217,138,.35); color: var(--ok);
     box-shadow: 0 0 50px -8px rgba(70,217,138,.5); }
   .dz-check svg { width: 36px; height: 36px; }
+  .dz-call { margin: 0; font-size: 15px; color: var(--ink-2); }
+  .dz-call a { color: var(--ink); font-weight: 600; text-decoration: none;
+    border-bottom: 1px solid currentColor; white-space: nowrap; }
 
   .dz-ticks { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px;
     margin-top: 26px; font-size: 13.5px; color: var(--ink-3); }

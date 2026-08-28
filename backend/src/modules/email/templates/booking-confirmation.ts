@@ -3,6 +3,7 @@
  * All CSS inlined for maximum email-client compatibility.
  */
 
+import { CONTACT_PHONE, CONTACT_PHONE_HREF } from '../../../config/contact';
 import { env } from '../../../config/env';
 
 export interface BookingConfirmationEmailVars {
@@ -81,7 +82,7 @@ export function renderBookingConfirmationEmail(v: BookingConfirmationEmailVars):
 
               ${ctaButton}
 
-              <p style="margin: 16px 0 0; color: #475569; font-size: 14px;">Un conseiller vous recontactera sous 24h pour confirmer. Pour toute question, répondez simplement à cet email.</p>
+              <p style="margin: 16px 0 0; color: #475569; font-size: 14px;">Un conseiller vous recontactera sous 24h pour confirmer. Pour toute question, répondez simplement à cet email ou appelez-nous au <a href="${CONTACT_PHONE_HREF}" style="color: #198754; font-weight: 600; text-decoration: none;">${CONTACT_PHONE}</a>.</p>
 
               <p style="margin: 32px 0 4px; color: #1e293b;">À très bientôt,</p>
               <p style="margin: 0; color: #1e293b; font-weight: 600;">L'équipe ${company}</p>
@@ -108,6 +109,7 @@ Nous avons bien enregistré votre ${v.typeLabel}. Voici le récapitulatif :
 - Adresse : ${v.address}
 ${v.assignedToName ? `- Conseiller : ${v.assignedToName}\n` : ''}${v.manageUrl ? `\nGérer mon rendez-vous : ${v.manageUrl}\n` : ''}
 Un conseiller vous recontactera sous 24h pour confirmer.
+Une question ? Appelez-nous au ${CONTACT_PHONE}.
 
 À très bientôt,
 L'équipe ${company}`;

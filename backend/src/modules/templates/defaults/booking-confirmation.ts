@@ -33,7 +33,7 @@ const html = String.raw`<!doctype html>
           </tr></table>
           {{/if}}
 
-          <p style="margin:16px 0 0;color:#475569;font-size:14px;">Un conseiller vous recontactera sous 24h pour confirmer. Pour toute question, répondez simplement à cet email.</p>
+          <p style="margin:16px 0 0;color:#475569;font-size:14px;">Un conseiller vous recontactera sous 24h pour confirmer. Pour toute question, répondez simplement à cet email ou appelez-nous au <a href="tel:+33778571819" style="color:#198754;font-weight:700;text-decoration:none;">{{company.phone}}</a>.</p>
 
           <p style="margin:30px 0 4px;color:#1e293b;">À très bientôt,</p>
           <p style="margin:0;color:#1e293b;font-weight:700;">L’équipe {{company.name}}</p>
@@ -66,7 +66,7 @@ export const bookingConfirmationTemplate: TemplateDefinition = {
     { token: 'booking.manageUrl', label: 'Lien de gestion' },
   ],
   sampleData: {
-    company: { name: 'Neo Domotique', address: '12 rue des Lilas, 75011 Paris' },
+    company: { name: 'Neo Domotique', address: '12 rue des Lilas, 75011 Paris', phone: '07 78 57 18 19' },
     booking: {
       clientFirstName: 'Marie',
       typeLabel: 'Visite technique',

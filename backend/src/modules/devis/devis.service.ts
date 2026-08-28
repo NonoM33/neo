@@ -1,4 +1,5 @@
 import { and, count, eq, inArray } from 'drizzle-orm';
+import { CALL_US_SENTENCE } from '../../config/contact';
 import { db } from '../../config/database';
 import { leads } from '../../db/schema/crm';
 import { users, roles, userRoles } from '../../db/schema/users';
@@ -13,6 +14,11 @@ import {
   TIMELINE_LABELS,
   type PublicDevisInput,
 } from './devis.schema';
+
+// Réponse renvoyée au site vitrine, affichée telle quelle sur l'écran de succès.
+export const DEVIS_CONFIRMATION_MESSAGE =
+  'Votre demande de devis a bien été enregistrée. Un conseiller vous recontacte sous 24h. ' +
+  CALL_US_SENTENCE;
 
 // Statuts de leads considérés comme "ouverts" (pour répartir la charge).
 const OPEN_LEAD_STATUSES = [
@@ -201,7 +207,6 @@ export async function createDevisRequest(input: PublicDevisInput) {
 
   return {
     success: true,
-    message:
-      'Votre demande de devis a bien été enregistrée. Un conseiller vous recontacte sous 24h.',
+    message: DEVIS_CONFIRMATION_MESSAGE,
   };
 }

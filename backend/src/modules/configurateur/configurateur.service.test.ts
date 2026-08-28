@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  CONFIGURATEUR_CONFIRMATION_MESSAGE,
   buildConfiguratorDescription,
   buildConfiguratorLeadValues,
 } from './configurateur.service';
@@ -84,5 +85,12 @@ describe('buildConfiguratorLeadValues', () => {
     const empty = makeEstimate({ lines: [], totalHT: 0, totalTVA: 0, totalTTC: 0 });
     const values = buildConfiguratorLeadValues(makeInput({ items: [] }), empty, 'owner-1');
     expect(values.estimatedValue).toBeNull();
+  });
+});
+
+describe('CONFIGURATEUR_CONFIRMATION_MESSAGE', () => {
+  it('invite le prospect à appeler le numéro de contact', () => {
+    expect(CONFIGURATEUR_CONFIRMATION_MESSAGE).toContain('07 78 57 18 19');
+    expect(CONFIGURATEUR_CONFIRMATION_MESSAGE.toLowerCase()).toContain('appelez-nous');
   });
 });
