@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Spinner } from '../../components';
 import { Card, Btn, Icon } from '../../components/neo';
@@ -39,6 +39,9 @@ const EMPTY: FormState = {
 export function ProjectFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  // Arrivee depuis une fiche client : le client est deja choisi.
+  const presetClientId = searchParams.get('clientId') ?? '';
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -56,6 +59,9 @@ export function ProjectFormPage() {
       .then(([clientsResult, project]) => {
         if (cancelled) return;
         setClients(clientsResult.data);
+        if (!project && presetClientId) {
+          setForm((prev) => ({ ...prev, clientId: presetClientId }));
+        }
         if (project) {
           setForm({
             clientId: project.client.id,
@@ -82,7 +88,7 @@ export function ProjectFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, navigate]);
+  }, [id, navigate, presetClientId]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -109,7 +115,7 @@ export function ProjectFormPage() {
         await projectsService.createProject(payload);
         toast.success('Projet créé');
       }
-      navigate('/projets');
+      navigate(presetClientId ? `/clients/${presetClientId}` : '/projets');
     } catch (error) {
       console.error('Failed to save project:', error);
       toast.error("Échec de l'enregistrement");

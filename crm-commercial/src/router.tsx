@@ -30,10 +30,12 @@ import {
   ProductDetailPage,
   ClientsPage,
   ClientFormPage,
+  ClientDetailPage,
   ProjectsPage,
   ProjectFormPage,
   DevisPage,
   DevisDetailPage,
+  DevisFormPage,
   CommandesPage,
   CommandeDetailPage,
   FacturesPage,
@@ -244,6 +246,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // Apres 'clients/new' et 'clients/:id/edit' : un chemin plus specifique
+        // doit etre declare avant le parametre qui l'absorberait.
+        path: 'clients/:id',
+        element: (
+          <RoleRoute feature="clients">
+            <ClientDetailPage />
+          </RoleRoute>
+        ),
+      },
+      {
         path: 'projets',
         element: (
           <RoleRoute feature="projets">
@@ -272,6 +284,15 @@ export const router = createBrowserRouter([
         element: (
           <RoleRoute feature="devis">
             <DevisPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        // Declare AVANT 'devis/:id', sinon 'new' serait lu comme un identifiant.
+        path: 'devis/new',
+        element: (
+          <RoleRoute feature="devis">
+            <DevisFormPage />
           </RoleRoute>
         ),
       },

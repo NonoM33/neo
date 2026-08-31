@@ -82,6 +82,11 @@ export function DevisPage() {
             {total} devis émis
           </p>
         </div>
+        <div className="ph-r">
+          <Btn icon="plus" onClick={() => navigate('/devis/new')}>
+            Nouveau devis
+          </Btn>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>

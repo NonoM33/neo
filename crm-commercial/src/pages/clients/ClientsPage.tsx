@@ -107,7 +107,7 @@ export function ClientsPage() {
               {clients.map((client, i) => (
                 <tr
                   key={client.id}
-                  onClick={() => navigate(`/clients/${client.id}/edit`)}
+                  onClick={() => navigate(`/clients/${client.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
                   <td>
