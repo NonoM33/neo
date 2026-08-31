@@ -52,7 +52,8 @@ import {
 import { ClientsListPage, ClientFormPage, ClientDetailPage } from './pages/clients';
 import { ProductsListPage, ProductFormPage, ImportProductsPage } from './pages/products';
 import { SuppliersListPage, SupplierFormPage } from './pages/suppliers';
-import { ProjectsListPage, ProjectDetailPage } from './pages/projects';
+import { ProjectsListPage, ProjectDetailPage, ProjectFormPage } from './pages/projects';
+import type { ProjectFormValues } from './pages/projects';
 import { PipelinePage, LeadFormPage, LeadDetailPage, KPIsDashboardPage, validatePipelineMove } from './pages/crm';
 import { CommentItem } from './components';
 import { validateCommentInput, formatAuthorName } from './comments/comments.validate';
@@ -74,10 +75,14 @@ import { OrdersListPage, OrderDetailPage, OrderFormPage } from './pages/orders';
 import { StockDashboardPage, StockMovementsPage, StockSuggestionsPage, StockCorrectionPage } from './pages/stock';
 import { SupplierOrdersListPage, SupplierOrderDetailPage, SupplierOrderFormPage } from './pages/supplier-orders';
 import { InvoicesListPage, InvoiceDetailPage } from './pages/invoices';
-import { QuotesListPage, QuoteDetailPage } from './pages/quotes';
+import { QuotesListPage, QuoteDetailPage, QuoteFormPage, parseQuoteForm, readQuoteFormValues } from './pages/quotes';
 import { SignaturesListPage } from './pages/signatures';
 import { ParcoursWizardPage } from './pages/parcours';
 import * as quotesService from '../modules/quotes/quotes.service';
+import * as projectsService from '../modules/projects/projects.service';
+import { createProjectSchema, updateProjectSchema } from '../modules/projects/projects.schema';
+import { createQuoteSchema, updateQuoteSchema } from '../modules/quotes/quotes.schema';
+import { hasPermission } from '../modules/roles/permissions';
 import { RecettePage, RecetteContent } from './pages/recette';
 import { FeatureCard } from './pages/recette/feature-card';
 import { WidgetFeedbackPanel } from './pages/recette/widget-feedback';
@@ -105,6 +110,18 @@ type Env = {
 const backofficeRouter = new Hono<Env>();
 
 const PAGE_SIZE = 20;
+
+/**
+ * Message lisible pour un formulaire back-office.
+ * Zod expose ses messages dans `issues` ; les erreurs du domaine ont `message`.
+ */
+function formatFormError(error: unknown): string {
+  const issues = (error as { issues?: { message: string }[] } | null)?.issues;
+  if (Array.isArray(issues) && issues.length > 0) {
+    return issues.map((issue) => issue.message).join(' - ');
+  }
+  return (error as Error)?.message || 'Erreur inattendue';
+}
 
 /** Coerce a checkbox form value into a list of role ids. */
 function parseRoleIds(input: unknown): string[] {
@@ -1428,6 +1445,89 @@ backofficeRouter.get('/projects', async (c) => {
   );
 });
 
+/**
+ * Creation d'un projet depuis le back-office.
+ * Declaree AVANT `/projects/:id`, sinon Hono lirait "new" comme un identifiant.
+ */
+backofficeRouter.get('/projects/new', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const preselectedClientId = c.req.query('clientId');
+
+  const [clientsList, integrateursList] = await Promise.all([
+    db
+      .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+      .from(clients)
+      .orderBy(clients.lastName),
+    getCommercials(),
+  ]);
+
+  return c.html(
+    <ProjectFormPage
+      clients={clientsList}
+      integrateurs={integrateursList}
+      preselectedClientId={preselectedClientId}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.post('/projects', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody();
+
+  const str = (key: string): string =>
+    typeof body[key] === 'string' ? (body[key] as string).trim() : '';
+
+  const values: ProjectFormValues = {
+    clientId: str('clientId'),
+    userId: str('userId') || adminUser.id,
+    name: str('name'),
+    description: str('description'),
+    status: str('status') || 'brouillon',
+    address: str('address'),
+    postalCode: str('postalCode'),
+    city: str('city'),
+    surface: str('surface'),
+    roomCount: str('roomCount'),
+  };
+
+  try {
+    const input = createProjectSchema.parse({
+      clientId: values.clientId,
+      name: values.name,
+      status: values.status,
+      ...(values.description ? { description: values.description } : {}),
+      ...(values.address ? { address: values.address } : {}),
+      ...(values.postalCode ? { postalCode: values.postalCode } : {}),
+      ...(values.city ? { city: values.city } : {}),
+      ...(values.surface ? { surface: values.surface } : {}),
+      ...(values.roomCount ? { roomCount: values.roomCount } : {}),
+    });
+
+    const project = await projectsService.createProject(input, values.userId!);
+
+    return c.redirect(`/backoffice/projects/${project!.id}`);
+  } catch (error: any) {
+    const [clientsList, integrateursList] = await Promise.all([
+      db
+        .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+        .from(clients)
+        .orderBy(clients.lastName),
+      getCommercials(),
+    ]);
+
+    return c.html(
+      <ProjectFormPage
+        clients={clientsList}
+        integrateurs={integrateursList}
+        values={values}
+        error={formatFormError(error)}
+        user={adminUser}
+      />
+    );
+  }
+});
+
 backofficeRouter.get('/projects/:id', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const id = c.req.param('id');
@@ -1619,6 +1719,107 @@ function createAdminPayload(adminUser: AdminUser): JWTPayload {
     permissions: [],
   };
 }
+
+backofficeRouter.get('/projects/:id/edit', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+
+  const [[project], clientsList, integrateursList] = await Promise.all([
+    db.select().from(projects).where(eq(projects.id, id)).limit(1),
+    db
+      .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+      .from(clients)
+      .orderBy(clients.lastName),
+    getCommercials(),
+  ]);
+
+  if (!project) {
+    return c.redirect('/backoffice/projects');
+  }
+
+  return c.html(
+    <ProjectFormPage
+      clients={clientsList}
+      integrateurs={integrateursList}
+      editing={{ id: project.id }}
+      values={{
+        clientId: project.clientId,
+        userId: project.userId,
+        name: project.name,
+        description: project.description ?? '',
+        status: project.status,
+        address: project.address ?? '',
+        postalCode: project.postalCode ?? '',
+        city: project.city ?? '',
+        surface: project.surface ?? '',
+        roomCount: project.roomCount !== null ? String(project.roomCount) : '',
+      }}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.post('/projects/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const id = c.req.param('id');
+  const body = await c.req.parseBody();
+
+  const str = (key: string): string =>
+    typeof body[key] === 'string' ? (body[key] as string).trim() : '';
+
+  const values: ProjectFormValues = {
+    clientId: str('clientId'),
+    userId: str('userId') || adminUser.id,
+    name: str('name'),
+    description: str('description'),
+    status: str('status') || 'brouillon',
+    address: str('address'),
+    postalCode: str('postalCode'),
+    city: str('city'),
+    surface: str('surface'),
+    roomCount: str('roomCount'),
+  };
+
+  try {
+    const input = updateProjectSchema.parse({
+      clientId: values.clientId,
+      name: values.name,
+      status: values.status,
+      description: values.description,
+      address: values.address,
+      postalCode: values.postalCode,
+      city: values.city,
+      ...(values.surface ? { surface: values.surface } : {}),
+      ...(values.roomCount ? { roomCount: values.roomCount } : {}),
+    });
+
+    // Le back-office administre tous les projets : on reaffecte l'integrateur
+    // en charge en meme temps que le reste du formulaire.
+    await projectsService.updateProject(id, input, values.userId!, 'admin');
+    await db.update(projects).set({ userId: values.userId! }).where(eq(projects.id, id));
+
+    return c.redirect(`/backoffice/projects/${id}`);
+  } catch (error: unknown) {
+    const [clientsList, integrateursList] = await Promise.all([
+      db
+        .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+        .from(clients)
+        .orderBy(clients.lastName),
+      getCommercials(),
+    ]);
+
+    return c.html(
+      <ProjectFormPage
+        clients={clientsList}
+        integrateurs={integrateursList}
+        editing={{ id }}
+        values={values}
+        error={formatFormError(error)}
+        user={adminUser}
+      />
+    );
+  }
+});
 
 backofficeRouter.delete('/projects/:id', async (c) => {
   const id = c.req.param('id');
@@ -3689,6 +3890,161 @@ backofficeRouter.get('/quotes', async (c) => {
   );
 });
 
+/**
+ * Creation d'un devis depuis le back-office.
+ *
+ * Un devis est toujours rattache a un projet : quand on arrive depuis une fiche
+ * client qui n'a encore aucun projet (cas du client tout juste cree), le
+ * formulaire permet de creer le projet a la volee dans le meme envoi.
+ *
+ * Declaree AVANT `/quotes/:id`, sinon Hono lirait "new" comme un identifiant.
+ */
+
+/** Toute action sur un devis passe par la permission Devis. */
+function canManageQuotes(user: AdminUser): boolean {
+  return hasPermission(user.permissions, 'devis.manage', user.isSuperAdmin);
+}
+
+async function loadQuoteFormData(clientId?: string) {
+  const [projectRows, productRows, clientRows] = await Promise.all([
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        clientFirstName: clients.firstName,
+        clientLastName: clients.lastName,
+      })
+      .from(projects)
+      .innerJoin(clients, eq(projects.clientId, clients.id))
+      .where(clientId ? eq(projects.clientId, clientId) : undefined)
+      .orderBy(desc(projects.createdAt))
+      .limit(200),
+    db
+      .select({
+        id: products.id,
+        reference: products.reference,
+        name: products.name,
+        priceHT: products.priceHT,
+        tvaRate: products.tvaRate,
+      })
+      .from(products)
+      .where(eq(products.isActive, true))
+      .orderBy(products.name)
+      .limit(500),
+    clientId
+      ? db
+          .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+          .from(clients)
+          .where(eq(clients.id, clientId))
+          .limit(1)
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    projects: projectRows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      clientName: `${p.clientFirstName} ${p.clientLastName}`,
+    })),
+    products: productRows,
+    client: clientRows[0],
+  };
+}
+
+backofficeRouter.get('/quotes/new', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+
+  if (!canManageQuotes(adminUser)) {
+    return c.redirect('/backoffice?error=forbidden');
+  }
+
+  const clientId = c.req.query('clientId');
+  const preselectedProjectId = c.req.query('projectId');
+  const data = await loadQuoteFormData(clientId);
+
+  return c.html(
+    <QuoteFormPage
+      projects={data.projects}
+      products={data.products}
+      client={data.client}
+      preselectedProjectId={preselectedProjectId}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.post('/quotes', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+
+  if (!canManageQuotes(adminUser)) {
+    return c.redirect('/backoffice?error=forbidden');
+  }
+
+  // `all: true` est indispensable : sans lui Hono ne garde que la derniere
+  // occurrence de chaque champ, donc une seule ligne de devis sur N.
+  const body = (await c.req.parseBody({ all: true })) as Record<string, unknown>;
+  const clientId = typeof body.clientId === 'string' ? body.clientId : undefined;
+
+  // La saisie est relue telle quelle pour etre REAFFICHEE en cas d'erreur :
+  // un devis de quinze lignes refuse ne doit pas etre a retaper.
+  const values = readQuoteFormValues(body);
+
+  const renderError = async (message: string) => {
+    const data = await loadQuoteFormData(clientId);
+    return c.html(
+      <QuoteFormPage
+        projects={data.projects}
+        products={data.products}
+        client={data.client}
+        values={values}
+        error={message}
+        user={adminUser}
+      />
+    );
+  };
+
+  const parsed = parseQuoteForm(body);
+  if (!parsed.ok) {
+    return renderError(parsed.error);
+  }
+
+  const { target, lines, discount, validUntil, notes } = parsed.form;
+
+  try {
+    // Le devis est valide AVANT toute ecriture : sinon un devis refuse
+    // laisserait derriere lui un projet fantome cree pour rien.
+    const quoteInput = createQuoteSchema.parse({
+      discount,
+      ...(validUntil ? { validUntil } : {}),
+      ...(notes ? { notes } : {}),
+      lines,
+    });
+
+    let projectId: string;
+
+    if (target.kind === 'newProject') {
+      const project = await projectsService.createProject(
+        createProjectSchema.parse({ clientId: target.clientId, name: target.name }),
+        adminUser.id
+      );
+      projectId = project!.id;
+    } else {
+      projectId = target.projectId;
+    }
+
+    const quote = await quotesService.createQuote(
+      projectId,
+      quoteInput,
+      adminUser.id,
+      adminUser.role
+    );
+
+    return c.redirect(`/backoffice/quotes/${quote.id}`);
+  } catch (error: unknown) {
+    return renderError(formatFormError(error));
+  }
+});
+
 backofficeRouter.get('/quotes/:id', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const id = c.req.param('id');
@@ -3728,6 +4084,130 @@ backofficeRouter.get('/quotes/:id', async (c) => {
 
 // PDF preview served behind the backoffice session (the /api/devis/:id/pdf
 // endpoint requires a JWT the backoffice does not carry).
+backofficeRouter.get('/quotes/:id/edit', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+
+  if (!canManageQuotes(adminUser)) {
+    return c.redirect('/backoffice?error=forbidden');
+  }
+
+  const id = c.req.param('id');
+
+  try {
+    const quote = await quotesService.getQuoteById(id, adminUser.id, adminUser.role);
+    const [project] = await db
+      .select({ id: projects.id, name: projects.name, clientId: projects.clientId })
+      .from(projects)
+      .where(eq(projects.id, quote.projectId!))
+      .limit(1);
+
+    const data = await loadQuoteFormData(project?.clientId ?? undefined);
+
+    return c.html(
+      <QuoteFormPage
+        projects={data.projects}
+        products={data.products}
+        editing={{
+          id: quote.id!,
+          number: quote.number!,
+          status: quote.status!,
+          projectId: quote.projectId!,
+          projectName: project?.name ?? 'Projet',
+        }}
+        values={{
+          projectId: quote.projectId!,
+          clientId: project?.clientId ?? '',
+          newProjectName: '',
+          discount: quote.discount ?? '0',
+          validUntil: quote.validUntil ? new Date(quote.validUntil).toISOString().slice(0, 10) : '',
+          notes: quote.notes ?? '',
+          lines: quote.lines.map((line) => ({
+            ...(line.product?.id ? { productId: line.product.id } : {}),
+            description: line.description,
+            quantity: String(line.quantity),
+            unitPriceHT: line.unitPriceHT,
+            tvaRate: line.tvaRate,
+          })),
+        }}
+        user={adminUser}
+      />
+    );
+  } catch {
+    return c.redirect('/backoffice/quotes?error=introuvable');
+  }
+});
+
+backofficeRouter.post('/quotes/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+
+  if (!canManageQuotes(adminUser)) {
+    return c.redirect('/backoffice?error=forbidden');
+  }
+
+  const id = c.req.param('id');
+  const body = (await c.req.parseBody({ all: true })) as Record<string, unknown>;
+  const values = readQuoteFormValues(body);
+  const status = typeof body.status === 'string' ? body.status : undefined;
+
+  const renderError = async (message: string) => {
+    const quote = await quotesService.getQuoteById(id, adminUser.id, adminUser.role);
+    const [project] = await db
+      .select({ id: projects.id, name: projects.name, clientId: projects.clientId })
+      .from(projects)
+      .where(eq(projects.id, quote.projectId!))
+      .limit(1);
+    const data = await loadQuoteFormData(project?.clientId ?? undefined);
+
+    return c.html(
+      <QuoteFormPage
+        projects={data.projects}
+        products={data.products}
+        editing={{
+          id,
+          number: quote.number!,
+          status: status ?? quote.status!,
+          projectId: quote.projectId!,
+          projectName: project?.name ?? 'Projet',
+        }}
+        values={values}
+        error={message}
+        user={adminUser}
+      />
+    );
+  };
+
+  if (values.lines.length === 0) {
+    return renderError('Ajoutez au moins une ligne au devis');
+  }
+
+  try {
+    const input = updateQuoteSchema.parse({
+      ...(status ? { status } : {}),
+      discount: values.discount,
+      ...(values.validUntil ? { validUntil: values.validUntil } : {}),
+      notes: values.notes,
+      lines: values.lines,
+    });
+
+    await quotesService.updateQuote(id, input, adminUser.id, adminUser.role);
+
+    return c.redirect(`/backoffice/quotes/${id}`);
+  } catch (error: unknown) {
+    return renderError(formatFormError(error));
+  }
+});
+
+backofficeRouter.delete('/quotes/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+
+  if (!canManageQuotes(adminUser)) {
+    return c.text('', 403);
+  }
+
+  await quotesService.deleteQuote(c.req.param('id'), adminUser.id, adminUser.role);
+  return c.text('');
+});
+
 backofficeRouter.get('/quotes/:id/pdf', async (c) => {
   const adminUser = c.get('adminUser') as AdminUser;
   const id = c.req.param('id');
