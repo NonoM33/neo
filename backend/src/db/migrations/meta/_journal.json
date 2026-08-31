@@ -148,6 +148,13 @@
       "when": 1781566827368,
       "tag": "0020_long_ezekiel",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781566827369,
+      "tag": "0021_devis_permission",
+      "breakpoints": true
     }
   ]
 }

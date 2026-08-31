@@ -42,6 +42,7 @@ export const PERMISSIONS: Permission[] = [
   { key: 'produits.manage', label: 'Produits', group: 'Gestion', path: '/backoffice/products' },
   { key: 'fournisseurs.manage', label: 'Fournisseurs', group: 'Gestion', path: '/backoffice/suppliers' },
   { key: 'projets.manage', label: 'Projets', group: 'Gestion', path: '/backoffice/projects' },
+  { key: 'devis.manage', label: 'Devis', group: 'Gestion', path: '/backoffice/quotes' },
 
   // Planning
   { key: 'creneaux.manage', label: 'Créneaux de disponibilité', group: 'Planning', path: '/backoffice/creneaux' },

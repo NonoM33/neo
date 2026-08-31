@@ -27,6 +27,7 @@ export const SYSTEM_ROLES: SystemRoleDef[] = [
     description: 'Intégrateur : projets, clients, produits et planning',
     permissions: [
       'projets.manage',
+      'devis.manage',
       'clients.manage',
       'produits.manage',
       'creneaux.manage',
@@ -38,6 +39,7 @@ export const SYSTEM_ROLES: SystemRoleDef[] = [
     description: 'Commercial : pipeline CRM, activités, objectifs et clients',
     permissions: [
       'crm.manage',
+      'devis.manage',
       'activites.manage',
       'objectifs.manage',
       'clients.manage',
