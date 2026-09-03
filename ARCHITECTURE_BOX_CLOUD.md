@@ -282,6 +282,29 @@ contre le backend local :
   rattachement par code, demandes d'assistance, detail telemetrie, revocation.
 - app integrateur : fiche projet > Box > scan du QR (ou code) > claim.
 
-Reste a faire : premier boot sur le Pi (carte SD + ecran) ; acces distant
-(NetBird §5 : deploiement self-hosted + add-on + setup-key a l'enrolement) ;
-snapshots vers MinIO ; app client = fork companion (`neo-apps/neo-android`).
+### Acces distant : Headscale remplace NetBird (decision du 2026-09-03)
+
+Le §5 retenait NetBird. A l'implementation, NetBird impose 5 services (management,
+signal, relay, dashboard) PLUS un IdP (Zitadel) et un proxy Caddy qui entre en
+conflit avec le Traefik de Coolify. **Headscale** (serveur de controle Tailscale,
+cite au §5 comme equivalent) tient dans un conteneur avec SQLite, sans IdP, avec
+les relais DERP publics pour le NAT, et une politique d'acces par tags. Deploye :
+`https://mesh.neo.157.180.43.90.sslip.io` (`neo-cloud/headscale/`, uuids dans COOLIFY.md).
+
+- **Cote box** : `tailscaled` en mode userspace DANS l'add-on `neo_box` (pas l'add-on
+  Tailscale communautaire, qui ne prend pas de cle pre-auth en configuration).
+  `host_network: true` fait que l'adresse mesh de la box, port 8123, = Home Assistant.
+- **Enrolement** : au claim, le backend cree un utilisateur headscale `neo-box-<id>`
+  et une cle pre-auth a usage unique (`tag:box`, 7 jours), livree avec la cle API
+  a l'annonce suivante ; la box fait `tailscale up` une fois et garde un marqueur.
+- **Isolation** : `policy.hujson` — `ops@` / `tag:ops` vers `tag:box`, rien d'autre.
+  Un utilisateur PAR box est aussi le filtre de recherche du noeud.
+- **Session d'assistance** : back-office > Box > « Localiser la box » interroge
+  headscale et affiche `http://100.64.x.y:8123`, joignable depuis un poste ops
+  (`neo-cloud/headscale/OPS.md`).
+- Le mesh en panne n'empeche pas un rattachement : la box est enrolee sans acces
+  distant, et le back-office le signale.
+
+Reste a faire : premier boot sur le Pi (carte SD + ecran, valider tailscale
+userspace + host_network) ; snapshots vers MinIO ; app client = fork companion
+(`neo-apps/neo-android`).
