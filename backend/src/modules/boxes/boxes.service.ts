@@ -12,6 +12,8 @@ import {
   resolveAnnounce,
   tokenSuffix,
 } from './boxes.domain';
+import { meshLoginServer, meshProvider } from './mesh.provider';
+import { NoMeshProvider, meshHostname, type MeshProvider } from './mesh.port';
 import type {
   AnnounceInput,
   BoxFilter,
@@ -44,7 +46,7 @@ export async function announceBox(input: AnnounceInput) {
   const token = normalizeProvisioningToken(input.provisioning_token);
   const tokenHash = hashSecret(token);
   const box = await findBoxByTokenHash(tokenHash);
-  const outcome = resolveAnnounce(box);
+  const outcome = resolveAnnounce(box, meshLoginServer());
 
   if (outcome.kind === 'register') {
     await db.insert(boxes).values({
@@ -66,15 +68,22 @@ export async function announceBox(input: AnnounceInput) {
     // Livraison unique : la cle en clair disparait de la base avec cette reponse.
     await db
       .update(boxes)
-      .set({ status: 'enrolled', apiKeyPending: null, enrolledAt: new Date() })
+      .set({ status: 'enrolled', apiKeyPending: null, meshAuthKeyPending: null, enrolledAt: new Date() })
       .where(eq(boxes.id, box!.id));
-    return { status: 'claimed' as const, box_id: box!.id, api_key: outcome.apiKey };
+    return {
+      status: 'claimed' as const,
+      box_id: box!.id,
+      api_key: outcome.apiKey,
+      mesh: outcome.mesh
+        ? { login_server: outcome.mesh.loginServer, auth_key: outcome.mesh.authKey, hostname: outcome.mesh.hostname }
+        : null,
+    };
   }
 
   return { status: outcome.status };
 }
 
-export async function claimBox(input: ClaimInput, claimedBy: string) {
+export async function claimBox(input: ClaimInput, claimedBy: string, mesh: MeshProvider = meshProvider()) {
   const token = normalizeProvisioningToken(input.provisioning_token);
   const box = await findBoxByTokenHash(hashSecret(token));
   if (!box) {
@@ -92,6 +101,7 @@ export async function claimBox(input: ClaimInput, claimedBy: string) {
     throw new NotFoundError('Client');
   }
   const apiKey = generateBoxApiKey();
+  const meshEnrollment = await enrollOnMesh(mesh, box.id);
   const [updated] = await db
     .update(boxes)
     .set({
@@ -99,6 +109,8 @@ export async function claimBox(input: ClaimInput, claimedBy: string) {
       clientId: input.client_id,
       apiKeyHash: hashSecret(apiKey),
       apiKeyPending: apiKey,
+      meshHostname: meshEnrollment?.hostname ?? null,
+      meshAuthKeyPending: meshEnrollment?.authKey ?? null,
       claimedAt: new Date(),
       claimedBy,
       updatedAt: new Date(),
@@ -106,6 +118,41 @@ export async function claimBox(input: ClaimInput, claimedBy: string) {
     .where(eq(boxes.id, box.id))
     .returning();
   return toPublic(updated!);
+}
+
+// Le mesh en panne ne doit pas bloquer un installateur sur site : la box est
+// rattachee sans acces distant, et le back-office le montre (meshHostname vide).
+async function enrollOnMesh(mesh: MeshProvider, boxId: string) {
+  if (mesh instanceof NoMeshProvider) return null;
+  try {
+    return await mesh.enrollBox(meshHostname(boxId));
+  } catch (err) {
+    console.error(`[boxes] enrolement mesh impossible pour ${boxId}:`, err);
+    return null;
+  }
+}
+
+/** Session d'assistance : ou joindre la box sur le mesh, maintenant. */
+export async function openSupportSession(id: string, mesh: MeshProvider = meshProvider()) {
+  const [box] = await db.select().from(boxes).where(eq(boxes.id, id)).limit(1);
+  if (!box) throw new NotFoundError('Box');
+  if (!box.meshHostname) {
+    throw new ConflictError("Cette box n'a pas d'acces distant : elle a ete rattachee sans mesh");
+  }
+  const node = await mesh.findBoxNode(box.meshHostname);
+  if (!node) {
+    throw new ConflictError("La box n'a pas encore rejoint le mesh (allumee et connectee ?)");
+  }
+  await db
+    .update(boxes)
+    .set({ meshIp: node.ip, meshLastSeenAt: node.lastSeen ?? new Date(), updatedAt: new Date() })
+    .where(eq(boxes.id, id));
+  return {
+    meshIp: node.ip,
+    online: node.online,
+    lastSeen: node.lastSeen,
+    homeAssistantUrl: `http://${node.ip}:8123`,
+  };
 }
 
 export async function revokeBox(id: string) {
@@ -243,9 +290,10 @@ export async function getBoxStats() {
 
 // Jamais d'empreinte ni de cle en clair hors de la base.
 function toPublic(box: Box) {
-  const { provisioningTokenHash, apiKeyHash, apiKeyPending, ...rest } = box;
+  const { provisioningTokenHash, apiKeyHash, apiKeyPending, meshAuthKeyPending, ...rest } = box;
   void provisioningTokenHash;
   void apiKeyHash;
   void apiKeyPending;
+  void meshAuthKeyPending;
   return { ...rest, isOnline: box.status === 'enrolled' && isBoxOnline(box.lastSeenAt) };
 }

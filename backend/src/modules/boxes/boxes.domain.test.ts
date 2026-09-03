@@ -72,30 +72,46 @@ describe('isBoxOnline', () => {
 });
 
 describe('resolveAnnounce', () => {
+  const noMesh = { meshHostname: null, meshAuthKeyPending: null };
+  const MESH = 'https://mesh.example';
+
   it('enregistre une box inconnue', () => {
-    expect(resolveAnnounce(null)).toEqual({ kind: 'register' });
+    expect(resolveAnnounce(null, MESH)).toEqual({ kind: 'register' });
   });
 
   it('fait attendre une box non rattachee', () => {
-    expect(resolveAnnounce({ status: 'unclaimed', apiKeyPending: null })).toEqual({
+    expect(resolveAnnounce({ status: 'unclaimed', apiKeyPending: null, ...noMesh }, MESH)).toEqual({
       kind: 'wait',
       status: 'unclaimed',
     });
   });
 
-  it('livre la cle une fois la box rattachee, puis plus jamais', () => {
-    expect(resolveAnnounce({ status: 'claimed', apiKeyPending: 'neo_box_abc' })).toEqual({
+  it('livre la cle API ET la cle mesh une fois la box rattachee, puis plus jamais', () => {
+    const claimed = {
+      status: 'claimed' as const,
+      apiKeyPending: 'neo_box_abc',
+      meshHostname: 'neo-box-1a2b',
+      meshAuthKeyPending: 'hskey',
+    };
+    expect(resolveAnnounce(claimed, MESH)).toEqual({
       kind: 'deliver',
       apiKey: 'neo_box_abc',
+      mesh: { loginServer: MESH, authKey: 'hskey', hostname: 'neo-box-1a2b' },
     });
-    expect(resolveAnnounce({ status: 'enrolled', apiKeyPending: null })).toEqual({
+    expect(resolveAnnounce({ status: 'enrolled', apiKeyPending: null, ...noMesh }, MESH)).toEqual({
       kind: 'wait',
       status: 'enrolled',
     });
   });
 
+  it('sans mesh configure ou sans cle mesh, la box recoit sa cle API seule', () => {
+    const claimed = { status: 'claimed' as const, apiKeyPending: 'neo_box_abc', meshHostname: 'h', meshAuthKeyPending: 'k' };
+    expect(resolveAnnounce(claimed, null)).toMatchObject({ kind: 'deliver', mesh: null });
+    expect(resolveAnnounce({ ...claimed, meshAuthKeyPending: null }, MESH)).toMatchObject({ kind: 'deliver', mesh: null });
+  });
+
   it('une box revoquee est informee', () => {
-    expect(resolveAnnounce({ status: 'revoked', apiKeyPending: null })).toEqual({
+    expect(resolveAnnounce({ status: 'revoked', apiKeyPending: null, ...noMesh }, MESH)).toEqual({
       kind: 'wait',
       status: 'revoked',
     });

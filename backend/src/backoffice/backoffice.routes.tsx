@@ -681,6 +681,18 @@ backofficeRouter.get('/boxes/:id', async (c) => {
   );
 });
 
+backofficeRouter.post('/boxes/:id/support-session', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const session = await boxesService.openSupportSession(id);
+    const state = session.online ? 'en ligne' : 'hors ligne';
+    return c.redirect(`/backoffice/boxes/${id}?success=${encodeURIComponent(`Box localisee sur le mesh : ${session.meshIp} (${state})`)}`);
+  } catch (err) {
+    const message = err instanceof AppError ? err.message : 'Localisation impossible';
+    return c.redirect(`/backoffice/boxes/${id}?error=${encodeURIComponent(message)}`);
+  }
+});
+
 backofficeRouter.post('/boxes/:id/revoke', async (c) => {
   const id = c.req.param('id');
   await boxesService.revokeBox(id);

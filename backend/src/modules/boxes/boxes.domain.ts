@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { ValidationError } from '../../lib/errors';
 import type { Box } from '../../db/schema/boxes';
+import type { MeshEnrollment } from './mesh.port';
 
 // ----- Jeton de provisioning (celui du QR affiche par la box) -----
 //
@@ -74,7 +75,7 @@ export function isBoxOnline(lastSeenAt: Date | null, now: Date = new Date()): bo
 export type AnnounceOutcome =
   | { kind: 'register' }
   | { kind: 'wait'; status: 'unclaimed' | 'enrolled' | 'revoked' }
-  | { kind: 'deliver'; apiKey: string };
+  | { kind: 'deliver'; apiKey: string; mesh: MeshEnrollment | null };
 
 /**
  * Decide ce que l'annonce d'une box declenche. Pure, sans base :
@@ -82,10 +83,17 @@ export type AnnounceOutcome =
  *  - claimed + cle en attente -> on LIVRE la cle (une seule fois)
  *  - sinon                  -> la box attend (ou est revoquee)
  */
-export function resolveAnnounce(box: Pick<Box, 'status' | 'apiKeyPending'> | null): AnnounceOutcome {
+export function resolveAnnounce(
+  box: Pick<Box, 'status' | 'apiKeyPending' | 'meshHostname' | 'meshAuthKeyPending'> | null,
+  loginServer: string | null,
+): AnnounceOutcome {
   if (box === null) return { kind: 'register' };
   if (box.status === 'claimed' && box.apiKeyPending) {
-    return { kind: 'deliver', apiKey: box.apiKeyPending };
+    const mesh =
+      loginServer && box.meshHostname && box.meshAuthKeyPending
+        ? { loginServer, authKey: box.meshAuthKeyPending, hostname: box.meshHostname }
+        : null;
+    return { kind: 'deliver', apiKey: box.apiKeyPending, mesh };
   }
   if (box.status === 'claimed') return { kind: 'wait', status: 'unclaimed' };
   return { kind: 'wait', status: box.status };

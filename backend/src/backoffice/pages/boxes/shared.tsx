@@ -17,6 +17,9 @@ export interface BoxRow {
   hostname: string | null;
   zigbeeDevices: number | null;
   lastSeenAt: Date | null;
+  meshHostname: string | null;
+  meshIp: string | null;
+  meshLastSeenAt: Date | null;
   claimedAt: Date | null;
   enrolledAt: Date | null;
   revokedAt: Date | null;

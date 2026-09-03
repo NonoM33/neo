@@ -55,6 +55,12 @@ export const boxes = pgTable('boxes', {
   hostname: varchar('hostname', { length: 100 }),
   zigbeeDevices: integer('zigbee_devices').default(0),
   lastSeenAt: timestamp('last_seen_at'),
+  // Mesh (acces distant) : nom du noeud headscale, cle pre-auth livree une fois
+  // avec la cle API, derniere adresse mesh connue.
+  meshHostname: varchar('mesh_hostname', { length: 64 }),
+  meshAuthKeyPending: text('mesh_auth_key_pending'),
+  meshIp: varchar('mesh_ip', { length: 45 }),
+  meshLastSeenAt: timestamp('mesh_last_seen_at'),
   // Cycle de vie
   claimedAt: timestamp('claimed_at'),
   claimedBy: uuid('claimed_by').references(() => users.id, { onDelete: 'set null' }),

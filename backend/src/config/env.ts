@@ -35,6 +35,13 @@ const envSchema = z.object({
   // Meilleur modèle pour un chatbot de conversion (FR chaleureux + tool-calling).
   OPENROUTER_MODEL: z.string().default('anthropic/claude-sonnet-4.5'),
 
+  // Mesh d'acces distant aux box (Headscale, neo-cloud/headscale). Absents = pas de mesh.
+  HEADSCALE_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional()
+  ),
+  HEADSCALE_API_KEY: z.string().optional(),
+
   // Whisper (Speech-to-Text)
   WHISPER_URL: z.string().default('http://localhost:8000'),
   WHISPER_API_KEY: z.string().optional(),

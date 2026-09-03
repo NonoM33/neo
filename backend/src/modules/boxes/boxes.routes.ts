@@ -99,6 +99,11 @@ boxesRouter.get('/:id', authMiddleware, requireAdmin(), async (c) => {
   return c.json(await service.getBox(id));
 });
 
+boxesRouter.post('/:id/support-session', authMiddleware, requireAdmin(), async (c) => {
+  const id = c.req.param('id') as string;
+  return c.json(await service.openSupportSession(id));
+});
+
 boxesRouter.post('/:id/revoke', authMiddleware, requireAdmin(), async (c) => {
   const id = c.req.param('id') as string;
   return c.json(await service.revokeBox(id));

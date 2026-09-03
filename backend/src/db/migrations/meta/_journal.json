@@ -162,6 +162,13 @@
       "when": 1788439495729,
       "tag": "0022_boxes",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788441724324,
+      "tag": "0023_box_mesh",
+      "breakpoints": true
     }
   ]
 }

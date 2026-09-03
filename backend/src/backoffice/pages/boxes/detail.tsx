@@ -83,6 +83,46 @@ export const BoxDetailPage: FC<BoxDetailPageProps> = ({ box, success, error, use
       </div>
 
       <div class="card mt-4">
+        <div class="card-header"><i class="bi bi-broadcast-pin me-2"></i>Acces distant (mesh)</div>
+        <div class="card-body">
+          {box.meshHostname === null ? (
+            <p class="text-warning mb-0">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              Box rattachee sans mesh (serveur indisponible au rattachement) : pas d'acces distant.
+            </p>
+          ) : (
+            <div class="d-flex flex-wrap align-items-center gap-3">
+              <div>
+                <div class="text-muted small">Noeud</div>
+                <code>{box.meshHostname}</code>
+              </div>
+              <div>
+                <div class="text-muted small">Adresse mesh</div>
+                {box.meshIp ? <code>{box.meshIp}</code> : <span class="text-muted">inconnue</span>}
+              </div>
+              <div>
+                <div class="text-muted small">Vue sur le mesh</div>
+                {formatDate(box.meshLastSeenAt)}
+              </div>
+              <form method="post" action={`/backoffice/boxes/${box.id}/support-session`} class="ms-auto">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-display me-1"></i>Localiser la box
+                </button>
+              </form>
+              {box.meshIp && (
+                <a href={`http://${box.meshIp}:8123`} target="_blank" rel="noopener" class="btn btn-outline-primary">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir Home Assistant
+                </a>
+              )}
+            </div>
+          )}
+          <div class="form-text mt-2">
+            Depuis un poste connecte au mesh Neo (Tailscale, utilisateur ops). La box doit etre allumee.
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
         <div class="card-header"><i class="bi bi-life-preserver me-2"></i>Demandes d'assistance</div>
         {box.supportRequests.length === 0 ? (
           <div class="card-body text-muted">Aucune demande.</div>

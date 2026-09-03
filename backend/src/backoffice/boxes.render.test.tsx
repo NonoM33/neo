@@ -32,6 +32,9 @@ function box(over: Partial<BoxRow> = {}): BoxRow {
     hostname: 'neo-box',
     zigbeeDevices: 7,
     lastSeenAt: new Date(),
+    meshHostname: 'neo-box-1a2b351233d7',
+    meshIp: '100.64.0.5',
+    meshLastSeenAt: new Date(),
     claimedAt: new Date('2026-09-03T10:00:00Z'),
     enrolledAt: new Date('2026-09-03T10:01:00Z'),
     revokedAt: null,
@@ -94,6 +97,22 @@ describe('BoxDetailPage', () => {
     expect(html).toContain('Home Assistant');
     expect(html).toContain('192.168.1.42');
     expect(html).toContain('/backoffice/boxes/b1/revoke');
+  });
+
+  it('propose de localiser la box et d ouvrir Home Assistant par le mesh', async () => {
+    const html = await renderToString(
+      BoxDetailPage({ box: { ...box(), supportRequests: [] }, user }) as unknown,
+    );
+    expect(html).toContain('/backoffice/boxes/b1/support-session');
+    expect(html).toContain('http://100.64.0.5:8123');
+  });
+
+  it('signale une box rattachee sans mesh', async () => {
+    const html = await renderToString(
+      BoxDetailPage({ box: { ...box({ meshHostname: null, meshIp: null }), supportRequests: [] }, user }) as unknown,
+    );
+    expect(html).toContain('sans mesh');
+    expect(html).not.toContain('/backoffice/boxes/b1/support-session');
   });
 
   it("ne propose pas de revoquer une box deja revoquee", async () => {
