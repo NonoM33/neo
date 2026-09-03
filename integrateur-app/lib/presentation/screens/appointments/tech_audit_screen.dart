@@ -1,543 +1,375 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/tech_audit.dart';
+import '../../../routes/app_router.dart';
 import '../../blocs/tech_audit/tech_audit_bloc.dart';
 import '../../blocs/tech_audit/tech_audit_event.dart';
 import '../../blocs/tech_audit/tech_audit_state.dart';
+import '../../widgets/ds/ds.dart';
 
+/// Audit technique — questionnaire structure rempli pendant la visite.
+///
+/// **12 sections, ~60 questions** : le vrai risque est la fatigue et l'abandon.
+/// La progression est donc permanente, la sauvegarde continue, et on peut
+/// sauter une section puis y revenir.
+/// iPad paysage : sommaire des sections a gauche + section courante a droite.
+/// iPhone : une section par ecran, progression collante en haut.
 class TechAuditScreen extends ConsumerStatefulWidget {
-  final String appointmentId;
-  final Map<String, dynamic>? existingMetadata;
+  const TechAuditScreen({required this.appointmentId, super.key});
 
-  const TechAuditScreen({
-    super.key,
-    required this.appointmentId,
-    this.existingMetadata,
-  });
+  final String appointmentId;
 
   @override
   ConsumerState<TechAuditScreen> createState() => _TechAuditScreenState();
 }
 
 class _TechAuditScreenState extends ConsumerState<TechAuditScreen> {
-  late final TechAuditBloc _bloc;
-
   @override
   void initState() {
     super.initState();
-    _bloc = ref.read(techAuditBlocProvider(widget.appointmentId));
-    _bloc.add(TechAuditLoadRequested(
-      appointmentId: widget.appointmentId,
-      existingMetadata: widget.existingMetadata,
-    ));
+    ref
+        .read(techAuditBlocProvider(widget.appointmentId))
+        .add(TechAuditLoadRequested(appointmentId: widget.appointmentId));
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final bloc = ref.watch(techAuditBlocProvider(widget.appointmentId));
+    final ds = context.ds;
+    final device = context.dsDevice;
 
-    return BlocBuilder<TechAuditBloc, TechAuditState>(
-      bloc: _bloc,
-      builder: (context, state) {
-        if (state is TechAuditLoading || state is TechAuditInitial) {
-          return Scaffold(
-            backgroundColor: cs.surface,
-            appBar: AppBar(title: const Text('Audit technique')),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (state is TechAuditError) {
-          return Scaffold(
-            backgroundColor: cs.surface,
-            appBar: AppBar(title: const Text('Audit technique')),
-            body: Center(child: Text(state.message)),
-          );
-        }
-
-        if (state is! TechAuditLoaded) {
-          return Scaffold(
-            backgroundColor: cs.surface,
-            appBar: AppBar(title: const Text('Audit technique')),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        return Scaffold(
-          backgroundColor: cs.surface,
-          appBar: AppBar(
-            title: const Text('Audit technique'),
-            actions: [
-              if (state.isSaving)
-                const Padding(
-                  padding: EdgeInsets.only(right: 16),
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+    return Scaffold(
+      backgroundColor: ds.surfaceBase,
+      body: BlocConsumer<TechAuditBloc, TechAuditState>(
+        bloc: bloc,
+        listener: (context, state) {
+          if (state is TechAuditError) {
+            showDsSnackbar(context, message: state.message, tone: DsTone.error);
+          }
+        },
+        builder: (context, state) {
+          if (state is TechAuditLoading || state is TechAuditInitial) {
+            return const SafeArea(child: DsSkeletonDetail());
+          }
+          if (state is TechAuditError) {
+            return SafeArea(
+              child: DsErrorState(
+                kind: DsErrorKind.fromMessage(state.message),
+                action: DsButton(
+                  label: 'Réessayer',
+                  icon: DsGlyph.refresh,
+                  onPressed: () => bloc.add(
+                    TechAuditLoadRequested(appointmentId: widget.appointmentId),
                   ),
-                )
-              else if (state.lastSavedAt != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: Icon(Icons.cloud_done_rounded, size: 20, color: cs.onSurfaceVariant),
                 ),
+              ),
+            );
+          }
+          if (state is! TechAuditLoaded) return const SizedBox.shrink();
+
+          final sections = TechAuditTemplate.sections;
+          final index = state.currentSectionIndex.clamp(0, sections.length - 1);
+          final section = sections[index];
+          final data = state.auditData.sections[section.id] ??
+              const AuditSectionData();
+
+          final content = _SectionForm(
+            section: section,
+            data: data,
+            bloc: bloc,
+          );
+
+          return Column(
+            children: [
+              DsAppBar(
+                immersive: true,
+                title: 'Audit technique',
+                subtitle:
+                    'Section ${index + 1} sur ${sections.length} · ${state.auditData.progressPercent} % complété',
+                backLabel: 'Retour au rendez-vous',
+                onBack: () =>
+                    context.goToAppointmentDetail(widget.appointmentId),
+                actions: [
+                  DsIconButton(
+                    icon: state.isSaving ? DsGlyph.sync : Icons.save_rounded,
+                    label: 'Enregistrer',
+                    onPressed: state.isSaving
+                        ? null
+                        : () => bloc.add(const TechAuditSaveRequested()),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: DsSpacing.pagePadding(device),
+                  vertical: DsSpacing.s3,
+                ),
+                child: DsAuditProgress(
+                  label: 'Progression',
+                  percent: state.auditData.progressPercent,
+                ),
+              ),
+              Expanded(
+                child: device.isDesktop && context.dsIsLandscape
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 300,
+                            child: _Summary(
+                              sections: sections,
+                              current: index,
+                              state: state,
+                              onSelect: (value) =>
+                                  bloc.add(TechAuditSectionSelected(value)),
+                            ),
+                          ),
+                          VerticalDivider(width: 1, color: ds.borderSubtle),
+                          Expanded(child: content),
+                        ],
+                      )
+                    : content,
+              ),
+              _Pager(
+                index: index,
+                total: sections.length,
+                bloc: bloc,
+                onFinish: () {
+                  bloc.add(const TechAuditSaveRequested());
+                  context.goToAppointmentDetail(widget.appointmentId);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Summary extends StatelessWidget {
+  const _Summary({
+    required this.sections,
+    required this.current,
+    required this.state,
+    required this.onSelect,
+  });
+
+  final List<AuditSectionDef> sections;
+  final int current;
+  final TechAuditLoaded state;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final t = context.dsType;
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(DsSpacing.s4),
+      itemCount: sections.length,
+      separatorBuilder: (_, _) => const SizedBox(height: DsSpacing.s2),
+      itemBuilder: (context, index) {
+        final section = sections[index];
+        final data = state.auditData.sections[section.id];
+        final filled = data?.items.values.where((v) => v != null).length ?? 0;
+        final complete = filled >= section.items.length;
+
+        return DsCard(
+          selected: index == current,
+          onTap: () => onSelect(index),
+          padding: const EdgeInsets.symmetric(
+            horizontal: DsSpacing.s4,
+            vertical: DsSpacing.s3,
+          ),
+          child: Row(
+            children: [
+              DsIcon(
+                complete ? DsGlyph.checkCircle : DsGlyph.pending,
+                size: 20,
+                color: complete ? ds.success : ds.textTertiary,
+              ),
+              const SizedBox(width: DsSpacing.s3),
+              Expanded(
+                child: Text(
+                  section.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: t.labelSize,
+                    fontWeight: DsWeight.semibold,
+                    color: ds.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '$filled/${section.items.length}',
+                style: TextStyle(
+                  fontSize: t.badgeSize,
+                  fontFeatures: dsTabularFigures,
+                  color: ds.textSecondary,
+                ),
+              ),
             ],
           ),
-          body: isWide
-              ? Row(
-                  children: [
-                    SizedBox(
-                      width: 280,
-                      child: _SectionsSidebar(
-                        state: state,
-                        onSectionTap: (i) => _bloc.add(TechAuditSectionSelected(i)),
-                      ),
-                    ),
-                    VerticalDivider(
-                      thickness: 1,
-                      width: 1,
-                      color: cs.outlineVariant.withAlpha(40),
-                    ),
-                    Expanded(
-                      child: _SectionContent(
-                        state: state,
-                        bloc: _bloc,
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    // Progress bar on mobile
-                    _ProgressBar(state: state),
-                    Expanded(
-                      child: _SectionContent(
-                        state: state,
-                        bloc: _bloc,
-                      ),
-                    ),
-                  ],
-                ),
-          bottomNavigationBar: _buildBottomBar(context, state),
         );
       },
     );
   }
-
-  Widget _buildBottomBar(BuildContext context, TechAuditLoaded state) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-      decoration: BoxDecoration(
-        color: isDark ? cs.surfaceContainerLow : cs.surface,
-        border: Border(
-          top: BorderSide(
-            color: isDark ? Colors.white.withAlpha(8) : cs.outlineVariant.withAlpha(40),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            if (!state.isFirstSection)
-              OutlinedButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _bloc.add(const TechAuditPreviousSection());
-                },
-                icon: const Icon(Icons.chevron_left_rounded),
-                label: const Text('Precedent'),
-              )
-            else
-              const SizedBox(width: 120),
-            const Spacer(),
-            Text(
-              '${state.currentSectionIndex + 1}/${state.totalSections} sections',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-            ),
-            const Spacer(),
-            if (state.isLastSection)
-              FilledButton.icon(
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  _bloc.add(const TechAuditSaveRequested());
-                  Navigator.of(context).pop();
-                },
-                icon: const Icon(Icons.check_circle_rounded),
-                label: const Text('Terminer'),
-              )
-            else
-              FilledButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _bloc.add(const TechAuditNextSection());
-                },
-                icon: const Icon(Icons.chevron_right_rounded),
-                label: const Text('Suivant'),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────
+class _SectionForm extends StatelessWidget {
+  const _SectionForm({
+    required this.section,
+    required this.data,
+    required this.bloc,
+  });
 
-class _SectionsSidebar extends StatelessWidget {
-  final TechAuditLoaded state;
-  final ValueChanged<int> onSectionTap;
-
-  const _SectionsSidebar({required this.state, required this.onSectionTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Column(
-      children: [
-        // Progress header
-        Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Progression',
-                style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: AppRadius.borderRadiusSm,
-                child: LinearProgressIndicator(
-                  value: state.auditData.progress,
-                  minHeight: 8,
-                  backgroundColor: cs.surfaceContainerHighest,
-                  color: state.auditData.progress >= 1.0
-                      ? AppTheme.successColor
-                      : cs.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${state.auditData.progressPercent}%',
-                style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Divider(height: 1, color: isDark ? Colors.white.withAlpha(8) : cs.outlineVariant.withAlpha(40)),
-        // Section list
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: TechAuditTemplate.sections.length,
-            itemBuilder: (context, index) {
-              final section = TechAuditTemplate.sections[index];
-              final isSelected = index == state.currentSectionIndex;
-              final sectionData = state.auditData.sections[section.id];
-              final filled = sectionData?.filledCount(section.items) ?? 0;
-              final total = section.items.length;
-              final isComplete = filled == total && total > 0;
-
-              return Material(
-                color: isSelected
-                    ? cs.primary.withAlpha(isDark ? 25 : 15)
-                    : Colors.transparent,
-                child: InkWell(
-                  onTap: () => onSectionTap(index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: isSelected
-                        ? BoxDecoration(
-                            border: Border(
-                              left: BorderSide(color: cs.primary, width: 3),
-                            ),
-                          )
-                        : null,
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getSectionIcon(section.icon),
-                          size: 18,
-                          color: isSelected ? cs.primary : cs.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            section.title,
-                            style: tt.bodySmall?.copyWith(
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected ? cs.primary : cs.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (isComplete)
-                          Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.successColor)
-                        else
-                          Text(
-                            '$filled/$total',
-                            style: tt.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 10,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── Progress Bar (mobile) ────────────────────────────────────────────────
-
-class _ProgressBar extends StatelessWidget {
-  final TechAuditLoaded state;
-
-  const _ProgressBar({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: ClipRRect(
-        borderRadius: AppRadius.borderRadiusSm,
-        child: LinearProgressIndicator(
-          value: state.auditData.progress,
-          minHeight: 4,
-          backgroundColor: cs.surfaceContainerHighest,
-          color: cs.primary,
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Section Content ──────────────────────────────────────────────────────
-
-class _SectionContent extends StatelessWidget {
-  final TechAuditLoaded state;
+  final AuditSectionDef section;
+  final AuditSectionData data;
   final TechAuditBloc bloc;
 
-  const _SectionContent({required this.state, required this.bloc});
-
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final sectionDef = state.currentSectionDef;
-    final sectionData = state.currentSectionData;
+    final ds = context.ds;
+    final t = context.dsType;
+    final padding = DsSpacing.pagePadding(context.dsDevice);
+
+    void update(String itemId, Object? value) => bloc.add(
+          TechAuditItemUpdated(
+            sectionId: section.id,
+            itemId: itemId,
+            value: value,
+          ),
+        );
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(padding, 0, padding, DsSpacing.s8),
       children: [
-        // Section header
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: cs.primary.withAlpha(15),
-                borderRadius: AppRadius.borderRadiusMd,
+        Text(
+          section.title,
+          style: TextStyle(
+            fontSize: t.h2Size,
+            fontWeight: DsWeight.semibold,
+            letterSpacing: -0.4,
+            color: ds.textPrimary,
+          ),
+        ),
+        const SizedBox(height: DsSpacing.s5),
+        for (final item in section.items) ...[
+          switch (item.type) {
+            AuditItemType.check => DsToggle(
+                label: item.label,
+                value: data.items[item.id] == true,
+                onChanged: (value) => update(item.id, value),
               ),
-              child: Icon(
-                _getSectionIcon(sectionDef.icon),
-                color: cs.primary,
-                size: 24,
+            AuditItemType.rating => DsRatingScale(
+                label: item.label,
+                value: (data.items[item.id] as num?)?.toInt(),
+                onChanged: (value) => update(item.id, value),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    sectionDef.title,
-                    style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    'Section ${state.currentSectionIndex + 1} sur ${state.totalSections}',
-                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                  ),
+            AuditItemType.select => DsSelectField<String>(
+                label: item.label,
+                value: data.items[item.id] as String?,
+                hintText: 'Choisir…',
+                items: [
+                  for (final option in item.options ?? const <String>[])
+                    DsSelectItem(value: option, label: option),
                 ],
+                onChanged: (value) => update(item.id, value),
               ),
-            ),
-          ],
+            AuditItemType.number => _NumberItem(
+                item: item,
+                value: (data.items[item.id] as num?)?.toInt() ?? 0,
+                onChanged: (value) => update(item.id, value),
+              ),
+            AuditItemType.text => _TextItem(
+                item: item,
+                value: data.items[item.id] as String?,
+                onChanged: (value) => update(item.id, value),
+              ),
+          },
+          const SizedBox(height: DsSpacing.s4),
+        ],
+        const SizedBox(height: DsSpacing.s2),
+        _TextItem(
+          item: AuditItemDef(
+            id: '${section.id}__notes',
+            label: 'Notes de section',
+            type: AuditItemType.text,
+            hint: 'Observations, remarques…',
+          ),
+          value: data.notes,
+          onChanged: (value) => bloc.add(
+            TechAuditNotesUpdated(sectionId: section.id, notes: value),
+          ),
         ),
-        const SizedBox(height: 24),
-        // Items
-        ...sectionDef.items.map((itemDef) {
-          final value = sectionData.items[itemDef.id];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildItemWidget(context, itemDef, value, sectionDef.id),
-          );
-        }),
-        const SizedBox(height: 8),
-        // Notes field
-        _NotesField(
-          sectionId: sectionDef.id,
-          initialValue: sectionData.notes ?? '',
-          bloc: bloc,
-        ),
-        const SizedBox(height: 80),
       ],
     );
   }
-
-  Widget _buildItemWidget(
-    BuildContext context,
-    AuditItemDef itemDef,
-    dynamic value,
-    String sectionId,
-  ) {
-    switch (itemDef.type) {
-      case AuditItemType.check:
-        return _CheckItem(
-          itemDef: itemDef,
-          value: value as bool? ?? false,
-          onChanged: (v) => bloc.add(TechAuditItemUpdated(
-            sectionId: sectionId,
-            itemId: itemDef.id,
-            value: v,
-          )),
-        );
-      case AuditItemType.text:
-        return _TextItem(
-          itemDef: itemDef,
-          value: value as String? ?? '',
-          sectionId: sectionId,
-          bloc: bloc,
-        );
-      case AuditItemType.number:
-        return _NumberItem(
-          itemDef: itemDef,
-          value: value,
-          sectionId: sectionId,
-          bloc: bloc,
-        );
-      case AuditItemType.select:
-        return _SelectItem(
-          itemDef: itemDef,
-          value: value as String?,
-          onChanged: (v) => bloc.add(TechAuditItemUpdated(
-            sectionId: sectionId,
-            itemId: itemDef.id,
-            value: v,
-          )),
-        );
-      case AuditItemType.rating:
-        return _RatingItem(
-          itemDef: itemDef,
-          value: value as String?,
-          onChanged: (v) => bloc.add(TechAuditItemUpdated(
-            sectionId: sectionId,
-            itemId: itemDef.id,
-            value: v,
-          )),
-        );
-    }
-  }
 }
 
-// ─── Item Widgets ─────────────────────────────────────────────────────────
+class _NumberItem extends StatelessWidget {
+  const _NumberItem({
+    required this.item,
+    required this.value,
+    required this.onChanged,
+  });
 
-class _CheckItem extends StatelessWidget {
-  final AuditItemDef itemDef;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _CheckItem({required this.itemDef, required this.value, required this.onChanged});
+  final AuditItemDef item;
+  final int value;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? cs.surfaceContainerLow : cs.surfaceContainerLowest,
-        borderRadius: AppRadius.borderRadiusMd,
-        border: Border.all(
-          color: value
-              ? AppTheme.successColor.withAlpha(60)
-              : (isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40)),
+    final ds = context.ds;
+    final t = context.dsType;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            item.label,
+            style: TextStyle(
+              fontSize: t.bodySize,
+              fontWeight: DsWeight.medium,
+              color: ds.textBody,
+            ),
+          ),
         ),
-      ),
-      child: SwitchListTile(
-        title: Text(itemDef.label),
-        subtitle: itemDef.hint != null ? Text(itemDef.hint!) : null,
-        value: value,
-        onChanged: (v) {
-          HapticFeedback.selectionClick();
-          onChanged(v);
-        },
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusMd),
-      ),
+        const SizedBox(width: DsSpacing.s3),
+        DsNumberStepper(value: value, max: 99, onChanged: onChanged),
+      ],
     );
   }
 }
 
 class _TextItem extends StatefulWidget {
-  final AuditItemDef itemDef;
-  final String value;
-  final String sectionId;
-  final TechAuditBloc bloc;
-
   const _TextItem({
-    required this.itemDef,
+    required this.item,
     required this.value,
-    required this.sectionId,
-    required this.bloc,
+    required this.onChanged,
   });
+
+  final AuditItemDef item;
+  final String? value;
+  final ValueChanged<String> onChanged;
 
   @override
   State<_TextItem> createState() => _TextItemState();
 }
 
 class _TextItemState extends State<_TextItem> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.value);
-  }
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.value ?? '');
 
   @override
   void didUpdateWidget(covariant _TextItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only update if the text was changed externally (e.g., from a different section load)
-    if (widget.value != oldWidget.value && widget.value != _controller.text) {
-      _controller.text = widget.value;
+    if (oldWidget.item.id != widget.item.id) {
+      _controller.text = widget.value ?? '';
     }
   }
 
@@ -549,302 +381,74 @@ class _TextItemState extends State<_TextItem> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return DsTextField(
+      label: widget.item.label,
       controller: _controller,
-      decoration: InputDecoration(
-        labelText: widget.itemDef.label,
-        hintText: widget.itemDef.hint,
-        alignLabelWithHint: true,
-        border: const OutlineInputBorder(),
-      ),
-      maxLines: widget.itemDef.id.contains('recommandations') ||
-              widget.itemDef.id.contains('points_attention') ||
-              widget.itemDef.id.contains('prochaines_etapes') ||
-              widget.itemDef.id.contains('remarques')
-          ? 4
-          : 1,
-      onChanged: (v) {
-        widget.bloc.add(TechAuditItemUpdated(
-          sectionId: widget.sectionId,
-          itemId: widget.itemDef.id,
-          value: v,
-        ));
-      },
+      hintText: widget.item.hint,
+      maxLines: 3,
+      minLines: 1,
+      textInputAction: TextInputAction.newline,
+      onChanged: widget.onChanged,
     );
   }
 }
 
-class _NumberItem extends StatefulWidget {
-  final AuditItemDef itemDef;
-  final dynamic value;
-  final String sectionId;
-  final TechAuditBloc bloc;
-
-  const _NumberItem({
-    required this.itemDef,
-    required this.value,
-    required this.sectionId,
+class _Pager extends StatelessWidget {
+  const _Pager({
+    required this.index,
+    required this.total,
     required this.bloc,
+    required this.onFinish,
   });
 
-  @override
-  State<_NumberItem> createState() => _NumberItemState();
-}
-
-class _NumberItemState extends State<_NumberItem> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.value != null ? widget.value.toString() : '',
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant _NumberItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final newText = widget.value != null ? widget.value.toString() : '';
-    if (newText != _controller.text) {
-      _controller.text = newText;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final int index;
+  final int total;
+  final TechAuditBloc bloc;
+  final VoidCallback onFinish;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: widget.itemDef.label,
-        hintText: widget.itemDef.hint,
-        border: const OutlineInputBorder(),
+    final ds = context.ds;
+    final last = index >= total - 1;
+
+    return Container(
+      padding: EdgeInsets.all(DsSpacing.pagePadding(context.dsDevice)),
+      decoration: BoxDecoration(
+        color: ds.surface1,
+        border: Border(top: BorderSide(color: ds.borderDefault)),
+        boxShadow: ds.elevationSticky,
       ),
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: (v) {
-        final num = int.tryParse(v);
-        if (num != null) {
-          widget.bloc.add(TechAuditItemUpdated(
-            sectionId: widget.sectionId,
-            itemId: widget.itemDef.id,
-            value: num,
-          ));
-        }
-      },
-    );
-  }
-}
-
-class _SelectItem extends StatelessWidget {
-  final AuditItemDef itemDef;
-  final String? value;
-  final ValueChanged<String> onChanged;
-
-  const _SelectItem({required this.itemDef, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final options = itemDef.options ?? [];
-
-    if (options.length <= 4) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            itemDef.label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: options.map((option) {
-              final isSelected = value == option;
-              return ChoiceChip(
-                label: Text(option),
-                selected: isSelected,
-                onSelected: (_) {
-                  HapticFeedback.selectionClick();
-                  onChanged(option);
-                },
-              );
-            }).toList(),
-          ),
-        ],
-      );
-    }
-
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(
-        labelText: itemDef.label,
-        border: const OutlineInputBorder(),
-      ),
-      items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
-      onChanged: (v) {
-        if (v != null) onChanged(v);
-      },
-    );
-  }
-}
-
-class _RatingItem extends StatelessWidget {
-  final AuditItemDef itemDef;
-  final String? value;
-  final ValueChanged<String> onChanged;
-
-  const _RatingItem({required this.itemDef, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          itemDef.label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-        const SizedBox(height: 8),
-        Row(
+      child: SafeArea(
+        top: false,
+        child: Row(
           children: [
-            _ratingChip(context, 'Bon', AppTheme.successColor, value == 'Bon'),
-            const SizedBox(width: 8),
-            _ratingChip(context, 'Moyen', AppTheme.warningColor, value == 'Moyen'),
-            const SizedBox(width: 8),
-            _ratingChip(context, 'Mauvais', AppTheme.errorColor, value == 'Mauvais'),
+            Expanded(
+              child: DsButton(
+                label: 'Précédent',
+                icon: Icons.chevron_left_rounded,
+                variant: DsButtonVariant.secondary,
+                fullWidth: true,
+                onPressed: index == 0
+                    ? null
+                    : () => bloc.add(const TechAuditPreviousSection()),
+              ),
+            ),
+            const SizedBox(width: DsSpacing.s3),
+            Expanded(
+              flex: 2,
+              child: DsButton(
+                label: last ? 'Terminer l’audit' : 'Section suivante',
+                icon: last ? DsGlyph.checkCircle : Icons.chevron_right_rounded,
+                size: DsButtonSize.large,
+                fullWidth: true,
+                onPressed: last
+                    ? onFinish
+                    : () => bloc.add(const TechAuditNextSection()),
+              ),
+            ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _ratingChip(BuildContext context, String label, Color color, bool selected) {
-    return Expanded(
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        selectedColor: color.withAlpha(40),
-        labelStyle: TextStyle(
-          color: selected ? color : Theme.of(context).colorScheme.onSurface,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-        ),
-        side: BorderSide(
-          color: selected ? color : Theme.of(context).colorScheme.outlineVariant,
-        ),
-        showCheckmark: false,
-        onSelected: (_) {
-          HapticFeedback.selectionClick();
-          onChanged(label);
-        },
       ),
     );
-  }
-}
-
-class _NotesField extends StatefulWidget {
-  final String sectionId;
-  final String initialValue;
-  final TechAuditBloc bloc;
-
-  const _NotesField({
-    required this.sectionId,
-    required this.initialValue,
-    required this.bloc,
-  });
-
-  @override
-  State<_NotesField> createState() => _NotesFieldState();
-}
-
-class _NotesFieldState extends State<_NotesField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialValue);
-  }
-
-  @override
-  void didUpdateWidget(covariant _NotesField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.sectionId != oldWidget.sectionId) {
-      _controller.text = widget.initialValue;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: 'Notes de section',
-        hintText: 'Observations, remarques...',
-        alignLabelWithHint: true,
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.note_alt_outlined),
-        filled: true,
-        fillColor: cs.surfaceContainerLowest,
-      ),
-      maxLines: 3,
-      onChanged: (v) {
-        widget.bloc.add(TechAuditNotesUpdated(
-          sectionId: widget.sectionId,
-          notes: v,
-        ));
-      },
-    );
-  }
-}
-
-// ─── Icon mapping ─────────────────────────────────────────────────────────
-
-IconData _getSectionIcon(String iconName) {
-  switch (iconName) {
-    case 'door_front':
-      return Icons.door_front_door_outlined;
-    case 'home':
-      return Icons.home_outlined;
-    case 'bolt':
-      return Icons.bolt_outlined;
-    case 'wifi':
-      return Icons.wifi_rounded;
-    case 'lightbulb':
-      return Icons.lightbulb_outline_rounded;
-    case 'blinds':
-      return Icons.blinds_rounded;
-    case 'thermostat':
-      return Icons.thermostat_rounded;
-    case 'shield':
-      return Icons.shield_outlined;
-    case 'tv':
-      return Icons.tv_rounded;
-    case 'yard':
-      return Icons.yard_outlined;
-    case 'priority_high':
-      return Icons.priority_high_rounded;
-    case 'summarize':
-      return Icons.summarize_outlined;
-    default:
-      return Icons.circle_outlined;
   }
 }

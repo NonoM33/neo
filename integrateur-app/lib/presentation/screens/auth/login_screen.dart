@@ -1,17 +1,21 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/di/providers.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/utils/validators.dart';
 import '../../../routes/app_router.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../widgets/ds/ds.dart';
+import '../../widgets/feedback/feedback_overlay.dart';
 
-/// Login screen - tablet split layout
+/// Connexion.
+///
+/// iPad paysage : split-screen — panneau de marque a gauche, formulaire a
+/// droite (440–480 pt). iPad portrait : formulaire centre. iPhone : plein
+/// ecran, action collee au clavier.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,425 +25,346 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _obscure = true;
+
+  /// Le bouton ne tourne que si **cet ecran** a soumis quelque chose.
+  /// `AuthLoading` est aussi emis par la verification de session au demarrage :
+  /// s'y fier afficherait un bouton bloque en chargement sans action de l'utilisateur.
+  bool _submitting = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _email.dispose();
+    _password.dispose();
     super.dispose();
+  }
+
+  void _submit(AuthBloc bloc) {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _submitting = true);
+    bloc.add(
+      AuthLoginRequested(
+        email: _email.text.trim(),
+        password: _password.text,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final authBloc = ref.watch(authBlocProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-    final isTablet = MediaQuery.sizeOf(context).width >= 600;
+    final bloc = ref.watch(authBlocProvider);
+    final ds = context.ds;
+    final device = context.dsDevice;
+    final split = device.isTabletOrLarger && context.dsIsLandscape;
 
     return Scaffold(
-      body: BlocListener<AuthBloc, AuthState>(
-        bloc: authBloc,
+      backgroundColor: ds.surfaceBase,
+      body: BlocConsumer<AuthBloc, AuthState>(
+        bloc: bloc,
         listener: (context, state) {
           if (state is AuthAuthenticated) {
+            setState(() => _submitting = false);
             context.goToDashboard();
-          } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: colorScheme.error,
-              ),
-            );
+          }
+          if (state is AuthError) {
+            setState(() => _submitting = false);
+            showDsSnackbar(context, message: state.message, tone: DsTone.error);
           }
         },
-        child: isTablet
-            ? _buildTabletLayout(context, authBloc)
-            : _buildMobileLayout(context, authBloc),
-      ),
-    );
-  }
+        builder: (context, state) {
+          final form = _Form(
+            formKey: _formKey,
+            email: _email,
+            password: _password,
+            obscure: _obscure,
+            loading: _submitting && state is AuthLoading,
+            error: state is AuthError ? state.message : null,
+            onToggleObscure: () => setState(() => _obscure = !_obscure),
+            onSubmit: () => _submit(bloc),
+            onQuickLogin: (email, password) {
+              _email.text = email;
+              _password.text = password;
+              _submit(bloc);
+            },
+          );
 
-  /// Tablet: split layout with branding left, form right
-  Widget _buildTabletLayout(BuildContext context, AuthBloc authBloc) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Row(
-      children: [
-        // Left panel - branding
-        Expanded(
-          flex: 5,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colorScheme.primary,
-                  const Color(0xFF0D47A1), // Deeper blue
-                ],
-              ),
-            ),
-            child: Stack(
-              children: [
-                // Radial gradient overlay for depth
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: Alignment.topRight,
-                        radius: 1.2,
-                        colors: [
-                          Colors.white.withAlpha(18),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Content
-                SafeArea(
-                  child: Padding(
-                    padding: AppSpacing.pagePadding,
+          if (!split) {
+            return SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(DsSpacing.pagePadding(device)),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Spacer(flex: 3),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(25),
-                            borderRadius: AppRadius.borderRadiusXl,
-                          ),
-                          child: Icon(
-                            Icons.home_work_rounded,
-                            size: 64,
-                            color: colorScheme.onPrimary,
-                          ),
-                        ),
-                        AppSpacing.vGapXl,
-                        Text(
-                          'Neo\nIntegrateur',
-                          style: textTheme.displaySmall?.copyWith(
-                            color: colorScheme.onPrimary,
-                            fontWeight: FontWeight.bold,
-                            height: 1.1,
-                          ),
-                        ),
-                        AppSpacing.vGapMd,
-                        Text(
-                          'Gerez vos projets domotique\nde l\'audit au devis.',
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: colorScheme.onPrimary.withAlpha(200),
-                            height: 1.5,
-                          ),
-                        ),
-                        const Spacer(flex: 4),
-                        Text(
-                          'v1.0.0',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onPrimary.withAlpha(100),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
+                        const _Brand(compact: true),
+                        const SizedBox(height: DsSpacing.gapSection),
+                        form,
                       ],
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-        // Right panel - form
-        Expanded(
-          flex: 5,
-          child: Column(
-            children: [
-              // Top accent line
-              Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.primary,
-                      colorScheme.primary.withAlpha(120),
-                    ],
-                  ),
-                ),
               ),
+            );
+          }
+
+          return Row(
+            children: [
+              const Expanded(flex: 5, child: _Brand()),
               Expanded(
-                child: Container(
-                  color: isDark ? colorScheme.surface : colorScheme.surfaceContainerLowest,
+                flex: 4,
+                child: SafeArea(
                   child: Center(
                     child: SingleChildScrollView(
-                      padding: AppSpacing.pagePadding,
+                      padding: const EdgeInsets.all(DsSpacing.s8),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 480),
-                        child: _buildForm(context, authBloc),
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: form,
                       ),
                     ),
                   ),
                 ),
               ),
             ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
+}
 
-  /// Mobile: single column centered
-  Widget _buildMobileLayout(BuildContext context, AuthBloc authBloc) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: AppSpacing.pagePadding,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
+/// Panneau de marque. Aucun logo n'a ete fourni : le nom est compose en type,
+/// avec le monogramme sur le gradient de marque.
+class _Brand extends StatelessWidget {
+  const _Brand({this.compact = false});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final t = context.dsType;
+
+    final mark = Container(
+      width: compact ? 64 : 88,
+      height: compact ? 64 : 88,
+      decoration: BoxDecoration(
+        gradient: ds.gradientBrand,
+        borderRadius: BorderRadius.circular(compact ? 16 : 22),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        'NI',
+        style: TextStyle(
+          fontSize: compact ? 24 : 34,
+          fontWeight: DsWeight.semibold,
+          letterSpacing: 0.5,
+          color: Colors.white,
+        ),
+      ),
+    );
+
+    if (compact) return mark;
+
+    return Container(
+      decoration: BoxDecoration(gradient: ds.gradientBrand),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(DsSpacing.s16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildMobileLogo(context),
-              AppSpacing.vGapXl,
-              _buildForm(context, authBloc),
+              mark,
+              const SizedBox(height: DsSpacing.s8),
+              Text(
+                'Neo Intégrateur',
+                style: TextStyle(
+                  fontSize: t.displaySize,
+                  height: t.displayLine / t.displaySize,
+                  fontWeight: DsWeight.light,
+                  letterSpacing: t.displayLs,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: DsSpacing.s4),
+              Text(
+                'Arriver chez le client les mains vides,\net repartir avec un devis signé.',
+                style: TextStyle(
+                  fontSize: t.bodyLgSize,
+                  height: t.bodyLgLine / t.bodyLgSize,
+                  color: Colors.white.withAlpha(220),
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildMobileLogo(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+class _Form extends StatelessWidget {
+  const _Form({
+    required this.formKey,
+    required this.email,
+    required this.password,
+    required this.obscure,
+    required this.loading,
+    required this.error,
+    required this.onToggleObscure,
+    required this.onSubmit,
+    required this.onQuickLogin,
+  });
 
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: AppRadius.borderRadiusXxl,
-          ),
-          child: Icon(
-            Icons.home_work_rounded,
-            size: 64,
-            color: colorScheme.primary,
-          ),
-        ),
-        AppSpacing.vGapLg,
-        Text(
-          'Neo Integrateur',
-          style: textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        AppSpacing.vGapXs,
-        Text(
-          'Connectez-vous pour continuer',
-          style: textTheme.bodyLarge?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
+  final GlobalKey<FormState> formKey;
+  final TextEditingController email;
+  final TextEditingController password;
+  final bool obscure;
+  final bool loading;
+  final String? error;
+  final VoidCallback onToggleObscure;
+  final VoidCallback onSubmit;
+  final void Function(String email, String password) onQuickLogin;
 
-  Widget _buildForm(BuildContext context, AuthBloc authBloc) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final isTablet = MediaQuery.sizeOf(context).width >= 600;
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final t = context.dsType;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (isTablet) ...[
-          Text(
-            'Connexion',
-            style: textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          AppSpacing.vGapXs,
-          Text(
-            'Connectez-vous pour continuer',
-            style: textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          AppSpacing.vGapXl,
-        ],
-
-        // Login form
-        Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Email field
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                validator: Validators.email,
-              ),
-              AppSpacing.vGapMd,
-
-              // Password field
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: 'Mot de passe',
-                  prefixIcon: const Icon(Icons.lock_outlined),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    tooltip: _obscurePassword
-                        ? 'Afficher le mot de passe'
-                        : 'Masquer le mot de passe',
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: (value) =>
-                    Validators.password(value, minLength: 6),
-                onFieldSubmitted: (_) => _submit(authBloc),
-              ),
-              AppSpacing.vGapLg,
-
-              // Login button
-              BlocBuilder<AuthBloc, AuthState>(
-                bloc: authBloc,
-                builder: (context, state) {
-                  final isLoading = state is AuthLoading;
-
-                  return SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: isLoading ? null : () => _submit(authBloc),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Se connecter'),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        AppSpacing.vGapXl,
-
-        // Demo hint
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: AppRadius.borderRadiusMd,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.info_outline,
-                color: colorScheme.primary,
-              ),
-              AppSpacing.hGapMd,
-              Expanded(
-                child: Text(
-                  'Demo: utilisez admin@neo.fr / admin123',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        if (EnvironmentConfig.current != Environment.production) ...[
-          AppSpacing.vGapLg,
-          _buildQuickLogin(context, authBloc),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildQuickLogin(BuildContext context, AuthBloc authBloc) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    const accounts = <({String label, String email, IconData icon})>[
-      (label: 'Admin', email: 'admin@neo-domotique.fr', icon: Icons.shield_outlined),
-      (label: 'Intégrateur', email: 'jean.dupont@neo-domotique.fr', icon: Icons.build_outlined),
-      (label: 'Auditeur', email: 'pierre.durand@neo-domotique.fr', icon: Icons.fact_check_outlined),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return Form(
+      key: formKey,
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.bolt_outlined, size: 18, color: colorScheme.primary),
-            AppSpacing.hGapXs,
             Text(
-              'Connexion rapide (staging)',
-              style: textTheme.labelMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              'Connexion',
+              style: TextStyle(
+                fontSize: t.h1Size,
+                fontWeight: DsWeight.semibold,
+                letterSpacing: -0.5,
+                color: ds.textPrimary,
               ),
             ),
-          ],
-        ),
-        AppSpacing.vGapSm,
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final account in accounts)
-              OutlinedButton.icon(
-                onPressed: () => _quickLogin(authBloc, account.email),
-                icon: Icon(account.icon, size: 18),
-                label: Text(account.label),
+            const SizedBox(height: DsSpacing.s2),
+            Text(
+              'Vos audits en cours restent enregistrés sur cet appareil.',
+              style: TextStyle(
+                fontSize: t.bodySize,
+                color: ds.textSecondary,
               ),
+            ),
+            const SizedBox(height: DsSpacing.gapSection),
+            if (error != null) ...[
+              DsErrorState(
+                kind: DsErrorKind.fromMessage(error),
+                inline: true,
+                title: 'Connexion impossible',
+                description: error,
+              ),
+              const SizedBox(height: DsSpacing.s4),
+            ],
+            DsTextField(
+              label: 'Email',
+              controller: email,
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: DsGlyph.mail,
+              required: true,
+              autofillHints: const [AutofillHints.username],
+              validator: (value) => (value == null || !value.contains('@'))
+                  ? 'Saisissez une adresse email valide'
+                  : null,
+            ),
+            const SizedBox(height: DsSpacing.s4),
+            DsTextField(
+              label: 'Mot de passe',
+              controller: password,
+              obscureText: obscure,
+              prefixIcon: Icons.lock_outline_rounded,
+              required: true,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              onSubmitted: (_) => onSubmit(),
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Saisissez votre mot de passe'
+                  : null,
+              suffix: DsIconButton(
+                icon: obscure ? DsGlyph.visibility : DsGlyph.visibilityOff,
+                label: obscure
+                    ? 'Afficher le mot de passe'
+                    : 'Masquer le mot de passe',
+                onPressed: onToggleObscure,
+              ),
+            ),
+            const SizedBox(height: DsSpacing.s6),
+            DsButton(
+              label: 'Se connecter',
+              icon: Icons.login_rounded,
+              size: DsButtonSize.large,
+              fullWidth: true,
+              loading: loading,
+              onPressed: onSubmit,
+            ),
+            // Les raccourcis de recette n'existent jamais en production.
+            if (!kReleaseMode) ...[
+              const SizedBox(height: DsSpacing.gapSection),
+              const DsSectionTitle('Connexion rapide (recette)'),
+              const SizedBox(height: DsSpacing.s2),
+              Wrap(
+                spacing: DsSpacing.s2,
+                runSpacing: DsSpacing.s2,
+                children: [
+                  // Comptes crees par `bun run db:seed` cote backend.
+                  DsButton(
+                    label: 'Admin',
+                    variant: DsButtonVariant.secondary,
+                    size: DsButtonSize.small,
+                    onPressed: () => onQuickLogin(
+                      'admin@neo-domotique.fr',
+                      'password123',
+                    ),
+                  ),
+                  DsButton(
+                    label: 'Intégrateur',
+                    variant: DsButtonVariant.secondary,
+                    size: DsButtonSize.small,
+                    onPressed: () => onQuickLogin(
+                      'jean.dupont@neo-domotique.fr',
+                      'password123',
+                    ),
+                  ),
+                  DsButton(
+                    label: 'Auditeur',
+                    variant: DsButtonVariant.secondary,
+                    size: DsButtonSize.small,
+                    onPressed: () => onQuickLogin(
+                      'pierre.durand@neo-domotique.fr',
+                      'password123',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: DsSpacing.s4),
+              // L'aide reste accessible avant meme d'etre connecte, mais dans
+              // le flux : rien ne flotte par-dessus le formulaire.
+              Consumer(
+                builder: (context, ref, _) => DsButton(
+                  label: 'Aide / Bug',
+                  icon: DsGlyph.help,
+                  variant: DsButtonVariant.ghost,
+                  size: DsButtonSize.small,
+                  onPressed: () => showFeedbackDialog(context, ref),
+                ),
+              ),
+            ],
           ],
         ),
-      ],
+      ),
     );
-  }
-
-  void _quickLogin(AuthBloc authBloc, String email) {
-    _emailController.text = email;
-    _passwordController.text = 'password123';
-    authBloc.add(
-      AuthLoginRequested(email: email, password: 'password123'),
-    );
-  }
-
-  void _submit(AuthBloc authBloc) {
-    if (_formKey.currentState?.validate() ?? false) {
-      authBloc.add(
-        AuthLoginRequested(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        ),
-      );
-    }
   }
 }

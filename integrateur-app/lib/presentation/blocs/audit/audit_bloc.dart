@@ -16,6 +16,7 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
         super(const AuditInitial()) {
     on<AuditLoadRoomsRequested>(_onLoadRoomsRequested);
     on<AuditRoomSelected>(_onRoomSelected);
+    on<AuditRoomDeselected>(_onRoomDeselected);
     on<AuditAddRoomRequested>(_onAddRoomRequested);
     on<AuditUpdateRoomRequested>(_onUpdateRoomRequested);
     on<AuditDeleteRoomRequested>(_onDeleteRoomRequested);
@@ -54,6 +55,15 @@ class AuditBloc extends Bloc<AuditEvent, AuditState> {
       case Error(failure: final failure):
         emit(AuditError(failure.message));
     }
+  }
+
+  void _onRoomDeselected(
+    AuditRoomDeselected event,
+    Emitter<AuditState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is! AuditLoaded) return;
+    emit(currentState.copyWith(clearSelectedRoom: true));
   }
 
   Future<void> _onRoomSelected(

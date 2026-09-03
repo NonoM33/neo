@@ -12,6 +12,7 @@ import '../../data/datasources/remote/appointment_remote_datasource.dart';
 import '../../data/datasources/remote/floor_plan_remote_datasource.dart';
 import '../../data/datasources/remote/signature_remote_datasource.dart';
 import '../../data/datasources/remote/ha_remote_datasource.dart';
+import '../../data/datasources/remote/box_remote_datasource.dart';
 import '../../data/datasources/remote/user_remote_datasource.dart';
 import '../../data/repositories/floor_plan_repository_impl.dart';
 import '../../domain/repositories/floor_plan_repository.dart';
@@ -23,6 +24,7 @@ import '../../data/repositories/quote_repository_impl.dart';
 import '../../data/repositories/sync_repository_impl.dart';
 import '../../data/repositories/ticket_repository_impl.dart';
 import '../../data/repositories/appointment_repository_impl.dart';
+import '../../data/repositories/box_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalogue_repository.dart';
@@ -32,6 +34,7 @@ import '../../domain/repositories/quote_repository.dart';
 import '../../domain/repositories/sync_repository.dart';
 import '../../domain/repositories/ticket_repository.dart';
 import '../../domain/repositories/appointment_repository.dart';
+import '../../domain/repositories/box_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/usecases/auth_usecases.dart';
 import '../../domain/usecases/catalogue_usecases.dart';
@@ -41,6 +44,7 @@ import '../../domain/usecases/ticket_usecases.dart';
 import '../../domain/usecases/appointment_usecases.dart';
 import '../../presentation/blocs/audit/audit_bloc.dart';
 import '../../presentation/blocs/auth/auth_bloc.dart';
+import '../../presentation/blocs/auth/auth_event.dart';
 import '../../presentation/blocs/catalogue/catalogue_bloc.dart';
 import '../../presentation/blocs/dashboard/dashboard_bloc.dart';
 import '../../presentation/blocs/projects/projects_bloc.dart';
@@ -101,6 +105,10 @@ final syncRemoteDataSourceProvider = Provider<SyncRemoteDataSource>((ref) {
   return SyncRemoteDataSourceImpl(ref.watch(apiClientProvider));
 });
 
+final boxRemoteDataSourceProvider = Provider<BoxRemoteDataSource>((ref) {
+  return BoxRemoteDataSourceImpl(ref.watch(apiClientProvider));
+});
+
 final userRemoteDataSourceProvider = Provider<UserRemoteDataSource>((ref) {
   return UserRemoteDataSourceImpl(ref.watch(apiClientProvider));
 });
@@ -158,6 +166,12 @@ final deviceRepositoryProvider = Provider<DeviceRepository>((ref) {
 final syncRepositoryProvider = Provider<SyncRepository>((ref) {
   return SyncRepositoryImpl(
     remoteDataSource: ref.watch(syncRemoteDataSourceProvider),
+  );
+});
+
+final boxRepositoryProvider = Provider<BoxRepository>((ref) {
+  return BoxRepositoryImpl(
+    remoteDataSource: ref.watch(boxRemoteDataSourceProvider),
   );
 });
 
@@ -370,12 +384,20 @@ final updateAuditDataUseCaseProvider = Provider<UpdateAuditDataUseCase>((ref) {
 // ============================================================================
 
 final authBlocProvider = Provider<AuthBloc>((ref) {
-  return AuthBloc(
+  final bloc = AuthBloc(
     loginUseCase: ref.watch(loginUseCaseProvider),
     logoutUseCase: ref.watch(logoutUseCaseProvider),
     getCurrentUserUseCase: ref.watch(getCurrentUserUseCaseProvider),
     checkAuthStatusUseCase: ref.watch(checkAuthStatusUseCaseProvider),
   );
+
+  // Une session perdue ramene a la connexion. Sans ce branchement, l'app
+  // restait sur un ecran d'erreur dont le bouton « Recharger » ne pouvait
+  // rien changer.
+  ref.watch(apiClientProvider).onSessionExpired =
+      () => bloc.add(const AuthLogoutRequested());
+
+  return bloc;
 });
 
 final syncBlocProvider = Provider<SyncBloc>((ref) {

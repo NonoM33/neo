@@ -52,10 +52,16 @@ class EnvironmentConfig {
   /// Change this to your Mac's IP (run: ipconfig getifaddr en0)
   static const String _devHost = '192.168.1.30';
 
+  /// URL a viser depuis un appareil physique : le simulateur atteint le Mac
+  /// via localhost, un iPad reel doit passer par l'IP du Mac.
+  static String get deviceDevBaseUrl => 'http://$_devHost:3000/api';
+
   static String get baseUrl {
     switch (current) {
       case Environment.development:
-        return 'http://neo-api.157.180.43.90.sslip.io/api';
+        // Simulateur iOS : localhost pointe sur le Mac.
+        // Sur un appareil physique, remplacer par _devHost (IP du Mac).
+        return 'http://localhost:3000/api';
       case Environment.staging:
         return 'https://staging-api.neo-integrateur.com';
       case Environment.production:
@@ -67,7 +73,7 @@ class EnvironmentConfig {
   static String get baseHost {
     switch (current) {
       case Environment.development:
-        return 'http://neo-api.157.180.43.90.sslip.io';
+        return 'http://localhost:3000';
       case Environment.staging:
         return 'https://staging.neo-integrateur.com';
       case Environment.production:

@@ -3,11 +3,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/app_config.dart';
+import 'core/config/display_preferences.dart';
 import 'core/di/providers.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/ds_theme.dart';
 import 'presentation/blocs/auth/auth_event.dart';
 import 'presentation/blocs/sync/sync_bloc.dart';
-import 'presentation/widgets/feedback/feedback_overlay.dart';
 import 'routes/app_router.dart';
 
 /// Main application widget
@@ -32,15 +32,17 @@ class _NeoIntegrateurAppState extends ConsumerState<NeoIntegrateurApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final display = ref.watch(displayPreferencesProvider);
 
     return MaterialApp.router(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
 
-      // Theme
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      // Theme — l'echelle typographique definitive est appliquee par
+      // DsThemeScope, qui la choisit selon la largeur (iPhone / iPad).
+      theme: DsTheme.light(),
+      darkTheme: DsTheme.dark(),
+      themeMode: display.themeMode,
 
       // Router
       routerConfig: router,
@@ -66,7 +68,10 @@ class _NeoIntegrateurAppState extends ConsumerState<NeoIntegrateurApp> {
               MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
             ),
           ),
-          child: FeedbackOverlay(child: child ?? const SizedBox.shrink()),
+          child: DsThemeScope(
+            chantier: display.chantier,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

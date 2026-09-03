@@ -440,7 +440,10 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
-        child: Column(
+        // Defilant par principe : une feuille qui ne defile pas coupe son
+        // contenu des que l'ecran raccourcit (clavier, petit iPad, paysage).
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
@@ -462,6 +465,7 @@ class _SignatureScreenState extends ConsumerState<SignatureScreen> {
               },
             ),
           ],
+          ),
         ),
       ),
     );

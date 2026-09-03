@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../../core/di/providers.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/extensions.dart';
 import '../../../domain/entities/appointment.dart';
-import '../../../domain/repositories/appointment_repository.dart';
 import '../../../routes/app_router.dart';
 import '../../blocs/appointments/appointments_bloc.dart';
 import '../../blocs/appointments/appointments_event.dart';
 import '../../blocs/appointments/appointments_state.dart';
+import '../../widgets/ds/ds.dart';
 
+/// Agenda.
+///
+/// Trois vues — **jour**, **semaine**, mois. Le jour est la vue par defaut sur
+/// iPhone (c'est le cas d'usage mobile n°1) ; sur iPad paysage, le calendrier
+/// vit a gauche et la journee se deroule a droite.
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
@@ -22,10 +24,19 @@ class CalendarScreen extends ConsumerStatefulWidget {
   ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
+enum _View {
+  day('Jour'),
+  week('Semaine'),
+  month('Mois');
+
+  const _View(this.label);
+  final String label;
+}
+
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
-  DateTime _focusedMonth = DateTime.now();
-  DateTime _selectedDay = DateTime.now();
-  AppointmentType? _selectedType;
+  DateTime _selected = DateTime.now();
+  DateTime _focused = DateTime.now();
+  late _View _view = _View.day;
 
   @override
   void initState() {
@@ -36,1031 +47,361 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     }
   }
 
-  void _onMonthChanged(int delta) {
-    setState(() {
-      _focusedMonth = DateTime(
-        _focusedMonth.year,
-        _focusedMonth.month + delta,
-        1,
-      );
-    });
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-    // Update date range in bloc
-    final fromDate = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final toDate = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0, 23, 59, 59);
-
-    ref.read(appointmentsBlocProvider).add(AppointmentDateRangeChanged(
-      fromDate: fromDate,
-      toDate: toDate,
-    ));
-  }
-
-  void _goToToday() {
-    final now = DateTime.now();
-    setState(() {
-      _focusedMonth = DateTime(now.year, now.month, 1);
-      _selectedDay = now;
-    });
-
-    final fromDate = DateTime(now.year, now.month, 1);
-    final toDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-    ref.read(appointmentsBlocProvider).add(AppointmentDateRangeChanged(
-      fromDate: fromDate,
-      toDate: toDate,
-    ));
-  }
-
-  void _applyTypeFilter(AppointmentsBloc bloc) {
-    if (_selectedType == null) {
-      bloc.add(const AppointmentsFilterCleared());
-    } else {
-      bloc.add(AppointmentsFilterChanged(
-        AppointmentFilter(type: _selectedType),
-      ));
-    }
+  List<Appointment> _forDay(List<Appointment> all, DateTime day) {
+    final result =
+        all.where((a) => _sameDay(a.scheduledAt, day)).toList()
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    return result;
   }
 
   @override
   Widget build(BuildContext context) {
     final bloc = ref.watch(appointmentsBlocProvider);
-    final cs = Theme.of(context).colorScheme;
-    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final ds = context.ds;
+    final device = context.dsDevice;
 
     return Scaffold(
-      backgroundColor: cs.surface,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          context.goToAppointmentCreate();
-        },
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouveau RDV'),
+      backgroundColor: ds.surfaceBase,
+      appBar: DsAppBar(
+        title: 'Agenda',
+        subtitle: DateFormat('EEEE d MMMM yyyy', 'fr_FR')
+            .format(_selected)
+            .replaceFirstMapped(RegExp('^.'), (m) => m[0]!.toUpperCase()),
+        actions: [
+          DsIconButton(
+            icon: DsGlyph.today,
+            label: 'Aujourd’hui',
+            onPressed: () => setState(() {
+              _selected = DateTime.now();
+              _focused = DateTime.now();
+            }),
+          ),
+          if (!device.isPhone)
+            Padding(
+              padding: const EdgeInsets.only(right: DsSpacing.s2),
+              child: DsButton(
+                label: 'Nouveau RDV',
+                icon: DsGlyph.add,
+                onPressed: () => context.goToAppointmentCreate(),
+              ),
+            ),
+        ],
       ),
-      body: BlocConsumer<AppointmentsBloc, AppointmentsState>(
+      floatingActionButton: device.isPhone
+          ? FloatingActionButton.extended(
+              onPressed: () => context.goToAppointmentCreate(),
+              icon: const Icon(DsGlyph.add),
+              label: const Text('Nouveau RDV'),
+            )
+          : null,
+      body: BlocBuilder<AppointmentsBloc, AppointmentsState>(
         bloc: bloc,
-        listener: (context, state) {
-          if (state is AppointmentOperationSuccess) {
-            context.showSuccessSnackBar(state.message);
-          } else if (state is AppointmentsError) {
-            context.showErrorSnackBar(state.message);
-          }
-        },
         builder: (context, state) {
-          if (isWide) {
+          if (state is AppointmentsLoading || state is AppointmentsInitial) {
+            return const DsSkeletonList(count: 4);
+          }
+          if (state is AppointmentsError) {
+            return DsErrorState(
+              kind: DsErrorKind.fromMessage(state.message),
+              action: DsButton(
+                label: 'Recharger',
+                icon: DsGlyph.refresh,
+                onPressed: () => bloc.add(const AppointmentsLoadRequested()),
+              ),
+            );
+          }
+          if (state is! AppointmentsLoaded) return const SizedBox.shrink();
+
+          final all = state.appointments;
+          final padding = DsSpacing.pagePadding(device);
+          final wide = device.isDesktop && context.dsIsLandscape;
+
+          final agenda = _Agenda(
+            view: _view,
+            selected: _selected,
+            appointments: all,
+            forDay: _forDay,
+            onView: (value) => setState(() => _view = value),
+            onSelect: (day) => setState(() {
+              _selected = day;
+              _focused = day;
+            }),
+          );
+
+          final calendar = _Calendar(
+            focused: _focused,
+            selected: _selected,
+            appointments: all,
+            sameDay: _sameDay,
+            onSelect: (day, focused) => setState(() {
+              _selected = day;
+              _focused = focused;
+            }),
+          );
+
+          if (wide) {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Calendar sidebar
                 SizedBox(
-                  width: 380,
-                  child: _buildCalendarPanel(context, state, bloc),
+                  width: (MediaQuery.sizeOf(context).width * 0.34)
+                      .clamp(320.0, 460.0),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(padding),
+                    child: calendar,
+                  ),
                 ),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: cs.outlineVariant.withAlpha(40),
-                ),
-                // Appointments list
-                Expanded(
-                  child: _buildAppointmentsList(context, state, bloc),
-                ),
+                VerticalDivider(width: 1, color: ds.borderSubtle),
+                Expanded(child: agenda),
               ],
             );
           }
 
-          return CustomScrollView(
-            slivers: [
-              // Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
-                  child: _buildHeader(context, state, bloc),
+          return Column(
+            children: [
+              if (_view == _View.month)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    padding,
+                    DsSpacing.s3,
+                    padding,
+                    0,
+                  ),
+                  child: calendar,
                 ),
-              ),
-              // Calendar
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
-                  child: _buildCompactCalendar(context, state),
-                ),
-              ),
-              // Type filters
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _buildTypeFilters(context, bloc),
-                ),
-              ),
-              // Appointments for selected day
-              ..._buildDayAppointments(context, state),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              Expanded(child: agenda),
             ],
           );
         },
       ),
     );
   }
+}
 
-  Widget _buildHeader(BuildContext context, AppointmentsState state, AppointmentsBloc bloc) {
-    final cs = Theme.of(context).colorScheme;
-    int count = 0;
-    if (state is AppointmentsLoaded) {
-      count = state.appointments.length;
-    }
+class _Calendar extends StatelessWidget {
+  const _Calendar({
+    required this.focused,
+    required this.selected,
+    required this.appointments,
+    required this.sameDay,
+    required this.onSelect,
+  });
 
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Agenda',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              if (state is AppointmentsLoaded) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '$count rendez-vous ce mois',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
+  final DateTime focused;
+  final DateTime selected;
+  final List<Appointment> appointments;
+  final bool Function(DateTime, DateTime) sameDay;
+  final void Function(DateTime day, DateTime focused) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final t = context.dsType;
+
+    return DsCard(
+      child: TableCalendar<Appointment>(
+        locale: 'fr_FR',
+        firstDay: DateTime.utc(2020),
+        lastDay: DateTime.utc(2030, 12, 31),
+        focusedDay: focused,
+        selectedDayPredicate: (day) => sameDay(day, selected),
+        onDaySelected: onSelect,
+        eventLoader: (day) =>
+            appointments.where((a) => sameDay(a.scheduledAt, day)).toList(),
+        startingDayOfWeek: StartingDayOfWeek.monday,
+        availableGestures: AvailableGestures.horizontalSwipe,
+        headerStyle: HeaderStyle(
+          formatButtonVisible: false,
+          titleCentered: true,
+          titleTextStyle: TextStyle(
+            fontSize: t.titleSize,
+            fontWeight: DsWeight.semibold,
+            color: ds.textPrimary,
+          ),
+          leftChevronIcon: Icon(
+            Icons.chevron_left_rounded,
+            color: ds.textSecondary,
+          ),
+          rightChevronIcon: Icon(
+            Icons.chevron_right_rounded,
+            color: ds.textSecondary,
           ),
         ),
-        _ActionButton(
-          icon: Icons.today_rounded,
-          onTap: _goToToday,
-          cs: cs,
-          tooltip: 'Aujourd\'hui',
-        ),
-        const SizedBox(width: 8),
-        _ActionButton(
-          icon: Icons.refresh_rounded,
-          onTap: () => bloc.add(const AppointmentsRefreshRequested()),
-          cs: cs,
-          tooltip: 'Actualiser',
-        ),
-        const SizedBox(width: 8),
-        _ActionButton(
-          icon: Icons.add_rounded,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            context.goToAppointmentCreate();
-          },
-          cs: cs,
-          isPrimary: true,
-          tooltip: 'Nouveau rendez-vous',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCalendarPanel(BuildContext context, AppointmentsState state, AppointmentsBloc bloc) {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-            child: _buildHeader(context, state, bloc),
+        calendarStyle: CalendarStyle(
+          todayDecoration: BoxDecoration(
+            color: ds.brandPrimarySoft,
+            shape: BoxShape.circle,
+          ),
+          todayTextStyle: TextStyle(
+            color: ds.brandPrimary,
+            fontWeight: DsWeight.semibold,
+          ),
+          selectedDecoration: BoxDecoration(
+            color: ds.brandPrimary,
+            shape: BoxShape.circle,
+          ),
+          markerDecoration: BoxDecoration(
+            color: ds.brandTertiary,
+            shape: BoxShape.circle,
+          ),
+          defaultTextStyle: TextStyle(
+            fontSize: t.captionSize,
+            color: ds.textBody,
+          ),
+          weekendTextStyle: TextStyle(
+            fontSize: t.captionSize,
+            color: ds.textSecondary,
           ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-            child: _buildCompactCalendar(context, state),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: _buildTypeFilters(context, bloc),
-          ),
-        ),
-        // Today's summary
-        if (state is AppointmentsLoaded)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: _buildDaySummary(context, state),
-            ),
-          ),
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
-      ],
-    );
-  }
-
-  Widget _buildAppointmentsList(BuildContext context, AppointmentsState state, AppointmentsBloc bloc) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-
-    if (state is AppointmentsLoading || state is AppointmentsInitial) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state is AppointmentsError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_rounded, size: 48, color: cs.error),
-            const SizedBox(height: 16),
-            Text(state.message),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(
-              onPressed: () => bloc.add(const AppointmentsLoadRequested()),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Recharger'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (state is! AppointmentsLoaded) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final dayAppointments = state.getForDay(_selectedDay);
-    final dayFormatted = DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(_selectedDay);
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        dayFormatted,
-                        style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${dayAppointments.length} rendez-vous',
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (dayAppointments.isEmpty)
-          SliverFillRemaining(
-            child: _buildEmptyDayState(context),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
-            sliver: SliverList.separated(
-              itemCount: dayAppointments.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) =>
-                  _buildAppointmentCard(context, dayAppointments[index]),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildCompactCalendar(BuildContext context, AppointmentsState state) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final monthName = DateFormat('MMMM yyyy', 'fr_FR').format(_focusedMonth);
-
-    // Build calendar grid
-    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
-    // Monday = 1
-    final startWeekday = firstDayOfMonth.weekday;
-    final daysInMonth = lastDayOfMonth.day;
-
-    // Days from previous month to fill the first row
-    final prevMonthDays = startWeekday - 1;
-
-    // Event days for markers
-    Set<DateTime> eventDays = {};
-    if (state is AppointmentsLoaded) {
-      eventDays = state.eventDays;
-    }
-
-    final today = DateTime.now();
-    final dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? cs.surfaceContainerLow : cs.surfaceContainerLowest,
-        borderRadius: AppRadius.borderRadiusLg,
-        border: Border.all(
-          color: isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Month navigation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: () => _onMonthChanged(-1),
-                tooltip: 'Mois precedent',
-              ),
-              Text(
-                monthName[0].toUpperCase() + monthName.substring(1),
-                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: () => _onMonthChanged(1),
-                tooltip: 'Mois suivant',
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Day labels
-          Row(
-            children: dayLabels.map((label) {
-              return Expanded(
-                child: Center(
-                  child: Text(
-                    label,
-                    style: tt.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 4),
-
-          // Calendar grid
-          ...List.generate(6, (week) {
-            return Row(
-              children: List.generate(7, (weekday) {
-                final dayIndex = week * 7 + weekday - prevMonthDays + 1;
-                if (dayIndex < 1 || dayIndex > daysInMonth) {
-                  return const Expanded(child: SizedBox(height: 40));
-                }
-
-                final date = DateTime(_focusedMonth.year, _focusedMonth.month, dayIndex);
-                final isToday = date.year == today.year &&
-                    date.month == today.month &&
-                    date.day == today.day;
-                final isSelected = date.year == _selectedDay.year &&
-                    date.month == _selectedDay.month &&
-                    date.day == _selectedDay.day;
-                final hasEvents = eventDays.contains(
-                  DateTime(date.year, date.month, date.day),
-                );
-
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedDay = date);
-                    },
-                    child: Container(
-                      height: 40,
-                      margin: const EdgeInsets.all(1),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? cs.primary
-                            : isToday
-                                ? cs.primary.withAlpha(isDark ? 30 : 20)
-                                : null,
-                        borderRadius: AppRadius.borderRadiusSm,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$dayIndex',
-                            style: tt.bodySmall?.copyWith(
-                              color: isSelected
-                                  ? cs.onPrimary
-                                  : isToday
-                                      ? cs.primary
-                                      : null,
-                              fontWeight: isToday || isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                              fontSize: 13,
-                            ),
-                          ),
-                          if (hasEvents && !isSelected)
-                            Container(
-                              width: 4,
-                              height: 4,
-                              margin: const EdgeInsets.only(top: 2),
-                              decoration: BoxDecoration(
-                                color: isToday ? cs.primary : cs.onSurfaceVariant,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            );
-          }),
-        ],
       ),
     );
   }
+}
 
-  Widget _buildTypeFilters(BuildContext context, AppointmentsBloc bloc) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+class _Agenda extends StatelessWidget {
+  const _Agenda({
+    required this.view,
+    required this.selected,
+    required this.appointments,
+    required this.forDay,
+    required this.onView,
+    required this.onSelect,
+  });
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          _FilterChip(
-            label: 'Tous',
-            isSelected: _selectedType == null,
-            color: cs.primary,
-            isDark: isDark,
-            onTap: () {
-              setState(() => _selectedType = null);
-              _applyTypeFilter(bloc);
-            },
-          ),
-          const SizedBox(width: 8),
-          ...AppointmentType.values.map((type) {
-            final color = _getTypeColor(type);
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _FilterChip(
-                label: type.displayName,
-                isSelected: _selectedType == type,
-                color: color,
-                isDark: isDark,
-                onTap: () {
-                  setState(() => _selectedType = _selectedType == type ? null : type);
-                  _applyTypeFilter(bloc);
-                },
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
+  final _View view;
+  final DateTime selected;
+  final List<Appointment> appointments;
+  final List<Appointment> Function(List<Appointment>, DateTime) forDay;
+  final ValueChanged<_View> onView;
+  final ValueChanged<DateTime> onSelect;
 
-  Widget _buildDaySummary(BuildContext context, AppointmentsLoaded state) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  @override
+  Widget build(BuildContext context) {
+    final padding = DsSpacing.pagePadding(context.dsDevice);
+    final days = switch (view) {
+      _View.day || _View.month => [selected],
+      _View.week => List.generate(
+          7,
+          (index) => selected
+              .subtract(Duration(days: selected.weekday - 1))
+              .add(Duration(days: index)),
+        ),
+    };
 
-    final dayAppointments = state.getForDay(_selectedDay);
-    final dayFormatted = DateFormat('EEEE d MMMM', 'fr_FR').format(_selectedDay);
+    final total =
+        days.fold<int>(0, (sum, day) => sum + forDay(appointments, day).length);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          dayFormatted[0].toUpperCase() + dayFormatted.substring(1),
-          style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '${dayAppointments.length} rendez-vous',
-          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-        ),
-        const SizedBox(height: 12),
-        ...dayAppointments.map((apt) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _buildMiniAppointmentCard(context, apt),
-        )),
-        if (dayAppointments.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? cs.surfaceContainerHigh : cs.surfaceContainerHighest.withAlpha(120),
-              borderRadius: AppRadius.borderRadiusMd,
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.event_available_rounded, size: 32, color: cs.onSurfaceVariant.withAlpha(120)),
-                const SizedBox(height: 8),
-                Text(
-                  'Aucun rendez-vous',
-                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                ),
-              ],
-            ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(padding, DsSpacing.s3, padding, 0),
+          child: DsSegmentedTabs(
+            activeId: view.name,
+            onChanged: (id) =>
+                onView(_View.values.firstWhere((v) => v.name == id)),
+            items: [
+              for (final value in _View.values)
+                DsTabItem(id: value.name, label: value.label),
+            ],
           ),
+        ),
+        Expanded(
+          child: total == 0
+              ? DsEmptyState(
+                  icon: DsGlyph.eventOutline,
+                  title: view == _View.week
+                      ? 'Aucun rendez-vous cette semaine'
+                      : 'Aucun rendez-vous ce jour',
+                  description:
+                      'Planifiez une visite technique, un audit ou une installation.',
+                  action: DsButton(
+                    label: 'Nouveau rendez-vous',
+                    icon: DsGlyph.add,
+                    onPressed: () => context.goToAppointmentCreate(),
+                  ),
+                )
+              : ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    padding,
+                    DsSpacing.s3,
+                    padding,
+                    DsSpacing.s16,
+                  ),
+                  children: [
+                    for (final day in days) ...[
+                      if (view == _View.week) ...[
+                        DsSectionTitle(
+                          DateFormat('EEEE d MMMM', 'fr_FR').format(day),
+                        ),
+                        const SizedBox(height: DsSpacing.s2),
+                      ],
+                      for (final appointment in forDay(appointments, day)) ...[
+                        DsAppointmentCard(
+                          type: appointment.type.dsType,
+                          time: DateFormat('HH:mm', 'fr_FR')
+                              .format(appointment.scheduledAt),
+                          duration: '${appointment.durationMinutes} min',
+                          clientName: appointment.clientName ??
+                              appointment.title,
+                          place: appointment.location,
+                          status: appointment.status.dsStatus,
+                          current: appointment.status ==
+                              AppointmentStatus.enCours,
+                          onTap: () =>
+                              context.goToAppointmentDetail(appointment.id),
+                        ),
+                        const SizedBox(height: DsSpacing.s2),
+                      ],
+                      if (view == _View.week &&
+                          forDay(appointments, day).isEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: DsSpacing.s3,
+                            left: DsSpacing.s2,
+                          ),
+                          child: Text(
+                            'Journée libre',
+                            style: TextStyle(
+                              fontSize: context.dsType.captionSize,
+                              color: context.ds.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (view == _View.week)
+                        const SizedBox(height: DsSpacing.s3),
+                    ],
+                  ],
+                ),
+        ),
       ],
     );
   }
-
-  Widget _buildMiniAppointmentCard(BuildContext context, Appointment appointment) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final typeColor = _getTypeColor(appointment.type);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => context.goToAppointmentDetail(appointment.id),
-        borderRadius: AppRadius.borderRadiusSm,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.borderRadiusSm,
-            border: Border(
-              left: BorderSide(color: typeColor, width: 3),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      appointment.timeRange,
-                      style: tt.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      appointment.title,
-                      style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w500),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, size: 16, color: cs.onSurfaceVariant.withAlpha(100)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildDayAppointments(BuildContext context, AppointmentsState state) {
-    if (state is AppointmentsLoading || state is AppointmentsInitial) {
-      return [
-        const SliverFillRemaining(
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ];
-    }
-
-    if (state is AppointmentsError) {
-      return [
-        SliverFillRemaining(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.cloud_off_rounded, size: 48, color: Theme.of(context).colorScheme.error),
-                const SizedBox(height: 16),
-                Text(state.message),
-                const SizedBox(height: 16),
-                FilledButton.tonalIcon(
-                  onPressed: () =>
-                      ref.read(appointmentsBlocProvider).add(const AppointmentsLoadRequested()),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Recharger'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ];
-    }
-
-    if (state is! AppointmentsLoaded) {
-      return [const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))];
-    }
-
-    final dayAppointments = state.getForDay(_selectedDay);
-    final dayFormatted = DateFormat('EEEE d MMMM', 'fr_FR').format(_selectedDay);
-
-    if (dayAppointments.isEmpty) {
-      return [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
-            child: Text(
-              dayFormatted[0].toUpperCase() + dayFormatted.substring(1),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-        SliverFillRemaining(
-          child: _buildEmptyDayState(context),
-        ),
-      ];
-    }
-
-    return [
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 16, 32, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  dayFormatted[0].toUpperCase() + dayFormatted.substring(1),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-              Text(
-                '${dayAppointments.length} RDV',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(32, 0, 32, 0),
-        sliver: SliverList.separated(
-          itemCount: dayAppointments.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, index) =>
-              _buildAppointmentCard(context, dayAppointments[index]),
-        ),
-      ),
-    ];
-  }
-
-  Widget _buildEmptyDayState(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: isDark ? cs.surfaceContainerHigh : cs.surfaceContainerHighest,
-              borderRadius: AppRadius.borderRadiusXl,
-            ),
-            child: Icon(Icons.event_available_rounded, size: 36, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Aucun rendez-vous',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Planifiez un rendez-vous pour cette journee',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => context.goToAppointmentCreate(),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Nouveau rendez-vous'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppointmentCard(BuildContext context, Appointment appointment) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final typeColor = _getTypeColor(appointment.type);
-    final statusColor = _getStatusColor(appointment.status);
-
-    return Material(
-      color: isDark ? cs.surfaceContainerLow : cs.surfaceContainerLowest,
-      borderRadius: AppRadius.borderRadiusLg,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.goToAppointmentDetail(appointment.id),
-        borderRadius: AppRadius.borderRadiusLg,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.borderRadiusLg,
-            border: Border.all(
-              color: isDark ? Colors.white.withAlpha(12) : cs.outlineVariant.withAlpha(40),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Type color bar
-              Container(
-                width: 4,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: typeColor,
-                  borderRadius: AppRadius.borderRadiusFull,
-                ),
-              ),
-              const SizedBox(width: 14),
-              // Time column
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    appointment.scheduledAt.hour.toString().padLeft(2, '0') +
-                        ':' +
-                        appointment.scheduledAt.minute.toString().padLeft(2, '0'),
-                    style: tt.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    appointment.formattedDuration,
-                    style: tt.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 14),
-              // Main info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _getTypeIcon(appointment.type),
-                          size: 14,
-                          color: typeColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            appointment.title,
-                            style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (appointment.clientName != null) ...[
-                          Icon(Icons.person_outline_rounded, size: 14, color: cs.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              appointment.clientName!,
-                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        if (appointment.location != null) ...[
-                          Icon(_getLocationTypeIcon(appointment.locationType), size: 14, color: cs.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              appointment.location!,
-                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Status badge
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: statusColor.withAlpha(isDark ? 35 : 20),
-                      borderRadius: AppRadius.borderRadiusSm,
-                      border: Border.all(
-                        color: statusColor.withAlpha(isDark ? 50 : 30),
-                      ),
-                    ),
-                    child: Text(
-                      appointment.status.displayName,
-                      style: tt.labelSmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: typeColor.withAlpha(isDark ? 20 : 12),
-                      borderRadius: AppRadius.borderRadiusSm,
-                    ),
-                    child: Text(
-                      appointment.type.displayName,
-                      style: tt.labelSmall?.copyWith(
-                        color: typeColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withAlpha(100), size: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getTypeColor(AppointmentType type) {
-    switch (type) {
-      case AppointmentType.visiteTechnique:
-        return AppTheme.infoColor;
-      case AppointmentType.audit:
-        return const Color(0xFF6f42c1);
-      case AppointmentType.rdvCommercial:
-        return AppTheme.successColor;
-      case AppointmentType.installation:
-        return AppTheme.tertiaryColor;
-      case AppointmentType.sav:
-        return AppTheme.errorColor;
-      case AppointmentType.reunionInterne:
-        return AppTheme.statusArchive;
-      case AppointmentType.autre:
-        return const Color(0xFFadb5bd);
-    }
-  }
-
-  Color _getStatusColor(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.propose:
-        return AppTheme.warningColor;
-      case AppointmentStatus.confirme:
-        return AppTheme.infoColor;
-      case AppointmentStatus.enCours:
-        return AppTheme.statusEnCours;
-      case AppointmentStatus.termine:
-        return AppTheme.successColor;
-      case AppointmentStatus.annule:
-        return AppTheme.statusArchive;
-      case AppointmentStatus.noShow:
-        return AppTheme.errorColor;
-    }
-  }
-
-  IconData _getTypeIcon(AppointmentType type) {
-    switch (type) {
-      case AppointmentType.visiteTechnique:
-        return Icons.engineering_rounded;
-      case AppointmentType.audit:
-        return Icons.checklist_rounded;
-      case AppointmentType.rdvCommercial:
-        return Icons.handshake_rounded;
-      case AppointmentType.installation:
-        return Icons.build_rounded;
-      case AppointmentType.sav:
-        return Icons.support_agent_rounded;
-      case AppointmentType.reunionInterne:
-        return Icons.groups_rounded;
-      case AppointmentType.autre:
-        return Icons.event_rounded;
-    }
-  }
-
-  IconData _getLocationTypeIcon(LocationType type) {
-    switch (type) {
-      case LocationType.surSite:
-        return Icons.location_on_outlined;
-      case LocationType.bureau:
-        return Icons.business_outlined;
-      case LocationType.visio:
-        return Icons.videocam_outlined;
-      case LocationType.telephone:
-        return Icons.phone_outlined;
-    }
-  }
 }
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final ColorScheme cs;
-  final bool isPrimary;
-  final String tooltip;
-
-  const _ActionButton({
-    required this.icon,
-    required this.onTap,
-    required this.cs,
-    this.isPrimary = false,
-    required this.tooltip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton.filled(
-      onPressed: onTap,
-      icon: Icon(icon, size: 20),
-      tooltip: tooltip,
-      style: IconButton.styleFrom(
-        backgroundColor: isPrimary ? cs.primary : cs.surfaceContainerHighest,
-        foregroundColor: isPrimary ? cs.onPrimary : cs.onSurface,
-      ),
-    );
-  }
+/// Passerelles metier → Design System.
+extension AppointmentTypeDs on AppointmentType {
+  DsAppointmentType get dsType => switch (this) {
+        AppointmentType.visiteTechnique => DsAppointmentType.visiteTechnique,
+        AppointmentType.audit => DsAppointmentType.audit,
+        AppointmentType.rdvCommercial => DsAppointmentType.commercial,
+        AppointmentType.installation => DsAppointmentType.installation,
+        AppointmentType.sav => DsAppointmentType.sav,
+        AppointmentType.reunionInterne => DsAppointmentType.reunion,
+        AppointmentType.autre => DsAppointmentType.autre,
+      };
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final Color color;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.color,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: isSelected ? color.withAlpha(isDark ? 50 : 25) : Colors.transparent,
-      borderRadius: AppRadius.borderRadiusSm,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.borderRadiusSm,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.borderRadiusSm,
-            border: Border.all(
-              color: isSelected
-                  ? color.withAlpha(isDark ? 100 : 60)
-                  : (isDark ? Colors.white.withAlpha(20) : cs.outlineVariant.withAlpha(40)),
-            ),
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: isSelected ? color : cs.onSurfaceVariant,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+extension AppointmentStatusDs on AppointmentStatus {
+  DsStatus get dsStatus => switch (this) {
+        AppointmentStatus.propose => DsStatus.propose,
+        AppointmentStatus.confirme => DsStatus.confirme,
+        AppointmentStatus.enCours => DsStatus.enCours,
+        AppointmentStatus.termine => DsStatus.termine,
+        AppointmentStatus.annule => DsStatus.annule,
+        AppointmentStatus.noShow => DsStatus.noShow,
+      };
 }

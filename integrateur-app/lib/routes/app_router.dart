@@ -14,11 +14,15 @@ import '../presentation/screens/catalogue/catalogue_screen.dart';
 import '../presentation/screens/catalogue/product_detail_screen.dart';
 import '../presentation/screens/quotes/quote_screen.dart';
 import '../presentation/screens/quotes/quote_preview_screen.dart';
+import '../presentation/screens/quotes/signature_screen.dart';
+import '../domain/entities/quote.dart';
 import '../presentation/screens/tickets/tickets_list_screen.dart';
 import '../presentation/screens/tickets/ticket_detail_screen.dart';
 import '../presentation/screens/tickets/ticket_form_screen.dart';
 import '../presentation/screens/floor_plan/floor_plan_screen.dart';
+import '../presentation/screens/boxes/box_claim_screen.dart';
 import '../presentation/screens/homes/homes_screen.dart';
+import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/appointments/calendar_screen.dart';
 import '../presentation/screens/appointments/appointment_detail_screen.dart';
 import '../presentation/screens/appointments/appointment_form_screen.dart';
@@ -35,10 +39,12 @@ class AppRoutes {
   static const String projectCreate = 'project-create';
   static const String projectEdit = 'project-edit';
   static const String audit = 'audit';
+  static const String boxClaim = 'box-claim';
   static const String catalogue = 'catalogue';
   static const String productDetail = 'product-detail';
   static const String quote = 'quote';
   static const String quotePreview = 'quote-preview';
+  static const String quoteSignature = 'quote-signature';
   static const String calendar = 'calendar';
   static const String appointmentDetail = 'appointment-detail';
   static const String appointmentCreate = 'appointment-create';
@@ -49,6 +55,7 @@ class AppRoutes {
   static const String ticketCreate = 'ticket-create';
   static const String floorPlan = 'floor-plan';
   static const String homes = 'homes';
+  static const String profile = 'profile';
 
   AppRoutes._();
 }
@@ -62,10 +69,12 @@ class AppPaths {
   static const String projectCreate = '/projects/new';
   static const String projectEdit = '/projects/:id/edit';
   static const String audit = '/projects/:id/audit';
+  static const String boxClaim = '/projects/:id/box';
   static const String catalogue = '/catalogue';
   static const String productDetail = '/catalogue/:id';
   static const String quote = '/projects/:id/quote';
   static const String quotePreview = '/quotes/:id/preview';
+  static const String quoteSignature = '/quotes/:id/signature';
   static const String calendar = '/calendar';
   static const String appointmentDetail = '/calendar/:id';
   static const String appointmentCreate = '/calendar/new';
@@ -75,6 +84,7 @@ class AppPaths {
   static const String ticketCreate = '/tickets/new';
   static const String floorPlan = '/projects/:id/rooms/:roomId/plan';
   static const String homes = '/homes';
+  static const String profile = '/profile';
 
   AppPaths._();
 }
@@ -183,6 +193,19 @@ final routerProvider = Provider<GoRouter>((ref) {
                       return MaterialPage(
                         key: state.pageKey,
                         child: ProjectFormScreen(projectId: id),
+                      );
+                    },
+                  ),
+
+                  // Rattachement d'une box domotique (scan du QR)
+                  GoRoute(
+                    path: 'box',
+                    name: AppRoutes.boxClaim,
+                    pageBuilder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return NoTransitionPage(
+                        key: state.pageKey,
+                        child: BoxClaimScreen(projectId: id),
                       );
                     },
                   ),
@@ -331,6 +354,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
+          // Mon compte
+          GoRoute(
+            path: AppPaths.profile,
+            name: AppRoutes.profile,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const ProfileScreen(),
+            ),
+          ),
+
           // Homes (Ma Maison)
           GoRoute(
             path: AppPaths.homes,
@@ -368,6 +401,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // Quote preview (full screen, outside shell)
+      GoRoute(
+        path: AppPaths.quoteSignature,
+        name: AppRoutes.quoteSignature,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) {
+          // Le devis voyage en `extra` : l'ecran de signature travaille sur
+          // l'objet deja charge par l'ecran de devis.
+          final quote = state.extra as Quote?;
+          return MaterialPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: quote == null
+                ? const _SignatureUnavailable()
+                : SignatureScreen(quote: quote),
+          );
+        },
+      ),
       GoRoute(
         path: AppPaths.quotePreview,
         name: AppRoutes.quotePreview,
@@ -428,7 +478,10 @@ extension GoRouterExtension on GoRouter {
   void goToCatalogue() => go(AppPaths.catalogue);
   void goToProductDetail(String id) => go('/catalogue/$id');
   void goToQuote(String projectId) => go('/projects/$projectId/quote');
+  void goToBoxClaim(String projectId) => go('/projects/$projectId/box');
   void goToQuotePreview(String quoteId) => go('/quotes/$quoteId/preview');
+  void goToQuoteSignature(String quoteId, Object quote) =>
+      go('/quotes/$quoteId/signature', extra: quote);
   void goToCalendar() => go(AppPaths.calendar);
   void goToAppointmentDetail(String id) => go('/calendar/$id');
   void goToAppointmentCreate() => go(AppPaths.appointmentCreate);
@@ -438,6 +491,7 @@ extension GoRouterExtension on GoRouter {
   void goToTicketDetail(String id) => go('/tickets/$id');
   void goToTicketCreate() => go(AppPaths.ticketCreate);
   void goToHomes() => go(AppPaths.homes);
+  void goToProfile() => go(AppPaths.profile);
   void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
       push('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
 }
@@ -454,7 +508,10 @@ extension NavigationExtension on BuildContext {
   void goToCatalogue() => go(AppPaths.catalogue);
   void goToProductDetail(String id) => go('/catalogue/$id');
   void goToQuote(String projectId) => go('/projects/$projectId/quote');
+  void goToBoxClaim(String projectId) => go('/projects/$projectId/box');
   void goToQuotePreview(String quoteId) => go('/quotes/$quoteId/preview');
+  void goToQuoteSignature(String quoteId, Object quote) =>
+      go('/quotes/$quoteId/signature', extra: quote);
   void goToCalendar() => go(AppPaths.calendar);
   void goToAppointmentDetail(String id) => go('/calendar/$id');
   void goToAppointmentCreate() => go(AppPaths.appointmentCreate);
@@ -464,7 +521,30 @@ extension NavigationExtension on BuildContext {
   void goToTicketDetail(String id) => go('/tickets/$id');
   void goToTicketCreate() => go(AppPaths.ticketCreate);
   void goToHomes() => go(AppPaths.homes);
+  void goToProfile() => go(AppPaths.profile);
   /// Push floor plan on top of current screen — back returns to caller
   void goToFloorPlan(String projectId, String roomId, {String? roomName}) =>
       push('/projects/$projectId/rooms/$roomId/plan${roomName != null ? '?name=$roomName' : ''}');
+}
+
+/// Repli si l'on arrive sur la signature sans devis (lien direct, reprise).
+class _SignatureUnavailable extends StatelessWidget {
+  const _SignatureUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Signature')),
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Ouvrez la signature depuis le devis : elle a besoin du devis '
+            'en cours pour afficher les montants a signer.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
 }
