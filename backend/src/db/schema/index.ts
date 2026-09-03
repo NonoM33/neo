@@ -29,3 +29,4 @@ export * from './comments';
 export * from './templates';
 export * from './marketing';
 export * from './system-tokens';
+export * from './boxes';

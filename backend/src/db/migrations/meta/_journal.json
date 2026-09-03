@@ -155,6 +155,13 @@
       "when": 1781566827369,
       "tag": "0021_devis_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788439495729,
+      "tag": "0022_boxes",
+      "breakpoints": true
     }
   ]
 }

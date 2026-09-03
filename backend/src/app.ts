@@ -40,6 +40,7 @@ import { callsRoutes } from './modules/calls';
 import { trackingRoutes, publicTrackingRoutes } from './modules/tracking';
 import { newsletterTrackingRoutes, newsletterRoutes } from './modules/newsletter';
 import { cloudInstancesRoutes } from './modules/cloud-instances';
+import { boxesRoutes } from './modules/boxes';
 import { floorPlansRoutes } from './modules/floor-plans';
 import { signaturesRouter, signingPageRouter, webhookRouter } from './modules/signatures';
 import {
@@ -155,6 +156,7 @@ app.route('/api/system-tokens', systemTokensRoutes);
 app.route('/api/calls', callsRoutes);
 app.route('/api/tracking', trackingRoutes);
 app.route('/api/cloud-instances', cloudInstancesRoutes);
+app.route('/api/boxes', boxesRoutes);
 app.route('/api', floorPlansRoutes);
 app.route('/api', signaturesRouter);
 app.route('/api/recette', recetteRoutes);
