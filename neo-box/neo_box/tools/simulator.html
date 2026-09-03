@@ -8,6 +8,9 @@
   body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: #15181d; color: #e8eaed; display: grid; grid-template-columns: 560px 1fr; gap: 24px; padding: 24px; }
   h1 { font-size: 15px; margin: 0 0 12px; letter-spacing: .08em; text-transform: uppercase; color: #9aa0a6; }
   .box { background: #23272e; border-radius: 22px; padding: 26px; box-shadow: inset 0 1px 0 #3a3f47, 0 20px 40px #0008; }
+  body.big { grid-template-columns: 1fr; }
+  body.big .screen { width: 1000px; height: 488px; }
+  body.big .box { max-width: 1060px; }
   .screen { width: 500px; height: 244px; image-rendering: pixelated; background: #fff; border: 6px solid #0b0c0f; border-radius: 6px; display: block; }
   .pad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 56px); gap: 6px; justify-content: center; margin: 22px auto 0; }
   .pad button, .side button { font: inherit; background: #2f343c; color: #e8eaed; border: 0; border-radius: 10px; cursor: pointer; }
@@ -34,7 +37,7 @@
       <button data-key="LEFT">◀</button><button class="ok" data-key="OK">OK</button><button data-key="RIGHT">▶</button>
       <span></span><button data-key="DOWN">▼</button><span></span>
     </div>
-    <div class="side"><button data-key="BACK">Retour</button></div>
+    <div class="side"><button data-key="BACK">Retour</button><button id="zoom">Agrandir (pour scanner le QR)</button></div>
   </div>
 </div>
 <div>
@@ -76,6 +79,7 @@
     post('/state', { [el.dataset.field]: value });
   }));
   $('#reset').addEventListener('click', () => post('/reset'));
+  $('#zoom').addEventListener('click', () => { document.body.classList.toggle('big'); $('#zoom').textContent = document.body.classList.contains('big') ? 'Reduire' : 'Agrandir (pour scanner le QR)'; });
   setInterval(refreshScreen, 700);
   setInterval(async () => render(await (await fetch('/info')).json()), 2000);
   fetch('/info').then((r) => r.json()).then(render);

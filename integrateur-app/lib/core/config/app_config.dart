@@ -45,7 +45,14 @@ enum Environment {
 }
 
 class EnvironmentConfig {
-  static Environment current = Environment.development;
+  /// Choisi a la compilation : `flutter run --dart-define=NEO_ENV=staging`.
+  /// Sans rien : developpement (backend local).
+  static Environment current = switch (
+      const String.fromEnvironment('NEO_ENV', defaultValue: 'development')) {
+    'staging' => Environment.staging,
+    'production' => Environment.production,
+    _ => Environment.development,
+  };
 
   /// For physical devices, use the Mac's local IP instead of localhost.
   /// localhost only works on iOS simulators.
@@ -63,9 +70,9 @@ class EnvironmentConfig {
         // Sur un appareil physique, remplacer par _devHost (IP du Mac).
         return 'http://localhost:3000/api';
       case Environment.staging:
-        return 'https://staging-api.neo-integrateur.com';
+        return 'https://stg.api.neo-domotique.fr/api';
       case Environment.production:
-        return 'https://api.neo-integrateur.com';
+        return 'https://api.neo-domotique.fr/api';
     }
   }
 
@@ -75,9 +82,9 @@ class EnvironmentConfig {
       case Environment.development:
         return 'http://localhost:3000';
       case Environment.staging:
-        return 'https://staging.neo-integrateur.com';
+        return 'https://stg.api.neo-domotique.fr';
       case Environment.production:
-        return 'https://neo-integrateur.com';
+        return 'https://api.neo-domotique.fr';
     }
   }
 
