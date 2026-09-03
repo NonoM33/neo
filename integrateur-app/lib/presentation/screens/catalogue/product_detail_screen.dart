@@ -1009,25 +1009,19 @@ class _AddToQuoteSheetState extends ConsumerState<_AddToQuoteSheet> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+    // Le contenu doit pouvoir defiler : sinon la liste des projets — qui est
+    // l'action de cette feuille — se retrouve coupee sous le bord de l'ecran.
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        8,
+        24,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle bar
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withAlpha(80),
-                borderRadius: AppRadius.borderRadiusFull,
-              ),
-            ),
-          ),
-          AppSpacing.vGapMd,
-
           // Title
           Text('Ajouter au devis', style: textTheme.titleLarge),
           AppSpacing.vGapLg,
@@ -1172,10 +1166,9 @@ class _AddToQuoteSheetState extends ConsumerState<_AddToQuoteSheet> {
               ),
             )
           else
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 260),
-              child: ListView.separated(
+            ListView.separated(
                 shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
                 itemCount: _projects!.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
@@ -1184,7 +1177,6 @@ class _AddToQuoteSheetState extends ConsumerState<_AddToQuoteSheet> {
                       context, project, colorScheme, textTheme);
                 },
               ),
-            ),
         ],
       ),
     );

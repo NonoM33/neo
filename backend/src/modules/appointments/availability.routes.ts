@@ -8,6 +8,7 @@ import {
 import * as appointmentsService from './appointments.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import type { JWTPayload } from '../../middleware/auth.middleware';
+import { requireAdmin } from '../../middleware/rbac.middleware';
 
 const availabilityRouter = new Hono();
 
@@ -29,6 +30,19 @@ availabilityRouter.put(
     const input = c.req.valid('json');
     const user = c.get('user') as JWTPayload;
     const slots = await appointmentsService.setAvailability(user.userId, input);
+    return c.json(slots);
+  }
+);
+
+// PUT /api/availability/admin/:userId - Set availability for any user (admin only)
+availabilityRouter.put(
+  '/admin/:userId',
+  requireAdmin(),
+  zValidator('json', setAvailabilitySchema),
+  async (c) => {
+    const userId = c.req.param('userId');
+    const input = c.req.valid('json');
+    const slots = await appointmentsService.setAvailability(userId, input);
     return c.json(slots);
   }
 );

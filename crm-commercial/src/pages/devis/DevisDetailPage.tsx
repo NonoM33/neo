@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Table, Button, Spinner } from '../../components';
-import { devisService } from '../../services';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
+import { devisService, paymentsService } from '../../services';
 import {
   quoteStatusLabels,
   type QuoteDetail,
-  type QuoteLine,
   type QuoteStatus,
 } from '../../types';
 
-const STATUS_VARIANT: Record<QuoteStatus, string> = {
-  brouillon: 'secondary',
+const STATUS_TONE: Record<QuoteStatus, PillTone> = {
+  brouillon: 'neutral',
   envoye: 'info',
   accepte: 'success',
   refuse: 'danger',
@@ -34,6 +35,33 @@ export function DevisDetailPage() {
   const [busy, setBusy] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [promoBusy, setPromoBusy] = useState(false);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
+
+  const DEPOSIT_PERCENT = 30;
+
+  const handleDepositLink = async () => {
+    if (!id) return;
+    setBusy(true);
+    try {
+      const { payUrl: url } = await paymentsService.createLink(
+        'quote_deposit',
+        id,
+        DEPOSIT_PERCENT
+      );
+      setPayUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Lien d’acompte copié dans le presse-papier');
+      } catch {
+        toast.success('Lien d’acompte généré');
+      }
+    } catch (error) {
+      console.error('Failed to create deposit link:', error);
+      toast.error('Génération du lien d’acompte impossible');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const loadQuote = useCallback(async () => {
     if (!id) return;
@@ -126,181 +154,224 @@ export function DevisDetailPage() {
   };
 
   if (loading || !quote) {
-    return (
-      <div className="content-area">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="content-area">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex align-items-center gap-2">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            icon="bi-arrow-left"
-            onClick={() => navigate('/devis')}
-          >
-            Retour
-          </Button>
-          <h1 className="page-title mb-0">Devis {quote.number}</h1>
-          <span className={`badge bg-${STATUS_VARIANT[quote.status]}`}>
-            {quoteStatusLabels[quote.status]}
-          </span>
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/devis')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux devis
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1>Devis {quote.number}</h1>
+            <Pill tone={STATUS_TONE[quote.status]} dot>
+              {quoteStatusLabels[quote.status]}
+            </Pill>
+          </div>
         </div>
-        <div className="d-flex gap-2">
-          <Button variant="outline-secondary" icon="bi-file-earmark-pdf" onClick={handlePdf}>
+        <div className="page-actions">
+          <Btn variant="subtle" icon="fileText" onClick={handlePdf}>
             PDF
-          </Button>
-          <Button icon="bi-envelope" loading={busy} onClick={handleSend}>
+          </Btn>
+          <Btn icon="mail" disabled={busy} onClick={handleSend}>
             Envoyer au client
-          </Button>
+          </Btn>
+          {(quote.status === 'envoye' || quote.status === 'accepte') && (
+            <Btn variant="subtle" icon="euro" disabled={busy} onClick={handleDepositLink}>
+              Lien d’acompte ({DEPOSIT_PERCENT}%)
+            </Btn>
+          )}
         </div>
       </div>
 
-      <div className="row g-4">
-        <div className="col-lg-8">
-          <Card>
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Lignes du devis</h2>
-              <Table<QuoteLine>
-                data={quote.lines}
-                keyExtractor={(line) => line.id}
-                emptyMessage="Aucune ligne"
-                columns={[
-                  {
-                    key: 'description',
-                    header: 'Désignation',
-                    render: (line) => (
-                      <div>
-                        <div className="fw-semibold">{line.description}</div>
-                        {line.product && (
-                          <small className="text-secondary">{line.product.reference}</small>
-                        )}
-                        {line.clientOwned && (
-                          <span className="badge border text-body-secondary ms-2">
-                            Fourni par le client
-                          </span>
-                        )}
-                      </div>
-                    ),
-                  },
-                  {
-                    key: 'quantity',
-                    header: 'Qté',
-                    className: 'text-end',
-                    render: (line) => line.quantity ?? 1,
-                  },
-                  {
-                    key: 'unitPriceHT',
-                    header: 'PU HT',
-                    className: 'text-end',
-                    render: (line) => currency.format(Number(line.unitPriceHT ?? 0)),
-                  },
-                  {
-                    key: 'totalHT',
-                    header: 'Total HT',
-                    className: 'text-end',
-                    render: (line) => currency.format(Number(line.totalHT ?? 0)),
-                  },
-                ]}
-              />
-            </CardBody>
+      {payUrl && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            marginBottom: 18,
+            background: 'var(--neo-primary-light, rgba(13,110,253,0.08))',
+            border: '1px solid var(--line, #e9ecef)',
+            borderRadius: 10,
+          }}
+        >
+          <Icon name="euro" size={16} />
+          <input
+            readOnly
+            value={payUrl}
+            onFocus={(e) => e.currentTarget.select()}
+            className="neo-field"
+            style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }}
+          />
+          <Btn
+            variant="subtle"
+            icon="fileText"
+            onClick={() => {
+              navigator.clipboard.writeText(payUrl).then(
+                () => toast.success('Lien copié'),
+                () => toast.error('Copie impossible')
+              );
+            }}
+          >
+            Copier
+          </Btn>
+        </div>
+      )}
+
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Lignes du devis" icon="fileText" flush>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Désignation</th>
+                    <th style={{ textAlign: 'right' }}>Qté</th>
+                    <th style={{ textAlign: 'right' }}>PU HT</th>
+                    <th style={{ textAlign: 'right' }}>Total HT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quote.lines.length === 0 ? (
+                    <tr>
+                      <td colSpan={4}>
+                        <div className="t-sub" style={{ padding: '8px 0' }}>
+                          Aucune ligne
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    quote.lines.map((line) => (
+                      <tr key={line.id}>
+                        <td>
+                          <div className="t-main">{line.description}</div>
+                          {line.product && <div className="t-sub">{line.product.reference}</div>}
+                          {line.clientOwned && (
+                            <Pill tone="neutral">Fourni par le client</Pill>
+                          )}
+                        </td>
+                        <td className="t-mono" style={{ textAlign: 'right' }}>
+                          {line.quantity ?? 1}
+                        </td>
+                        <td className="t-mono" style={{ textAlign: 'right' }}>
+                          {currency.format(Number(line.unitPriceHT ?? 0))}
+                        </td>
+                        <td className="t-mono" style={{ textAlign: 'right' }}>
+                          {currency.format(Number(line.totalHT ?? 0))}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </div>
 
-        <div className="col-lg-4">
-          <Card className="mb-4">
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Récapitulatif</h2>
-              <dl className="row mb-0">
-                <dt className="col-6 text-secondary fw-normal">Total HT</dt>
-                <dd className="col-6 text-end">{currency.format(Number(quote.totalHT))}</dd>
-                <dt className="col-6 text-secondary fw-normal">TVA</dt>
-                <dd className="col-6 text-end">{currency.format(Number(quote.totalTVA))}</dd>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Récapitulatif" icon="euro">
+            <div className="card-body">
+              <dl className="detail-dl">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Total HT</dt>
+                  <dd className="t-mono">{currency.format(Number(quote.totalHT))}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>TVA</dt>
+                  <dd className="t-mono">{currency.format(Number(quote.totalTVA))}</dd>
+                </div>
                 {quote.discount && Number(quote.discount) > 0 && (
-                  <>
-                    <dt className="col-6 text-secondary fw-normal">Remise</dt>
-                    <dd className="col-6 text-end">{Number(quote.discount)} %</dd>
-                  </>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <dt>Remise</dt>
+                    <dd className="t-mono">{Number(quote.discount)} %</dd>
+                  </div>
                 )}
                 {quote.promoDiscount && Number(quote.promoDiscount) > 0 && (
-                  <>
-                    <dt className="col-6 text-secondary fw-normal">
-                      Code promo {quote.promoCode && <span className="badge bg-success ms-1">{quote.promoCode}</span>}
-                    </dt>
-                    <dd className="col-6 text-end text-success">
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <dt>Code promo {quote.promoCode && <Pill tone="success">{quote.promoCode}</Pill>}</dt>
+                    <dd className="t-mono" style={{ color: 'var(--success-ink)' }}>
                       −{currency.format(Number(quote.promoDiscount))}
                     </dd>
-                  </>
+                  </div>
                 )}
-                <dt className="col-6 fw-semibold">Total TTC</dt>
-                <dd className="col-6 text-end fw-semibold">
-                  {currency.format(Number(quote.totalTTC))}
-                </dd>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    paddingTop: 10,
+                    borderTop: '1px solid var(--line)',
+                  }}
+                >
+                  <dt style={{ color: 'var(--ink)', fontWeight: 600, textTransform: 'none', fontSize: 14 }}>
+                    Total TTC
+                  </dt>
+                  <dd className="t-mono" style={{ fontWeight: 600 }}>
+                    {currency.format(Number(quote.totalTTC))}
+                  </dd>
+                </div>
               </dl>
-            </CardBody>
+            </div>
           </Card>
 
-          <Card className="mb-4">
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Code promo</h2>
+          <Card head="Code promo" icon="zap">
+            <div className="card-body">
               {quote.promoCode ? (
-                <div className="d-flex align-items-center justify-content-between">
-                  <div>
-                    <span className="badge bg-success me-2">{quote.promoCode}</span>
-                    <span className="text-success">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Pill tone="success">{quote.promoCode}</Pill>
+                    <span style={{ color: 'var(--success-ink)' }}>
                       −{currency.format(Number(quote.promoDiscount ?? 0))}
                     </span>
                   </div>
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    icon="bi-x-lg"
-                    loading={promoBusy}
-                    onClick={handleRemovePromo}
-                  >
+                  <Btn variant="subtle" size="sm" icon="x" disabled={promoBusy} onClick={handleRemovePromo}>
                     Retirer
-                  </Button>
+                  </Btn>
                 </div>
               ) : (
-                <div className="d-flex gap-2">
+                <div style={{ display: 'flex', gap: 8 }}>
                   <input
-                    className="form-control text-uppercase"
+                    className="neo-field"
+                    style={{ textTransform: 'uppercase' }}
                     placeholder="Ex. NOEL10"
                     value={promoInput}
                     onChange={(e) => setPromoInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
                   />
-                  <Button loading={promoBusy} onClick={handleApplyPromo} disabled={!promoInput.trim()}>
+                  <Btn disabled={promoBusy || !promoInput.trim()} onClick={handleApplyPromo}>
                     Appliquer
-                  </Button>
+                  </Btn>
                 </div>
               )}
-            </CardBody>
+            </div>
           </Card>
 
-          <Card className="mb-4">
-            <CardBody>
-              <h2 className="card-title h5 mb-3">Informations</h2>
-              <dl className="row mb-0">
-                <dt className="col-6 text-secondary fw-normal">Créé le</dt>
-                <dd className="col-6 text-end">{formatDate(quote.createdAt)}</dd>
-                <dt className="col-6 text-secondary fw-normal">Envoyé le</dt>
-                <dd className="col-6 text-end">{formatDate(quote.sentAt)}</dd>
-                <dt className="col-6 text-secondary fw-normal">Valide jusqu'au</dt>
-                <dd className="col-6 text-end">{formatDate(quote.validUntil)}</dd>
+          <Card head="Informations" icon="inbox">
+            <div className="card-body">
+              <dl className="detail-dl">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Créé le</dt>
+                  <dd>{formatDate(quote.createdAt)}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Envoyé le</dt>
+                  <dd>{formatDate(quote.sentAt)}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Valide jusqu'au</dt>
+                  <dd>{formatDate(quote.validUntil)}</dd>
+                </div>
               </dl>
-            </CardBody>
+            </div>
           </Card>
 
-          <Card>
-            <CardBody>
-              <label className="form-label">Statut</label>
+          <Card head="Statut" icon="gauge">
+            <div className="card-body">
               <select
-                className="form-select"
+                className="neo-field"
                 value={quote.status}
                 disabled={busy}
                 onChange={(e) => handleStatusChange(e.target.value as QuoteStatus)}
@@ -312,12 +383,14 @@ export function DevisDetailPage() {
                 ))}
               </select>
               {quote.notes && (
-                <div className="mt-3">
-                  <label className="form-label">Notes</label>
-                  <p className="text-secondary mb-0">{quote.notes}</p>
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Notes</div>
+                  <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                    {quote.notes}
+                  </p>
                 </div>
               )}
-            </CardBody>
+            </div>
           </Card>
         </div>
       </div>

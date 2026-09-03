@@ -33,6 +33,7 @@ export const PERMISSIONS: Permission[] = [
 
   // Support
   { key: 'support.manage', label: 'Support & base de connaissances', group: 'Support', path: '/backoffice/support' },
+  { key: 'box.manage', label: 'Box domotiques (flotte)', group: 'Support', path: '/backoffice/boxes' },
 
   // Communication
   { key: 'newsletter.manage', label: 'Newsletter', group: 'Communication', path: '/backoffice/newsletter' },
@@ -42,6 +43,7 @@ export const PERMISSIONS: Permission[] = [
   { key: 'produits.manage', label: 'Produits', group: 'Gestion', path: '/backoffice/products' },
   { key: 'fournisseurs.manage', label: 'Fournisseurs', group: 'Gestion', path: '/backoffice/suppliers' },
   { key: 'projets.manage', label: 'Projets', group: 'Gestion', path: '/backoffice/projects' },
+  { key: 'devis.manage', label: 'Devis', group: 'Gestion', path: '/backoffice/quotes' },
 
   // Planning
   { key: 'creneaux.manage', label: 'Créneaux de disponibilité', group: 'Planning', path: '/backoffice/creneaux' },

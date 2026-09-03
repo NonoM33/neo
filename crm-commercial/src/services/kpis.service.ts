@@ -90,9 +90,31 @@ export const kpisService = {
     return response.data;
   },
 
+  // Le endpoint liste renvoie les objectifs bruts (sans progression).
+  async listObjectives(filter?: KPIFilter): Promise<SalesObjective[]> {
+    const params = new URLSearchParams();
+    if (filter) {
+      if (filter.userId) params.append('userId', filter.userId);
+      if (filter.year) params.append('year', String(filter.year));
+      if (filter.month) params.append('month', String(filter.month));
+      if (filter.quarter) params.append('quarter', String(filter.quarter));
+    }
+    const response = await api.get<SalesObjective[]>(`/api/kpis/objectives?${params.toString()}`);
+    return response.data;
+  },
+
+  async getObjectiveProgress(id: string): Promise<ObjectiveWithProgress> {
+    const response = await api.get<ObjectiveWithProgress>(`/api/kpis/objectives/${id}`);
+    return response.data;
+  },
+
   async createObjective(input: CreateObjectiveInput): Promise<SalesObjective> {
     const response = await api.post<SalesObjective>('/api/kpis/objectives', input);
     return response.data;
+  },
+
+  async deleteObjective(id: string): Promise<void> {
+    await api.delete(`/api/kpis/objectives/${id}`);
   },
 };
 

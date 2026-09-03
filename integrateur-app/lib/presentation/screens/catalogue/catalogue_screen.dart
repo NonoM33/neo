@@ -4,13 +4,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/utils/extensions.dart';
 import '../../../domain/entities/product.dart';
+import '../../../domain/entities/product_query.dart';
 import '../../../routes/app_router.dart';
 import '../../blocs/catalogue/catalogue_bloc.dart';
+import '../../widgets/ds/ds.dart';
+import '../quotes/quote_screen.dart' show euro;
 
-/// Catalogue screen for browsing products - tablet optimized
+/// Catalogue produits.
+///
+/// iPad paysage : **trois zones proportionnelles** — filtres 25 % / grille /
+/// fiche 30 % avec les dependances en haut. iPad portrait : filtres en sheet,
+/// grille 3 colonnes. iPhone : grille 2 colonnes, fiche en plein ecran.
 class CatalogueScreen extends ConsumerStatefulWidget {
   const CatalogueScreen({super.key});
 
@@ -19,7 +24,7 @@ class CatalogueScreen extends ConsumerStatefulWidget {
 }
 
 class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
-  final _searchController = TextEditingController();
+  bool _filtersCollapsed = false;
 
   @override
   void initState() {
@@ -31,464 +36,865 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final catalogueBloc = ref.watch(catalogueBlocProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final bloc = ref.watch(catalogueBlocProvider);
+    final ds = context.ds;
+    final device = context.dsDevice;
+    final threeZones = device.isDesktop && context.dsIsLandscape;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Catalogue'),
-        actions: [
-          BlocBuilder<CatalogueBloc, CatalogueState>(
-            bloc: catalogueBloc,
-            builder: (context, state) {
-              final isSyncing = state is CatalogueLoaded && state.isSyncing;
-              return IconButton(
-                icon: isSyncing
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync),
-                onPressed: isSyncing
-                    ? null
-                    : () => catalogueBloc.add(const CatalogueSyncRequested()),
-                tooltip: 'Synchroniser le catalogue',
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: ds.surfaceBase,
       body: BlocBuilder<CatalogueBloc, CatalogueState>(
-        bloc: catalogueBloc,
+        bloc: bloc,
         builder: (context, state) {
-          if (state is CatalogueLoading) {
-            return const Center(child: CircularProgressIndicator());
+          if (state is CatalogueLoading || state is CatalogueInitial) {
+            return const SafeArea(child: DsSkeletonGrid(crossAxisCount: 3));
           }
-
           if (state is CatalogueError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: colorScheme.error),
-                  AppSpacing.vGapMd,
-                  Text(state.message, style: Theme.of(context).textTheme.bodyLarge),
-                  AppSpacing.vGapMd,
-                  FilledButton.icon(
-                    onPressed: () {
-                      catalogueBloc.add(const CatalogueLoadRequested());
-                    },
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Réessayer'),
+            return SafeArea(
+              child: DsErrorState(
+                kind: DsErrorKind.fromMessage(state.message),
+                action: DsButton(
+                  label: 'Recharger',
+                  icon: DsGlyph.refresh,
+                  onPressed: () => bloc.add(const CatalogueLoadRequested()),
+                ),
+              ),
+            );
+          }
+          if (state is! CatalogueLoaded) return const SizedBox.shrink();
+
+          final products = state.products;
+
+          return Column(
+            children: [
+              DsAppBar(
+                title: 'Catalogue',
+                subtitle:
+                    '${products.length} produit${products.length > 1 ? 's' : ''} · ${state.allProducts.length} au total',
+                actions: [
+                  DsIconButton(
+                    icon: DsGlyph.sync,
+                    label: 'Synchroniser le catalogue',
+                    onPressed: state.isSyncing
+                        ? null
+                        : () => bloc.add(const CatalogueSyncRequested()),
                   ),
                 ],
               ),
-            );
-          }
-
-          if (state is CatalogueLoaded) {
-            if (isWide) {
-              return _buildTabletLayout(context, catalogueBloc, state);
-            }
-            return _buildMobileLayout(context, catalogueBloc, state);
-          }
-
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-
-  /// Tablet: 2-panel layout (sidebar + grid)
-  Widget _buildTabletLayout(BuildContext context, CatalogueBloc bloc, CatalogueLoaded state) {
-    return Row(
-      children: [
-        // Filters sidebar - 25% of screen
-        SizedBox(
-          width: (MediaQuery.sizeOf(context).width * 0.25).clamp(250, 340),
-          child: _buildFiltersSidebar(context, bloc, state),
-        ),
-        const VerticalDivider(width: 1),
-        // Products grid - flexible
-        Expanded(
-          child: _buildProductsSection(context, bloc, state),
-        ),
-      ],
-    );
-  }
-
-  /// Mobile: stacked layout
-  Widget _buildMobileLayout(BuildContext context, CatalogueBloc bloc, CatalogueLoaded state) {
-    return Column(
-      children: [
-        _buildSearchBar(context, bloc),
-        _buildCategoryChips(context, bloc, state),
-        Expanded(
-          child: _buildProductsGrid(context, bloc, state.products),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFiltersSidebar(
-    BuildContext context,
-    CatalogueBloc bloc,
-    CatalogueLoaded state,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Search
-        Padding(
-          padding: AppSpacing.cardPadding,
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Rechercher...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      tooltip: 'Effacer',
-                      onPressed: () {
-                        _searchController.clear();
-                        bloc.add(const CatalogueSearchRequested(''));
-                      },
-                    )
-                  : null,
-            ),
-            onChanged: (value) {
-              setState(() {}); // update suffix icon
-              bloc.add(CatalogueSearchRequested(value));
-            },
-          ),
-        ),
-
-        // Categories
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'Catégories',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-        AppSpacing.vGapSm,
-
-        // "Tous" option
-        ListTile(
-          leading: const Icon(Icons.apps),
-          title: const Text('Tous'),
-          trailing: Text('${state.allProducts.length}'),
-          selected: state.activeCategory == null && !state.favoritesOnly,
-          onTap: () {
-            bloc.add(const CatalogueFilterChanged());
-          },
-        ),
-
-        ...ProductCategory.values.map((category) {
-          final count = state.countForCategory(category);
-          if (count == 0) return const SizedBox.shrink();
-          return ListTile(
-            leading: Icon(
-              _getCategoryIcon(category),
-              color: state.activeCategory == category
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-            ),
-            title: Text(category.displayName),
-            trailing: Text('$count'),
-            selected: state.activeCategory == category,
-            onTap: () {
-              final newCategory =
-                  state.activeCategory == category ? null : category;
-              bloc.add(CatalogueFilterChanged(category: newCategory));
-            },
-          );
-        }),
-
-        const Divider(),
-
-        // Favorites
-        ListTile(
-          leading: Icon(Icons.favorite, color: Theme.of(context).colorScheme.error),
-          title: const Text('Favoris'),
-          trailing: Text('${state.favorites.length}'),
-          selected: state.favoritesOnly,
-          onTap: () {
-            if (state.favoritesOnly) {
-              bloc.add(const CatalogueFilterChanged());
-            } else {
-              bloc.add(const CatalogueFilterChanged(favoritesOnly: true));
-            }
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchBar(BuildContext context, CatalogueBloc bloc) {
-    return Padding(
-      padding: AppSpacing.cardPadding,
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Rechercher un produit...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  tooltip: 'Effacer',
-                  onPressed: () {
-                    _searchController.clear();
-                    bloc.add(const CatalogueSearchRequested(''));
-                  },
-                )
-              : null,
-        ),
-        onChanged: (value) {
-          setState(() {}); // update suffix icon
-          bloc.add(CatalogueSearchRequested(value));
-        },
-      ),
-    );
-  }
-
-  Widget _buildCategoryChips(BuildContext context, CatalogueBloc bloc, CatalogueLoaded state) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          FilterChip(
-            label: const Text('Tous'),
-            selected: state.activeCategory == null && !state.favoritesOnly,
-            onSelected: (_) {
-              bloc.add(const CatalogueFilterChanged());
-            },
-          ),
-          AppSpacing.hGapSm,
-          ...ProductCategory.values.where((c) => state.countForCategory(c) > 0).map((category) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                avatar: Icon(_getCategoryIcon(category), size: 18),
-                label: Text(category.displayName),
-                selected: state.activeCategory == category,
-                onSelected: (selected) {
-                  bloc.add(CatalogueFilterChanged(
-                    category: selected ? category : null,
-                  ));
-                },
+              // La recherche reste visible quelle que soit la taille d'ecran :
+              // c'est le geste le plus frequent sur le catalogue.
+              _SearchRow(
+                state: state,
+                bloc: bloc,
+                showFiltersButton: !threeZones,
+                onOpenFilters: () => _openFilters(context, state, bloc),
               ),
-            );
-          }),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              avatar: Icon(Icons.favorite,
-                  size: 18, color: state.favoritesOnly ? null : Theme.of(context).colorScheme.error),
-              label: Text('Favoris (${state.favorites.length})'),
-              selected: state.favoritesOnly,
-              onSelected: (selected) {
-                if (selected) {
-                  bloc.add(const CatalogueFilterChanged(favoritesOnly: true));
-                } else {
-                  bloc.add(const CatalogueFilterChanged());
-                }
-              },
+              if (state.query.hasActiveFilters || state.query.text.isNotEmpty)
+                _ActiveCriteria(state: state, bloc: bloc),
+              Expanded(
+                child: Row(
+                  children: [
+                    if (threeZones)
+                      DsSidePanel(
+                        title: 'Filtres',
+                        side: DsPanelSide.left,
+                        widthFactor: 0.22,
+                        minWidth: 240,
+                        maxWidth: 320,
+                        collapsed: _filtersCollapsed,
+                        onToggleCollapsed: () => setState(
+                          () => _filtersCollapsed = !_filtersCollapsed,
+                        ),
+                        child: _Filters(state: state, bloc: bloc),
+                      ),
+                    Expanded(
+                      child: _Grid(
+                        state: state,
+                        bloc: bloc,
+                        products: products,
+                        selectable: threeZones,
+                      ),
+                    ),
+                    if (threeZones)
+                      DsSidePanel(
+                        title: 'Fiche produit',
+                        widthFactor: 0.3,
+                        minWidth: 320,
+                        maxWidth: 460,
+                        child: _ProductDetail(
+                          product: state.selectedProduct,
+                          bloc: bloc,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openFilters(
+    BuildContext context,
+    CatalogueLoaded state,
+    CatalogueBloc bloc,
+  ) async {
+    await showDsSheet<void>(
+      context,
+      title: 'Filtres',
+      subtitle: state.query.hasActiveFilters
+          ? '${state.query.activeFilterCount} filtre${state.query.activeFilterCount > 1 ? 's' : ''} actif${state.query.activeFilterCount > 1 ? 's' : ''}'
+          : 'Affiner la recherche',
+      builder: (sheetContext) => BlocBuilder<CatalogueBloc, CatalogueState>(
+        bloc: bloc,
+        builder: (context, sheetState) {
+          if (sheetState is! CatalogueLoaded) return const SizedBox.shrink();
+          return _Filters(state: sheetState, bloc: bloc);
+        },
+      ),
+    );
+  }
+}
+
+class _Filters extends StatelessWidget {
+  const _Filters({required this.state, required this.bloc});
+
+  final CatalogueLoaded state;
+  final CatalogueBloc bloc;
+
+  void _update(ProductQuery query) => bloc.add(CatalogueQueryChanged(query));
+
+  @override
+  Widget build(BuildContext context) {
+    final query = state.query;
+    final brands = state.availableBrands;
+    final protocols = state.availableProtocols;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(DsSpacing.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (query.hasActiveFilters) ...[
+            DsButton(
+              label: 'Effacer les filtres',
+              icon: DsGlyph.close,
+              variant: DsButtonVariant.secondary,
+              size: DsButtonSize.small,
+              onPressed: () =>
+                  _update(query.cleared().copyWith(text: query.text)),
+            ),
+            const SizedBox(height: DsSpacing.s4),
+          ],
+          const DsSectionTitle('Trier par'),
+          const SizedBox(height: DsSpacing.s2),
+          Wrap(
+            spacing: DsSpacing.s2,
+            runSpacing: DsSpacing.s2,
+            children: [
+              for (final sort in ProductSort.values)
+                DsFilterChip(
+                  label: sort.displayName,
+                  selected: query.sort == sort,
+                  onSelected: () => _update(query.copyWith(sort: sort)),
+                ),
+            ],
+          ),
+          const SizedBox(height: DsSpacing.s4),
+          const DsSectionTitle('Disponibilité'),
+          const SizedBox(height: DsSpacing.s2),
+          Wrap(
+            spacing: DsSpacing.s2,
+            runSpacing: DsSpacing.s2,
+            children: [
+              for (final stock in ProductStockFilter.values)
+                DsFilterChip(
+                  label: stock.displayName,
+                  selected: query.stock == stock,
+                  onSelected: () => _update(query.copyWith(stock: stock)),
+                ),
+            ],
+          ),
+          const SizedBox(height: DsSpacing.s4),
+          const DsSectionTitle('Catégories'),
+          const SizedBox(height: DsSpacing.s2),
+          Wrap(
+            spacing: DsSpacing.s2,
+            runSpacing: DsSpacing.s2,
+            children: [
+              for (final category in ProductCategory.values)
+                DsFilterChip(
+                  label: category.displayName,
+                  count: state.countForCategory(category),
+                  selected: query.categories.contains(category),
+                  onSelected: () => _update(
+                    query.copyWith(
+                      categories: ProductQuery.toggle(
+                        query.categories,
+                        category,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (brands.isNotEmpty) ...[
+            const SizedBox(height: DsSpacing.s4),
+            const DsSectionTitle('Marques'),
+            const SizedBox(height: DsSpacing.s2),
+            Wrap(
+              spacing: DsSpacing.s2,
+              runSpacing: DsSpacing.s2,
+              children: [
+                for (final brand in brands)
+                  DsFilterChip(
+                    label: brand,
+                    count: state.countForBrand(brand),
+                    selected: query.brands.contains(brand),
+                    onSelected: () => _update(
+                      query.copyWith(
+                        brands: ProductQuery.toggle(query.brands, brand),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (protocols.isNotEmpty) ...[
+            const SizedBox(height: DsSpacing.s4),
+            const DsSectionTitle('Protocoles'),
+            const SizedBox(height: DsSpacing.s2),
+            Wrap(
+              spacing: DsSpacing.s2,
+              runSpacing: DsSpacing.s2,
+              children: [
+                for (final protocol in protocols)
+                  DsFilterChip(
+                    label: protocol.displayName,
+                    count: state.countForProtocol(protocol),
+                    selected: query.protocols.contains(protocol),
+                    onSelected: () => _update(
+                      query.copyWith(
+                        protocols: ProductQuery.toggle(
+                          query.protocols,
+                          protocol,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: DsSpacing.s4),
+          const DsSectionTitle('Prix de vente'),
+          const SizedBox(height: DsSpacing.s2),
+          _PriceRange(
+            min: query.minPrice,
+            max: query.maxPrice,
+            ceiling: state.maxCataloguePrice,
+            onChanged: (min, max) => _update(
+              query.copyWith(
+                minPrice: min,
+                clearMinPrice: min == null,
+                maxPrice: max,
+                clearMaxPrice: max == null,
+              ),
             ),
           ),
+          const SizedBox(height: DsSpacing.s4),
+          const DsSectionTitle('Sélection'),
+          const SizedBox(height: DsSpacing.s2),
+          DsToggle(
+            label: 'Favoris uniquement',
+            icon: DsGlyph.favorite,
+            value: query.favoritesOnly,
+            onChanged: (value) => _update(query.copyWith(favoritesOnly: value)),
+          ),
+          const SizedBox(height: DsSpacing.s2),
+          DsToggle(
+            label: 'Compatible Home Assistant',
+            value: query.homeAssistantOnly,
+            onChanged: (value) =>
+                _update(query.copyWith(homeAssistantOnly: value)),
+          ),
+          const SizedBox(height: DsSpacing.s4),
         ],
       ),
     );
   }
+}
 
-  Widget _buildProductsSection(
-    BuildContext context,
-    CatalogueBloc bloc,
-    CatalogueLoaded state,
-  ) {
-    final filtered = state.products;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: AppSpacing.cardPadding,
-          child: Text(
-            '${filtered.length} produit${filtered.length > 1 ? 's' : ''}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
-        Expanded(
-          child: _buildProductsGrid(context, bloc, filtered),
-        ),
-      ],
-    );
-  }
+/// Ligne de recherche persistante, presente sur toutes les tailles d'ecran.
+class _SearchRow extends StatelessWidget {
+  const _SearchRow({
+    required this.state,
+    required this.bloc,
+    required this.showFiltersButton,
+    required this.onOpenFilters,
+  });
 
-  Widget _buildProductsGrid(
-    BuildContext context,
-    CatalogueBloc bloc,
-    List<Product> products,
-  ) {
-    if (products.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inventory_2,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+  final CatalogueLoaded state;
+  final CatalogueBloc bloc;
+  final bool showFiltersButton;
+  final VoidCallback onOpenFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    final device = context.dsDevice;
+    final padding = DsSpacing.pagePadding(device);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        padding,
+        DsSpacing.s2,
+        padding,
+        DsSpacing.s2,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: DsSearchBar(
+              hintText: 'Nom, référence, marque…',
+              controller: bloc.searchController,
+              onChanged: (value) => bloc.add(CatalogueSearchRequested(value)),
             ),
-            AppSpacing.vGapMd,
-            Text(
-              'Aucun produit trouvé',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          if (showFiltersButton) ...[
+            const SizedBox(width: DsSpacing.s2),
+            DsButton(
+              label: state.query.hasActiveFilters
+                  ? 'Filtres · ${state.query.activeFilterCount}'
+                  : 'Filtres',
+              icon: DsGlyph.filter,
+              variant: state.query.hasActiveFilters
+                  ? DsButtonVariant.primary
+                  : DsButtonVariant.secondary,
+              onPressed: onOpenFilters,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Rappel des criteres actifs, chacun retirable d'un geste.
+class _ActiveCriteria extends StatelessWidget {
+  const _ActiveCriteria({required this.state, required this.bloc});
+
+  final CatalogueLoaded state;
+  final CatalogueBloc bloc;
+
+  void _update(ProductQuery query) => bloc.add(CatalogueQueryChanged(query));
+
+  @override
+  Widget build(BuildContext context) {
+    final query = state.query;
+    final device = context.dsDevice;
+    final padding = DsSpacing.pagePadding(device);
+
+    final chips = <Widget>[];
+
+    if (query.text.isNotEmpty) {
+      chips.add(
+        _CriterionChip(
+          label: '« ${query.text} »',
+          onRemove: () {
+            bloc.searchController.clear();
+            _update(query.copyWith(text: ''));
+          },
+        ),
+      );
+    }
+    for (final category in query.categories) {
+      chips.add(
+        _CriterionChip(
+          label: category.displayName,
+          onRemove: () => _update(
+            query.copyWith(
+              categories: ProductQuery.toggle(query.categories, category),
+            ),
+          ),
+        ),
+      );
+    }
+    for (final brand in query.brands) {
+      chips.add(
+        _CriterionChip(
+          label: brand,
+          onRemove: () => _update(
+            query.copyWith(brands: ProductQuery.toggle(query.brands, brand)),
+          ),
+        ),
+      );
+    }
+    for (final protocol in query.protocols) {
+      chips.add(
+        _CriterionChip(
+          label: protocol.displayName,
+          onRemove: () => _update(
+            query.copyWith(
+              protocols: ProductQuery.toggle(query.protocols, protocol),
+            ),
+          ),
+        ),
+      );
+    }
+    if (query.stock != ProductStockFilter.any) {
+      chips.add(
+        _CriterionChip(
+          label: query.stock.displayName,
+          onRemove: () =>
+              _update(query.copyWith(stock: ProductStockFilter.any)),
+        ),
+      );
+    }
+    if (query.minPrice != null || query.maxPrice != null) {
+      final min = query.minPrice?.round();
+      final max = query.maxPrice?.round();
+      chips.add(
+        _CriterionChip(
+          label: min != null && max != null
+              ? '$min – $max €'
+              : min != null
+              ? 'dès $min €'
+              : "jusqu'à $max €",
+          onRemove: () =>
+              _update(query.copyWith(clearMinPrice: true, clearMaxPrice: true)),
+        ),
+      );
+    }
+    if (query.favoritesOnly) {
+      chips.add(
+        _CriterionChip(
+          label: 'Favoris',
+          onRemove: () => _update(query.copyWith(favoritesOnly: false)),
+        ),
+      );
+    }
+    if (query.homeAssistantOnly) {
+      chips.add(
+        _CriterionChip(
+          label: 'Home Assistant',
+          onRemove: () => _update(query.copyWith(homeAssistantOnly: false)),
         ),
       );
     }
 
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, 0, padding, DsSpacing.s2),
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final chip in chips) ...[
+                    chip,
+                    const SizedBox(width: DsSpacing.s2),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          DsButton(
+            label: 'Tout effacer',
+            variant: DsButtonVariant.ghost,
+            size: DsButtonSize.small,
+            onPressed: () {
+              bloc.searchController.clear();
+              _update(query.cleared());
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CriterionChip extends StatelessWidget {
+  const _CriterionChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final type = context.dsType;
+    final accent = ds.brandPrimary;
+
+    return Semantics(
+      button: true,
+      label: 'Retirer le filtre $label',
+      child: Material(
+        color: ds.soft(accent, 0.14),
+        borderRadius: DsRadius.fullAll,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onRemove();
+          },
+          borderRadius: DsRadius.fullAll,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: DsSpacing.targetMin),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DsSpacing.s3,
+              vertical: DsSpacing.s2,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: type.labelSize,
+                    fontWeight: DsWeight.semibold,
+                    color: accent,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                DsIcon(DsGlyph.close, size: 16, color: accent),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fourchette de prix saisie en clair : plus rapide qu'un curseur au doigt
+/// quand on cherche "moins de 100 €" sur un chantier.
+class _PriceRange extends StatefulWidget {
+  const _PriceRange({
+    required this.min,
+    required this.max,
+    required this.ceiling,
+    required this.onChanged,
+  });
+
+  final double? min;
+  final double? max;
+  final double ceiling;
+  final void Function(double? min, double? max) onChanged;
+
+  @override
+  State<_PriceRange> createState() => _PriceRangeState();
+}
+
+class _PriceRangeState extends State<_PriceRange> {
+  late final TextEditingController _min = TextEditingController(
+    text: widget.min?.round().toString() ?? '',
+  );
+  late final TextEditingController _max = TextEditingController(
+    text: widget.max?.round().toString() ?? '',
+  );
+
+  @override
+  void dispose() {
+    _min.dispose();
+    _max.dispose();
+    super.dispose();
+  }
+
+  double? _parse(String value) {
+    final cleaned = value.replaceAll(',', '.').trim();
+    if (cleaned.isEmpty) return null;
+    return double.tryParse(cleaned);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: DsTextField(
+            label: 'Min €',
+            controller: _min,
+            keyboardType: TextInputType.number,
+            hintText: '0',
+            onChanged: (value) =>
+                widget.onChanged(_parse(value), _parse(_max.text)),
+          ),
+        ),
+        const SizedBox(width: DsSpacing.s2),
+        Expanded(
+          child: DsTextField(
+            label: 'Max €',
+            controller: _max,
+            keyboardType: TextInputType.number,
+            hintText: widget.ceiling > 0
+                ? widget.ceiling.round().toString()
+                : null,
+            onChanged: (value) =>
+                widget.onChanged(_parse(_min.text), _parse(value)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Grid extends StatelessWidget {
+  const _Grid({
+    required this.state,
+    required this.bloc,
+    required this.products,
+    required this.selectable,
+  });
+
+  final CatalogueLoaded state;
+  final CatalogueBloc bloc;
+  final List<Product> products;
+  final bool selectable;
+
+  @override
+  Widget build(BuildContext context) {
+    final device = context.dsDevice;
+    final padding = DsSpacing.pagePadding(device);
+
+    if (state.isSyncing && products.isEmpty) {
+      return const DsSkeletonGrid(crossAxisCount: 3);
+    }
+
+    if (products.isEmpty) {
+      return state.allProducts.isEmpty
+          ? DsEmptyState(
+              icon: DsGlyph.catalogue,
+              title: 'Catalogue vide sur cet appareil',
+              description:
+                  'Synchronisez le catalogue une fois connecté : il reste ensuite disponible hors ligne.',
+              action: DsButton(
+                label: 'Synchroniser',
+                icon: DsGlyph.sync,
+                onPressed: () => bloc.add(const CatalogueSyncRequested()),
+              ),
+            )
+          : const DsEmptyState(
+              icon: DsGlyph.search,
+              title: 'Aucun produit ne correspond',
+              description:
+                  'Essayez une autre référence ou marque, ou retirez le filtre de catégorie.',
+            );
+    }
+
+    // Les colonnes se deduisent de la place **reellement disponible**, pas de
+    // la taille de l'ecran : en trois zones, la grille est coincee entre deux
+    // panneaux et un nombre fige y ecrase les cartes (CLAUDE.md, §Grilles).
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = (constraints.maxWidth / 220).floor().clamp(2, 5);
+        const targetItemWidth = 260.0;
+        final available = constraints.maxWidth - padding * 2;
+        final columns = (available / targetItemWidth).floor().clamp(
+          device.isPhone ? 1 : 2,
+          4,
+        );
 
         return GridView.builder(
-          padding: AppSpacing.pagePadding,
+          padding: EdgeInsets.fromLTRB(
+            padding,
+            DsSpacing.s4,
+            padding,
+            DsSpacing.s16,
+          ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 0.85,
+            mainAxisExtent: DsProductCard.gridExtent(context),
+            mainAxisSpacing: DsSpacing.gapCard,
+            crossAxisSpacing: DsSpacing.gapCard,
           ),
           itemCount: products.length,
           itemBuilder: (context, index) {
-            return _buildProductCard(context, bloc, products[index]);
+            final product = products[index];
+            return DsProductCard(
+              name: product.name,
+              brand: product.brand,
+              reference: product.reference,
+              imageUrl: product.photoUrl,
+              priceHT: euro.format(product.salePrice),
+              priceTTC: euro.format(product.salePrice * 1.2),
+              protocols: product.protocols
+                  .map((protocol) => protocol.displayName)
+                  .toList(),
+              stock: DsStockLevel.fromQuantity(product.stockAvailable),
+              favorite: product.isFavorite,
+              onToggleFavorite: () =>
+                  bloc.add(CatalogueToggleFavoriteRequested(product.id)),
+              onTap: () {
+                if (selectable) {
+                  bloc.add(CatalogueProductSelected(product));
+                } else {
+                  context.goToProductDetail(product.id);
+                }
+              },
+            );
           },
         );
       },
     );
   }
+}
 
-  Widget _buildProductCard(
-    BuildContext context,
-    CatalogueBloc bloc,
-    Product product,
-  ) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+class _ProductDetail extends StatelessWidget {
+  const _ProductDetail({required this.product, required this.bloc});
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          context.goToProductDetail(product.id);
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image placeholder
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: colorScheme.surfaceContainerHighest,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Icon(
-                        _getCategoryIcon(product.category),
-                        size: 48,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: IconButton(
-                        icon: Icon(
-                          product.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: product.isFavorite ? colorScheme.error : null,
-                        ),
-                        tooltip: product.isFavorite
-                            ? 'Retirer des favoris'
-                            : 'Ajouter aux favoris',
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
-                          bloc.add(CatalogueToggleFavoriteRequested(product.id));
-                        },
-                      ),
-                    ),
-                  ],
+  final Product? product;
+  final CatalogueBloc bloc;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final t = context.dsType;
+
+    if (product == null) {
+      return const DsEmptyState(
+        compact: true,
+        icon: DsGlyph.catalogue,
+        title: 'Sélectionnez un produit',
+        description:
+            'Ses caractéristiques, son stock et ses dépendances s’affichent ici.',
+      );
+    }
+
+    final p = product!;
+
+    return ListView(
+      padding: const EdgeInsets.all(DsSpacing.s5),
+      children: [
+        // Les dependances passent avant le prix : c'est ce qui evite
+        // les oublis de materiel sur le chantier.
+        if (p.specs.compatibiliteHA == false)
+          Padding(
+            padding: const EdgeInsets.only(bottom: DsSpacing.gapCard),
+            child: DsDependencyCard(
+              title: 'Compatibilité à vérifier',
+              items: const [
+                DsDependencyItem(
+                  name: 'Passerelle domotique compatible',
+                  level: DsDependencyLevel.obligatoire,
                 ),
-              ),
+              ],
             ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.brand,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    product.name,
-                    style: textTheme.titleSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  AppSpacing.vGapXs,
-                  Text(
-                    product.salePrice.asCurrency,
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
+        Text(
+          p.brand.toUpperCase(),
+          style: TextStyle(
+            fontSize: t.badgeSize,
+            fontWeight: DsWeight.semibold,
+            letterSpacing: 0.6,
+            color: ds.textSecondary,
+          ),
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          p.name,
+          style: TextStyle(
+            fontSize: t.h3Size,
+            fontWeight: DsWeight.semibold,
+            letterSpacing: -0.3,
+            color: ds.textPrimary,
+          ),
+        ),
+        const SizedBox(height: DsSpacing.s2),
+        Text(
+          'Réf. ${p.reference}',
+          style: TextStyle(
+            fontSize: t.captionSize,
+            fontFeatures: dsTabularFigures,
+            color: ds.textTertiary,
+          ),
+        ),
+        const SizedBox(height: DsSpacing.s4),
+        DsCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Spec(label: 'Prix HT', value: euro.format(p.salePrice)),
+              _Spec(label: 'Prix TTC', value: euro.format(p.salePrice * 1.2)),
+              _Spec(label: 'Stock', value: '${p.stockAvailable}'),
+              _Spec(label: 'Protocoles', value: p.protocolsDisplay),
+              if (p.specs.alimentation != null)
+                _Spec(label: 'Alimentation', value: p.specs.alimentation!),
+              if (p.specs.dimensions != null)
+                _Spec(label: 'Dimensions', value: p.specs.dimensions!),
+              _Spec(
+                label: 'Emplacement',
+                value: p.specs.locationType.displayName,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: DsSpacing.gapCard),
+        if (p.description.isNotEmpty) ...[
+          Text(
+            p.description,
+            style: TextStyle(
+              fontSize: t.bodySize,
+              height: t.bodyLine / t.bodySize,
+              color: ds.textBody,
+            ),
+          ),
+          const SizedBox(height: DsSpacing.gapCard),
+        ],
+        DsButton(
+          label: 'Ouvrir la fiche complète',
+          icon: DsGlyph.chevronRight,
+          variant: DsButtonVariant.secondary,
+          fullWidth: true,
+          onPressed: () => context.goToProductDetail(p.id),
+        ),
+      ],
     );
   }
+}
 
-  IconData _getCategoryIcon(ProductCategory category) {
-    switch (category) {
-      case ProductCategory.eclairage:
-        return Icons.lightbulb;
-      case ProductCategory.ouvrants:
-        return Icons.window;
-      case ProductCategory.climat:
-        return Icons.thermostat;
-      case ProductCategory.securite:
-        return Icons.security;
-      case ProductCategory.energie:
-        return Icons.router;
-      case ProductCategory.multimedia:
-        return Icons.speaker;
-      case ProductCategory.custom:
-        return Icons.build;
-    }
+class _Spec extends StatelessWidget {
+  const _Spec({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final t = context.dsType;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: DsSpacing.s3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: t.captionSize,
+                color: ds.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: t.bodySize,
+                fontWeight: DsWeight.medium,
+                fontFeatures: dsTabularFigures,
+                color: ds.textBody,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

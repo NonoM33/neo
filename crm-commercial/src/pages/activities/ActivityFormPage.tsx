@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, Button, Input, Select, Textarea } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Card, Icon } from '../../components/neo';
 import { activitiesService, type CreateActivityInput } from '../../services/activities.service';
 import { ACTIVITY_TYPE_LABELS } from '../../types';
 import { useGamificationStore } from '../../stores';
@@ -27,13 +28,7 @@ export function ActivityFormPage() {
     reminderAt: '',
   });
 
-  useEffect(() => {
-    if (isEditing && id) {
-      loadActivity();
-    }
-  }, [id]);
-
-  const loadActivity = async () => {
+  const loadActivity = useCallback(async () => {
     try {
       const activity = await activitiesService.getActivity(id!);
       setFormData({
@@ -52,7 +47,13 @@ export function ActivityFormPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (isEditing && id) {
+      loadActivity();
+    }
+  }, [isEditing, id, loadActivity]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -93,104 +94,116 @@ export function ActivityFormPage() {
     }
   };
 
-  const typeOptions = Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => ({ value, label }));
-
   if (loading) {
     return <Spinner />;
   }
 
   return (
-    <div className="activity-form">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate(-1)}>
-            <i className="bi bi-arrow-left me-1"></i>
+    <div className="activity-form" style={{ maxWidth: 760, margin: '0 auto' }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button
+            type="button"
+            className="btn-back"
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              color: 'var(--ink-3)',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: 8,
+              fontSize: 13,
+            }}
+          >
+            <Icon name="arrowLeft" size={15} />
             Retour
           </button>
-          <div className="d-flex align-items-center gap-2">
-            <h2 className="mb-0">{isEditing ? 'Modifier l\'activité' : 'Nouvelle activité'}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1>{isEditing ? "Modifier l'activité" : 'Nouvelle activité'}</h1>
             {!isEditing && <XPIndicator xp={5} />}
           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="row justify-content-center">
-          <div className="col-lg-8">
-            <Card className="mb-4">
-              <CardHeader>Détails de l'activité</CardHeader>
-              <CardBody>
-                <div className="row">
-                  <div className="col-md-6">
-                    <Select
-                      label="Type"
-                      name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      options={typeOptions}
-                      error={errors.type}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <Input
-                      label="Durée (minutes)"
-                      name="duration"
-                      type="number"
-                      value={formData.duration || ''}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-
-                <Input
-                  label="Sujet"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  error={errors.subject}
-                  required
-                />
-
-                <Textarea
-                  label="Description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                />
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <Input
-                      label="Date et heure"
-                      name="scheduledAt"
-                      type="datetime-local"
-                      value={formData.scheduledAt}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <Input
-                      label="Rappel"
-                      name="reminderAt"
-                      type="datetime-local"
-                      value={formData.reminderAt}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-
-            <div className="d-flex gap-2 justify-content-end">
-              <Button type="button" variant="outline-secondary" onClick={() => navigate(-1)}>
-                Annuler
-              </Button>
-              <Button type="submit" loading={submitting} icon="bi-check-lg">
-                {isEditing ? 'Enregistrer' : 'Créer l\'activité'}
-              </Button>
+        <Card head="Détails de l'activité" icon="calendar">
+          <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            <div>
+              <div className="field-label">Type</div>
+              <select className="neo-field" name="type" value={formData.type} onChange={handleChange} required>
+                {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              {errors.type && <div className="field-error">{errors.type}</div>}
+            </div>
+            <div>
+              <div className="field-label">Durée (minutes)</div>
+              <input
+                className="neo-field"
+                name="duration"
+                type="number"
+                value={formData.duration || ''}
+                onChange={handleChange}
+              />
             </div>
           </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div className="field-label">Sujet</div>
+            <input className="neo-field" name="subject" value={formData.subject} onChange={handleChange} required />
+            {errors.subject && <div className="field-error">{errors.subject}</div>}
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div className="field-label">Description</div>
+            <textarea
+              className="neo-field"
+              name="description"
+              rows={4}
+              value={formData.description}
+              onChange={handleChange}
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+
+          <div className="field-grid" style={{ marginTop: 14, paddingTop: 0, borderTop: 'none' }}>
+            <div>
+              <div className="field-label">Date et heure</div>
+              <input
+                className="neo-field"
+                name="scheduledAt"
+                type="datetime-local"
+                value={formData.scheduledAt}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <div className="field-label">Rappel</div>
+              <input
+                className="neo-field"
+                name="reminderAt"
+                type="datetime-local"
+                value={formData.reminderAt}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+        </Card>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+          <Btn type="button" variant="subtle" onClick={() => navigate(-1)}>
+            Annuler
+          </Btn>
+          <Btn type="submit" icon="check" disabled={submitting}>
+            {isEditing ? 'Enregistrer' : "Créer l'activité"}
+          </Btn>
         </div>
       </form>
     </div>

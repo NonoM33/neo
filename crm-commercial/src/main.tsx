@@ -4,6 +4,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import App from './App';
 import './styles/theme-dark.css';
+// Chargé en dernier : le DS (scopé `.neo-ds`) doit gagner les ties de spécificité
+// face aux surcharges `[data-theme="dark"] .card/.table/...`.
+import './styles/neo-ds.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

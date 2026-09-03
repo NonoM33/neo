@@ -8,6 +8,7 @@ import type {
   AppointmentTypeConfig,
   AvailabilitySlot,
   AvailabilityOverride,
+  DayOfWeek,
   ParticipantRole,
   ParticipantResponseStatus,
   AppointmentParticipant,
@@ -106,6 +107,22 @@ export const appointmentsService = {
 
   async setAvailability(slots: AvailabilitySlot[]): Promise<AvailabilitySlot[]> {
     const response = await api.put<AvailabilitySlot[]>('/api/availability', { slots });
+    return response.data;
+  },
+
+  // Admin: read another user's weekly slots. The backend returns { slots, overrides }.
+  async getUserAvailabilitySlots(userId: string): Promise<AvailabilitySlot[]> {
+    const response = await api.get<{ slots: AvailabilitySlot[] } | AvailabilitySlot[]>(`/api/availability/${userId}`);
+    const data = response.data;
+    return Array.isArray(data) ? data : (data.slots ?? []);
+  },
+
+  // Admin: bulk-replace another user's weekly availability slots.
+  async setUserAvailability(
+    userId: string,
+    slots: { dayOfWeek: DayOfWeek; startTime: string; endTime: string; isActive?: boolean }[]
+  ): Promise<AvailabilitySlot[]> {
+    const response = await api.put<AvailabilitySlot[]>(`/api/availability/admin/${userId}`, { slots });
     return response.data;
   },
 

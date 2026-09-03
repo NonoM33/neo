@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardHeader, CardBody, Spinner, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
 import { productsService } from '../../services';
 import { useAuthStore } from '../../stores';
 import type { Product, ProductWithDependencies, DependencyType } from '../../types';
@@ -118,103 +119,151 @@ export function ProductDetailPage() {
   }
 
   return (
-    <div className="product-detail">
-      <div className="d-flex justify-content-between align-items-start mb-4">
-        <div>
-          <button className="btn btn-link text-secondary p-0 mb-2" onClick={() => navigate('/produits')}>
-            <i className="bi bi-arrow-left me-1"></i>
-            Retour au catalogue
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/produits')}>
+            <Icon name="arrowLeft" size={15} /> Retour au catalogue
           </button>
-          <div className="d-flex align-items-center gap-2">
-            <h2 className="mb-0">{product.name}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1>{product.name}</h1>
             {product.isActive ? (
-              <span className="badge bg-success">Actif</span>
+              <Pill tone="success" dot>
+                Actif
+              </Pill>
             ) : (
-              <span className="badge border text-body-secondary">Inactif</span>
+              <Pill tone="neutral">Inactif</Pill>
             )}
           </div>
-          <code className="text-secondary">{product.reference}</code>
+          <div className="t-mono" style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+            {product.reference}
+          </div>
         </div>
         {isAdmin && (
-          <Button icon="bi-pencil" onClick={() => navigate(`/produits/${product.id}/edit`)}>
-            Modifier
-          </Button>
+          <div className="page-actions">
+            <Btn icon="edit" onClick={() => navigate(`/produits/${product.id}/edit`)}>
+              Modifier
+            </Btn>
+          </div>
         )}
       </div>
 
-      <div className="row g-4">
-        <div className="col-lg-8">
-          <Card className="mb-4">
-            <CardHeader>Détails</CardHeader>
-            <CardBody>
-              <dl className="row mb-0">
-                <dt className="col-sm-3 text-secondary">Catégorie</dt>
-                <dd className="col-sm-9">{product.category}</dd>
-                <dt className="col-sm-3 text-secondary">Marque</dt>
-                <dd className="col-sm-9">{product.brand || '-'}</dd>
-                <dt className="col-sm-3 text-secondary">Prix HT</dt>
-                <dd className="col-sm-9">{formatCurrency(product.priceHT)}</dd>
-                <dt className="col-sm-3 text-secondary">TVA</dt>
-                <dd className="col-sm-9">{product.tvaRate} %</dd>
-                <dt className="col-sm-3 text-secondary">Stock</dt>
-                <dd className="col-sm-9">{product.stock ?? '-'}</dd>
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Détails" icon="package">
+            <div className="card-body">
+              <dl className="detail-dl">
+                <div>
+                  <dt>Catégorie</dt>
+                  <dd>{product.category}</dd>
+                </div>
+                <div>
+                  <dt>Marque</dt>
+                  <dd>{product.brand || '-'}</dd>
+                </div>
+                <div>
+                  <dt>Prix HT</dt>
+                  <dd className="t-mono">{formatCurrency(product.priceHT)}</dd>
+                </div>
+                <div>
+                  <dt>TVA</dt>
+                  <dd>{product.tvaRate} %</dd>
+                </div>
+                <div>
+                  <dt>Stock</dt>
+                  <dd>{product.stock ?? '-'}</dd>
+                </div>
                 {product.description && (
-                  <>
-                    <dt className="col-sm-3 text-secondary">Description</dt>
-                    <dd className="col-sm-9" style={{ whiteSpace: 'pre-wrap' }}>
-                      {product.description}
-                    </dd>
-                  </>
+                  <div>
+                    <dt>Description</dt>
+                    <dd style={{ whiteSpace: 'pre-wrap' }}>{product.description}</dd>
+                  </div>
                 )}
               </dl>
-            </CardBody>
+            </div>
           </Card>
 
           {/* Dépendances : ce produit a besoin de… */}
-          <Card className="mb-4">
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>Dépendances requises</span>
-                {isAdmin && !showAddDep && (
-                  <button className="btn btn-sm btn-outline-primary" onClick={() => setShowAddDep(true)}>
-                    <i className="bi bi-plus-lg me-1"></i>
-                    Ajouter
-                  </button>
-                )}
-              </div>
-            </CardHeader>
-            <CardBody>
+          <Card
+            head="Dépendances requises"
+            icon="crosshair"
+            action={
+              isAdmin && !showAddDep ? (
+                <Btn variant="subtle" size="sm" icon="plus" onClick={() => setShowAddDep(true)}>
+                  Ajouter
+                </Btn>
+              ) : undefined
+            }
+          >
+            <div className="card-body">
               {showAddDep && (
-                <div className="border rounded p-3 mb-3">
-                  <label className="form-label">Produit requis</label>
+                <div
+                  style={{
+                    border: '1px solid var(--line)',
+                    borderRadius: 10,
+                    padding: 14,
+                    marginBottom: 14,
+                  }}
+                >
+                  <div className="field-label">Produit requis</div>
                   {depTarget ? (
-                    <div className="d-flex justify-content-between align-items-center mb-2">
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 10,
+                      }}
+                    >
                       <span>
-                        <strong>{depTarget.name}</strong> <code className="text-secondary">{depTarget.reference}</code>
+                        <strong>{depTarget.name}</strong>{' '}
+                        <code className="t-mono" style={{ color: 'var(--ink-3)' }}>
+                          {depTarget.reference}
+                        </code>
                       </span>
-                      <button className="btn btn-sm btn-link text-secondary" onClick={() => setDepTarget(null)}>
+                      <Btn variant="subtle" size="sm" onClick={() => setDepTarget(null)}>
                         Changer
-                      </button>
+                      </Btn>
                     </div>
                   ) : (
                     <>
                       <input
-                        type="text"
-                        className="form-control mb-2"
+                        className="neo-field"
+                        style={{ marginBottom: 8 }}
                         placeholder="Rechercher un produit…"
                         value={depSearch}
                         onChange={(e) => setDepSearch(e.target.value)}
                       />
                       {depResults.length > 0 && (
-                        <div className="list-group mb-2">
+                        <div
+                          style={{
+                            border: '1px solid var(--line)',
+                            borderRadius: 8,
+                            marginBottom: 10,
+                            overflow: 'hidden',
+                          }}
+                        >
                           {depResults.map((p) => (
                             <button
                               key={p.id}
                               type="button"
-                              className="list-group-item list-group-item-action"
                               onClick={() => setDepTarget(p)}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: '8px 12px',
+                                background: 'none',
+                                border: 'none',
+                                borderBottom: '1px solid var(--line)',
+                                cursor: 'pointer',
+                                fontSize: 14,
+                              }}
                             >
-                              <strong>{p.name}</strong> <code className="text-secondary">{p.reference}</code>
+                              <strong>{p.name}</strong>{' '}
+                              <code className="t-mono" style={{ color: 'var(--ink-3)' }}>
+                                {p.reference}
+                              </code>
                             </button>
                           ))}
                         </div>
@@ -222,11 +271,11 @@ export function ProductDetailPage() {
                     </>
                   )}
 
-                  <div className="row g-2">
-                    <div className="col-md-6">
-                      <label className="form-label">Type</label>
+                  <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                    <div>
+                      <div className="field-label">Type</div>
                       <select
-                        className="form-select"
+                        className="neo-field"
                         value={depType}
                         onChange={(e) => setDepType(e.target.value as DependencyType)}
                       >
@@ -234,110 +283,137 @@ export function ProductDetailPage() {
                         <option value="recommended">Recommandé</option>
                       </select>
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Couverture (qté)</label>
+                    <div>
+                      <div className="field-label">Couverture (qté)</div>
                       <input
                         type="number"
                         min="1"
-                        className="form-control"
+                        className="neo-field"
                         value={depCovered}
                         onChange={(e) => setDepCovered(e.target.value)}
                       />
                     </div>
                   </div>
-                  <div className="mt-2">
-                    <label className="form-label">Description (optionnel)</label>
+                  <div style={{ marginTop: 14 }}>
+                    <div className="field-label">Description (optionnel)</div>
                     <input
-                      type="text"
-                      className="form-control"
+                      className="neo-field"
                       placeholder="Ex: 1 bridge pour jusqu'à 50 ampoules"
                       value={depDescription}
                       onChange={(e) => setDepDescription(e.target.value)}
                     />
                   </div>
-                  <div className="d-flex gap-2 mt-3">
-                    <Button loading={savingDep} disabled={!depTarget} icon="bi-check-lg" onClick={handleAddDependency}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    <Btn disabled={savingDep || !depTarget} icon="check" onClick={handleAddDependency}>
                       Ajouter la dépendance
-                    </Button>
-                    <Button variant="outline-secondary" onClick={resetDepForm}>
+                    </Btn>
+                    <Btn variant="subtle" onClick={resetDepForm}>
                       Annuler
-                    </Button>
+                    </Btn>
                   </div>
                 </div>
               )}
 
               {product.dependencies.length === 0 ? (
-                <p className="text-secondary mb-0">Aucune dépendance.</p>
+                <p style={{ color: 'var(--ink-3)', margin: 0 }}>Aucune dépendance.</p>
               ) : (
-                <ul className="list-group list-group-flush">
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {product.dependencies.map((dep) => (
                     <li
                       key={dep.id}
-                      className="list-group-item d-flex justify-content-between align-items-center px-0"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '12px 0',
+                        borderBottom: '1px solid var(--line)',
+                      }}
                     >
                       <div>
                         <button
-                          className="btn btn-link p-0 text-start"
                           onClick={() => navigate(`/produits/${dep.requiredProduct.id}`)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            color: 'var(--komun)',
+                            fontWeight: 600,
+                            fontSize: 14,
+                          }}
                         >
-                          <strong>{dep.requiredProduct.name}</strong>
+                          {dep.requiredProduct.name}
                         </button>{' '}
-                        <code className="text-secondary">{dep.requiredProduct.reference}</code>
-                        <div className="small text-secondary">
-                          <span
-                            className={`badge me-2 ${dep.type === 'required' ? 'bg-danger' : 'bg-info'}`}
-                          >
+                        <code className="t-mono" style={{ color: 'var(--ink-3)' }}>
+                          {dep.requiredProduct.reference}
+                        </code>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                          <Pill tone={dep.type === 'required' ? 'danger' : 'info'}>
                             {DEP_TYPE_LABELS[dep.type]}
+                          </Pill>
+                          <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>
+                            {dep.coveredQuantity > 1 && <>1 pour {dep.coveredQuantity} · </>}
+                            {dep.description}
                           </span>
-                          {dep.coveredQuantity > 1 && <>1 pour {dep.coveredQuantity} · </>}
-                          {dep.description}
                         </div>
                       </div>
                       {isAdmin && (
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          title="Supprimer"
+                        <Btn
+                          variant="danger-ghost"
+                          size="sm"
+                          icon="trash"
                           onClick={() => handleRemoveDependency(dep.id)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
+                        />
                       )}
                     </li>
                   ))}
                 </ul>
               )}
-            </CardBody>
+            </div>
           </Card>
         </div>
 
-        <div className="col-lg-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Dépendants : produits qui ont besoin de celui-ci */}
-          <Card>
-            <CardHeader>Utilisé comme dépendance par</CardHeader>
-            <CardBody>
+          <Card head="Utilisé comme dépendance par" icon="package">
+            <div className="card-body">
               {product.dependents.length === 0 ? (
-                <p className="text-secondary mb-0">Aucun produit.</p>
+                <p style={{ color: 'var(--ink-3)', margin: 0 }}>Aucun produit.</p>
               ) : (
-                <ul className="list-group list-group-flush">
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {product.dependents.map((dep) => (
-                    <li key={dep.id} className="list-group-item px-0">
+                    <li
+                      key={dep.id}
+                      style={{ padding: '12px 0', borderBottom: '1px solid var(--line)' }}
+                    >
                       <button
-                        className="btn btn-link p-0 text-start"
                         onClick={() => navigate(`/produits/${dep.product.id}`)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                          color: 'var(--komun)',
+                          fontWeight: 600,
+                          fontSize: 14,
+                        }}
                       >
-                        <strong>{dep.product.name}</strong>
+                        {dep.product.name}
                       </button>{' '}
-                      <code className="text-secondary">{dep.product.reference}</code>
-                      <div>
-                        <span className={`badge ${dep.type === 'required' ? 'bg-danger' : 'bg-info'}`}>
+                      <code className="t-mono" style={{ color: 'var(--ink-3)' }}>
+                        {dep.product.reference}
+                      </code>
+                      <div style={{ marginTop: 4 }}>
+                        <Pill tone={dep.type === 'required' ? 'danger' : 'info'}>
                           {DEP_TYPE_LABELS[dep.type]}
-                        </span>
+                        </Pill>
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
-            </CardBody>
+            </div>
           </Card>
         </div>
       </div>

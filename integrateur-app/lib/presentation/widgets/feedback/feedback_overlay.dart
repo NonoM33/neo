@@ -7,15 +7,19 @@ import '../../../core/theme/app_spacing.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../../core/di/providers.dart';
 import '../../../routes/app_router.dart';
+import '../ds/ds.dart';
 
 /// Wraps the whole app and paints a floating feedback button in the
 /// bottom-right corner. Tapping it opens the guided report dialog.
-class FeedbackOverlay extends ConsumerWidget {
-  const FeedbackOverlay({required this.child, super.key});
+/// Ouvre la fenetre de signalement.
+///
+/// Le contexte passe ici doit se situer **sous** le Navigator : l'ancien
+/// bouton flottant vivait dans `MaterialApp.builder`, donc au-dessus, et son
+/// `showDialog` levait une exception — le bouton ne faisait rien.
+Future<void> showFeedbackDialog(BuildContext context, WidgetRef ref) {
+  HapticFeedback.lightImpact();
 
-  final Widget child;
-
-  String _currentRoute(WidgetRef ref) {
+  String currentRoute() {
     try {
       return ref
           .read(routerProvider)
@@ -28,88 +32,89 @@ class FeedbackOverlay extends ConsumerWidget {
     }
   }
 
-  String? _reporterEmail(WidgetRef ref) {
+  String? reporterEmail() {
     final state = ref.read(authBlocProvider).state;
-    if (state is AuthAuthenticated) return state.user.email;
-    return null;
+    return state is AuthAuthenticated ? state.user.email : null;
   }
 
-  String? _reporterName(WidgetRef ref) {
+  String? reporterName() {
     final state = ref.read(authBlocProvider).state;
-    if (state is AuthAuthenticated) return state.user.fullName;
-    return null;
+    return state is AuthAuthenticated ? state.user.fullName : null;
   }
+
+  return showDialog<void>(
+    context: context,
+    builder: (_) => FeedbackDialog(
+      route: currentRoute(),
+      viewport: MediaQuery.of(context).size,
+      defaultEmail: reporterEmail(),
+      defaultName: reporterName(),
+    ),
+  );
+}
+
+/// Entree « Aide / Bug » du pied de navigation.
+///
+/// Elle remplace l'ancien bouton flottant : rien ne doit flotter par-dessus
+/// une zone tactile du contenu (voir CLAUDE.md, regles des modales).
+class FeedbackRailButton extends ConsumerWidget {
+  const FeedbackRailButton({this.expanded = false, super.key});
+
+  final bool expanded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Stack(
-      children: [
-        child,
-        Positioned(
-          right: AppSpacing.lg,
-          bottom: AppSpacing.lg,
-          child: _FeedbackFab(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              final route = _currentRoute(ref);
-              final viewport = MediaQuery.of(context).size;
-              showDialog<void>(
-                context: context,
-                builder: (_) => FeedbackDialog(
-                  route: route,
-                  viewport: viewport,
-                  defaultEmail: _reporterEmail(ref),
-                  defaultName: _reporterName(ref),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final ds = context.ds;
+    final type = context.dsType;
 
-class _FeedbackFab extends StatelessWidget {
-  const _FeedbackFab({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: cs.primary,
-      shape: const StadiumBorder(),
-      elevation: 3,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.feedback_outlined, color: cs.onPrimary, size: 24),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Aide / Bug',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: cs.onPrimary,
-                      fontWeight: FontWeight.w600,
+    return Semantics(
+      button: true,
+      label: 'Aide et signalement de bug',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: DsRadius.mdAll,
+        child: InkWell(
+          onTap: () => showFeedbackDialog(context, ref),
+          borderRadius: DsRadius.mdAll,
+          child: Container(
+            constraints: const BoxConstraints(
+              minHeight: DsSpacing.targetMin,
+              minWidth: DsSpacing.targetMin,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DsSpacing.s2,
+              vertical: DsSpacing.s2,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment:
+                  expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+              children: [
+                DsIcon(DsGlyph.help, size: 22, color: ds.textSecondary),
+                if (expanded) ...[
+                  const SizedBox(width: DsSpacing.s3),
+                  Flexible(
+                    child: Text(
+                      'Aide / Bug',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: type.labelSize,
+                        fontWeight: DsWeight.semibold,
+                        color: ds.textSecondary,
+                      ),
                     ),
-              ),
-            ],
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
 
 /// Guided dialog with two tabs: report a problem and track previous reports.
 class FeedbackDialog extends ConsumerStatefulWidget {

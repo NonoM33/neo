@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Button, Spinner } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon } from '../../components/neo';
 import { clientsService, projectsService } from '../../services';
 import {
   projectStatusLabels,
@@ -38,6 +39,9 @@ const EMPTY: FormState = {
 export function ProjectFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  // Arrivee depuis une fiche client : le client est deja choisi.
+  const presetClientId = searchParams.get('clientId') ?? '';
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -55,6 +59,9 @@ export function ProjectFormPage() {
       .then(([clientsResult, project]) => {
         if (cancelled) return;
         setClients(clientsResult.data);
+        if (!project && presetClientId) {
+          setForm((prev) => ({ ...prev, clientId: presetClientId }));
+        }
         if (project) {
           setForm({
             clientId: project.client.id,
@@ -81,7 +88,7 @@ export function ProjectFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, navigate]);
+  }, [id, navigate, presetClientId]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -108,7 +115,7 @@ export function ProjectFormPage() {
         await projectsService.createProject(payload);
         toast.success('Projet créé');
       }
-      navigate('/projets');
+      navigate(presetClientId ? `/clients/${presetClientId}` : '/projets');
     } catch (error) {
       console.error('Failed to save project:', error);
       toast.error("Échec de l'enregistrement");
@@ -118,35 +125,28 @@ export function ProjectFormPage() {
   };
 
   if (loading) {
-    return (
-      <div className="content-area">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="content-area">
-      <div className="d-flex align-items-center gap-2 mb-4">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          icon="bi-arrow-left"
-          onClick={() => navigate('/projets')}
-        >
-          Retour
-        </Button>
-        <h1 className="page-title mb-0">{isEdit ? 'Modifier' : 'Nouveau'} projet</h1>
+    <div style={{ padding: 28, maxWidth: 860, margin: '0 auto' }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/projets')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux projets
+          </button>
+          <h1>{isEdit ? 'Modifier le projet' : 'Nouveau projet'}</h1>
+        </div>
       </div>
 
-      <Card>
-        <CardBody>
-          <form onSubmit={handleSubmit}>
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label className="form-label">Client</label>
+      <form onSubmit={handleSubmit}>
+        <Card head="Projet" icon="folder">
+          <div className="card-body">
+            <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+              <div>
+                <div className="field-label">Client *</div>
                 <select
-                  className="form-select"
+                  className="neo-field"
                   required
                   value={form.clientId}
                   onChange={(e) => update('clientId', e.target.value)}
@@ -161,28 +161,30 @@ export function ProjectFormPage() {
                   ))}
                 </select>
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Nom du projet</label>
+              <div>
+                <div className="field-label">Nom du projet *</div>
                 <input
-                  className="form-control"
+                  className="neo-field"
                   required
                   value={form.name}
                   onChange={(e) => update('name', e.target.value)}
                 />
               </div>
-              <div className="col-12">
-                <label className="form-label">Description</label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={form.description}
-                  onChange={(e) => update('description', e.target.value)}
-                />
-              </div>
-              <div className="col-md-4">
-                <label className="form-label">Statut</label>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <div className="field-label">Description</div>
+              <textarea
+                className="neo-field"
+                rows={3}
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+              />
+            </div>
+            <div className="field-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+              <div>
+                <div className="field-label">Statut</div>
                 <select
-                  className="form-select"
+                  className="neo-field"
                   value={form.status}
                   onChange={(e) => update('status', e.target.value as ProjectStatus)}
                 >
@@ -193,65 +195,67 @@ export function ProjectFormPage() {
                   ))}
                 </select>
               </div>
-              <div className="col-md-4">
-                <label className="form-label">Surface (m²)</label>
+              <div>
+                <div className="field-label">Surface (m²)</div>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
-                  className="form-control"
+                  className="neo-field"
                   value={form.surface}
                   onChange={(e) => update('surface', e.target.value)}
                 />
               </div>
-              <div className="col-md-4">
-                <label className="form-label">Nombre de pièces</label>
+              <div>
+                <div className="field-label">Nombre de pièces</div>
                 <input
                   type="number"
                   min="0"
                   step="1"
-                  className="form-control"
+                  className="neo-field"
                   value={form.roomCount}
                   onChange={(e) => update('roomCount', e.target.value)}
                 />
               </div>
-              <div className="col-12">
-                <label className="form-label">Adresse</label>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <div className="field-label">Adresse</div>
+              <input
+                className="neo-field"
+                value={form.address}
+                onChange={(e) => update('address', e.target.value)}
+              />
+            </div>
+            <div className="field-grid">
+              <div>
+                <div className="field-label">Ville</div>
                 <input
-                  className="form-control"
-                  value={form.address}
-                  onChange={(e) => update('address', e.target.value)}
-                />
-              </div>
-              <div className="col-md-8">
-                <label className="form-label">Ville</label>
-                <input
-                  className="form-control"
+                  className="neo-field"
                   value={form.city}
                   onChange={(e) => update('city', e.target.value)}
                 />
               </div>
-              <div className="col-md-4">
-                <label className="form-label">Code postal</label>
+              <div>
+                <div className="field-label">Code postal</div>
                 <input
-                  className="form-control"
+                  className="neo-field"
                   value={form.postalCode}
                   onChange={(e) => update('postalCode', e.target.value)}
                 />
               </div>
             </div>
+          </div>
+        </Card>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
-              <Button type="button" variant="outline-secondary" onClick={() => navigate('/projets')}>
-                Annuler
-              </Button>
-              <Button type="submit" loading={saving} icon="bi-check-lg">
-                {isEdit ? 'Enregistrer' : 'Créer'}
-              </Button>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+          <Btn type="button" variant="subtle" onClick={() => navigate('/projets')}>
+            Annuler
+          </Btn>
+          <Btn type="submit" icon="check" disabled={saving}>
+            {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer'}
+          </Btn>
+        </div>
+      </form>
     </div>
   );
 }

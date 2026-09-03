@@ -30,6 +30,14 @@ final class AuditRoomSelected extends AuditEvent {
   List<Object?> get props => [room];
 }
 
+/// Deselect the current room.
+///
+/// Sur iPhone, l'audit se parcourt en deux niveaux : la liste des pieces, puis
+/// la piece. Revenir au premier niveau, c'est deselectionner.
+final class AuditRoomDeselected extends AuditEvent {
+  const AuditRoomDeselected();
+}
+
 /// Add a new room
 final class AuditAddRoomRequested extends AuditEvent {
   final String name;

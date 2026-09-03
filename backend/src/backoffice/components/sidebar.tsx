@@ -60,6 +60,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
       { path: '/backoffice/support/kb', label: 'Base de connaissances', icon: 'bi-book', permission: 'support.manage' },
       { path: '/backoffice/support/faq', label: 'FAQ', icon: 'bi-question-circle', permission: 'support.manage' },
       { path: '/backoffice/support/settings', label: 'Parametres Support', icon: 'bi-gear', permission: 'support.manage' },
+      { path: '/backoffice/boxes', label: 'Box domotiques', icon: 'bi-router', permission: 'box.manage' },
     ],
   },
   {

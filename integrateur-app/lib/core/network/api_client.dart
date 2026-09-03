@@ -31,6 +31,10 @@ class ApiClient {
   /// Get the base URL
   String get baseUrl => _dio.options.baseUrl;
 
+  /// Branche la reaction a une session perdue (retour a la connexion).
+  set onSessionExpired(void Function()? callback) =>
+      _authInterceptor.onSessionExpired = callback;
+
   /// Set the auth token for requests
   void setAuthToken(String token, {String? refreshToken}) {
     _authInterceptor.setTokens(accessToken: token, refreshToken: refreshToken);

@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Button, Table } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 import { marketingService } from '../../services';
 import { useUIStore } from '../../stores';
 import type {
@@ -37,12 +39,20 @@ const AUDIENCE_LABEL: Record<CampaignAudience, string> = {
   custom: 'Liste personnalisée',
 };
 
-const STATUS_META: Record<CampaignStatus, { label: string; color: string }> = {
-  brouillon: { label: 'Brouillon', color: 'var(--neo-status-prospect)' },
-  programmee: { label: 'Programmée', color: 'var(--neo-status-qualifie)' },
-  envoi: { label: 'Envoi en cours', color: 'var(--neo-status-negociation)' },
-  envoyee: { label: 'Envoyée', color: 'var(--neo-status-gagne)' },
-  echec: { label: 'Échec', color: 'var(--neo-status-perdu)' },
+const STATUS_LABEL: Record<CampaignStatus, string> = {
+  brouillon: 'Brouillon',
+  programmee: 'Programmée',
+  envoi: 'Envoi en cours',
+  envoyee: 'Envoyée',
+  echec: 'Échec',
+};
+
+const STATUS_TONE: Record<CampaignStatus, PillTone> = {
+  brouillon: 'neutral',
+  programmee: 'info',
+  envoi: 'warning',
+  envoyee: 'success',
+  echec: 'danger',
 };
 
 function fromForm(form: FormState): CampaignPayload {
@@ -178,115 +188,130 @@ export function CampaignsTab() {
 
   return (
     <>
-      <div className="d-flex justify-content-end mb-3">
-        <Button icon="bi-plus-lg" onClick={openCreate}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Btn icon="plus" onClick={openCreate}>
           Nouvelle campagne
-        </Button>
+        </Btn>
       </div>
 
-      <Table
-        data={items}
-        loading={loading}
-        keyExtractor={(c) => c.id}
-        emptyMessage="Aucune campagne"
-        columns={[
-          {
-            key: 'name',
-            header: 'Campagne',
-            render: (c) => (
-              <div>
-                <span className="fw-semibold d-block">{c.name}</span>
-                <span style={{ color: 'var(--neo-text-secondary)', fontSize: '0.8rem' }}>
-                  {c.subject}
-                </span>
-              </div>
-            ),
-          },
-          { key: 'audience', header: 'Audience', render: (c) => AUDIENCE_LABEL[c.audience] },
-          {
-            key: 'sent',
-            header: 'Envoyés',
-            render: (c) =>
-              c.totalRecipients > 0 ? `${c.sentCount} / ${c.totalRecipients}` : '—',
-          },
-          {
-            key: 'status',
-            header: 'Statut',
-            render: (c) => (
-              <span className="badge" style={{ background: STATUS_META[c.status].color }}>
-                {STATUS_META[c.status].label}
-              </span>
-            ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            className: 'text-end',
-            render: (c) => (
-              <div className="d-flex gap-2 justify-content-end">
-                {isEditable(c.status) && (
-                  <Button
-                    size="sm"
-                    variant="success"
-                    icon="bi-send"
-                    loading={sendingId === c.id}
-                    onClick={() => send(c)}
-                  >
-                    Envoyer
-                  </Button>
-                )}
-                {isEditable(c.status) && (
-                  <Button size="sm" variant="outline-secondary" icon="bi-pencil" onClick={() => openEdit(c)}>
-                    {''}
-                  </Button>
-                )}
-                <Button size="sm" variant="danger" icon="bi-trash" onClick={() => remove(c)}>
-                  {''}
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+      <Card flush>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Campagne</th>
+                <th>Audience</th>
+                <th>Envoyés</th>
+                <th>Statut</th>
+                <th style={{ textAlign: 'right' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5}>
+                    <Spinner />
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="mail" size={22} />
+                      </span>
+                      <b>Aucune campagne</b>
+                      <p>Créez une campagne email pour toucher vos contacts.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                items.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <span className="t-main">{c.name}</span>
+                      <div className="t-sub">{c.subject}</div>
+                    </td>
+                    <td className="t-sub">{AUDIENCE_LABEL[c.audience]}</td>
+                    <td className="t-sub">
+                      {c.totalRecipients > 0 ? `${c.sentCount} / ${c.totalRecipients}` : '—'}
+                    </td>
+                    <td>
+                      <Pill tone={STATUS_TONE[c.status]} dot>
+                        {STATUS_LABEL[c.status]}
+                      </Pill>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {isEditable(c.status) && (
+                          <Btn
+                            size="sm"
+                            variant="success"
+                            icon="send"
+                            disabled={sendingId === c.id}
+                            onClick={() => send(c)}
+                          >
+                            {sendingId === c.id ? 'Envoi…' : 'Envoyer'}
+                          </Btn>
+                        )}
+                        {isEditable(c.status) && (
+                          <button className="icon-btn" aria-label="Modifier" onClick={() => openEdit(c)}>
+                            <Icon name="edit" size={16} />
+                          </button>
+                        )}
+                        <button className="icon-btn" aria-label="Supprimer" onClick={() => remove(c)}>
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {showForm && (
         <MarketingModal
           title={editing ? 'Modifier la campagne' : 'Nouvelle campagne'}
-          icon="bi-envelope-paper"
+          icon="mail"
           size="lg"
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <Button variant="outline-secondary" onClick={() => setShowForm(false)}>
+              <Btn variant="subtle" onClick={() => setShowForm(false)}>
                 Annuler
-              </Button>
-              <Button onClick={save} loading={saving}>
-                Enregistrer
-              </Button>
+              </Btn>
+              <Btn onClick={save} disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Btn>
             </>
           }
         >
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Nom interne</label>
+          <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            <div>
+              <div className="field-label">Nom interne</div>
               <input
-                className="form-control"
+                className="neo-field"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Objet de l'email</label>
+            <div>
+              <div className="field-label">Objet de l'email</div>
               <input
-                className="form-control"
+                className="neo-field"
                 value={form.subject}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Audience</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Audience</div>
               <select
-                className="form-select"
+                className="neo-field"
                 value={form.audience}
                 onChange={(e) => setForm({ ...form, audience: e.target.value as CampaignAudience })}
               >
@@ -297,10 +322,10 @@ export function CampaignsTab() {
                 ))}
               </select>
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Code promo (jeton {'{{promoCode}}'})</label>
+            <div>
+              <div className="field-label">Code promo (jeton {'{{promoCode}}'})</div>
               <select
-                className="form-select"
+                className="neo-field"
                 value={form.promoCodeId}
                 onChange={(e) => setForm({ ...form, promoCodeId: e.target.value })}
               >
@@ -312,36 +337,37 @@ export function CampaignsTab() {
                 ))}
               </select>
             </div>
-            {form.audience === 'custom' && (
-              <div className="col-12">
-                <label className="form-label">Emails (un par ligne ou séparés par des virgules)</label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={form.customEmails}
-                  onChange={(e) => setForm({ ...form, customEmails: e.target.value })}
-                />
-              </div>
-            )}
-            <div className="col-12">
-              <label className="form-label">Contenu HTML</label>
+          </div>
+          {form.audience === 'custom' && (
+            <div style={{ marginTop: 14 }}>
+              <div className="field-label">Emails (un par ligne ou séparés par des virgules)</div>
               <textarea
-                className="form-control font-monospace"
-                rows={8}
-                value={form.html}
-                onChange={(e) => setForm({ ...form, html: e.target.value })}
-                placeholder="<h1>Offre spéciale</h1><p>Profitez du code {{promoCode}}</p>"
+                className="neo-field"
+                rows={3}
+                value={form.customEmails}
+                onChange={(e) => setForm({ ...form, customEmails: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Programmer (optionnel)</label>
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={form.scheduledAt}
-                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-              />
-            </div>
+          )}
+          <div style={{ marginTop: 14 }}>
+            <div className="field-label">Contenu HTML</div>
+            <textarea
+              className="neo-field"
+              style={{ fontFamily: 'var(--font-mono)' }}
+              rows={8}
+              value={form.html}
+              onChange={(e) => setForm({ ...form, html: e.target.value })}
+              placeholder="<h1>Offre spéciale</h1><p>Profitez du code {{promoCode}}</p>"
+            />
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <div className="field-label">Programmer (optionnel)</div>
+            <input
+              type="datetime-local"
+              className="neo-field"
+              value={form.scheduledAt}
+              onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+            />
           </div>
         </MarketingModal>
       )}

@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { env } from '../../config/env';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireIntegrateurOrAdmin, requireAdmin } from '../../middleware/rbac.middleware';
 import * as svc from './signatures.service';
+import { signatureFilterSchema } from './signatures.schema';
 
 // ---------------------------------------------------------------------------
 // Staff API routes (JWT protected)
@@ -10,6 +12,14 @@ import * as svc from './signatures.service';
 
 const signaturesRouter = new Hono();
 signaturesRouter.use('/devis/*', authMiddleware, requireIntegrateurOrAdmin());
+signaturesRouter.use('/signatures', authMiddleware, requireAdmin());
+
+// GET /api/signatures — admin dashboard: all signature requests across quotes
+signaturesRouter.get('/signatures', zValidator('query', signatureFilterSchema), async (c) => {
+  const { status, mode, page, pageSize } = c.req.valid('query');
+  const result = await svc.listSignatureRequests({ status, mode, page, pageSize });
+  return c.json(result);
+});
 
 // GET /api/devis/:id/signature
 signaturesRouter.get('/devis/:id/signature', async (c) => {

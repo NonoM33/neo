@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { useState, useCallback } from 'react';
-import { Card, CardHeader, CardBody } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
+import type { IconName } from '../../components/neo';
 import { ProspectionDashboardPage } from './ProspectionDashboardPage';
 
 // ─────────────────────────────────────────────
@@ -18,11 +19,11 @@ interface QuizQuestion {
 // ─────────────────────────────────────────────
 // Tab definitions
 // ─────────────────────────────────────────────
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'dashboard', label: 'Tableau de bord', icon: 'bi-speedometer2' },
-  { key: 'toolkit', label: 'Boîte à outils', icon: 'bi-tools' },
-  { key: 'guide', label: 'Guide du commercial', icon: 'bi-book' },
-  { key: 'training', label: 'Formation', icon: 'bi-mortarboard' },
+const TABS: { key: TabKey; label: string; icon: IconName }[] = [
+  { key: 'dashboard', label: 'Tableau de bord', icon: 'gauge' },
+  { key: 'toolkit', label: 'Boîte à outils', icon: 'settings' },
+  { key: 'guide', label: 'Guide du commercial', icon: 'book' },
+  { key: 'training', label: 'Formation', icon: 'medal' },
 ];
 
 // ─────────────────────────────────────────────
@@ -837,34 +838,32 @@ export default function ProspectionHubPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
 
   return (
-    <div className="prospection-hub">
+    <div style={{ padding: 28 }}>
       {/* Page Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h5 className="mb-0 fw-semibold">
-            <i className="bi bi-rocket-takeoff me-2 text-primary"></i>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>
+            <Icon name="rocket" size={22} style={{ verticalAlign: '-3px', marginRight: 8, color: 'var(--komun)' }} />
             Hub Commercial
-          </h5>
-          <p className="mb-0 text-secondary small">
-            Votre centre de ressources pour performer au quotidien
-          </p>
+          </h1>
+          <p>Votre centre de ressources pour performer au quotidien</p>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <ul className="nav nav-pills mb-4 gap-2 flex-wrap">
+      <div className="seg" style={{ marginBottom: 22, flexWrap: 'wrap' }}>
         {TABS.map((tab) => (
-          <li className="nav-item" key={tab.key}>
-            <button
-              className={`nav-link d-flex align-items-center gap-2 ${activeTab === tab.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              <i className={`bi ${tab.icon}`}></i>
-              {tab.label}
-            </button>
-          </li>
+          <button
+            key={tab.key}
+            className={activeTab === tab.key ? 'on' : ''}
+            onClick={() => setActiveTab(tab.key)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}
+          >
+            <Icon name={tab.icon} size={15} />
+            {tab.label}
+          </button>
         ))}
-      </ul>
+      </div>
 
       {/* Tab Content */}
       {activeTab === 'dashboard' && <DashboardTab />}
@@ -872,6 +871,32 @@ export default function ProspectionHubPage() {
       {activeTab === 'guide' && <GuideTab />}
       {activeTab === 'training' && <TrainingTab />}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Section heading helper (presentation only)
+// ─────────────────────────────────────────────
+function SectionHeading({ icon, title, sub }: { icon: IconName; title: string; sub?: string }) {
+  return (
+    <>
+      <h2
+        style={{
+          fontSize: 18,
+          fontWeight: 600,
+          letterSpacing: '-0.01em',
+          color: 'var(--ink)',
+          margin: '0 0 4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <Icon name={icon} size={18} style={{ color: 'var(--komun)' }} />
+        {title}
+      </h2>
+      {sub && <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: '0 0 16px' }}>{sub}</p>}
+    </>
   );
 }
 
@@ -904,40 +929,58 @@ function PhoneScriptsSection() {
   const [openScript, setOpenScript] = useState<number | null>(null);
 
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-telephone me-2 text-primary"></i>
-        Scripts téléphoniques
-      </h5>
-      <p className="text-secondary small mb-3">
-        Des trames prêtes à l'emploi pour chaque type d'appel. Adaptez-les à votre style !
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="phone"
+        title="Scripts téléphoniques"
+        sub="Des trames prêtes à l'emploi pour chaque type d'appel. Adaptez-les à votre style !"
+      />
 
-      <div className="accordion" id="phoneScriptsAccordion">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {PHONE_SCRIPTS.map((script, index) => (
-          <div className="accordion-item border-0 mb-2 rounded-3 overflow-hidden shadow-sm" key={index}>
-            <h2 className="accordion-header">
-              <button
-                className={`accordion-button ${openScript !== index ? 'collapsed' : ''} fw-semibold`}
-                type="button"
-                onClick={() => setOpenScript(openScript === index ? null : index)}
-              >
-                <i className={`bi ${script.icon} me-2`} style={{ color: script.color }}></i>
-                <span className="me-auto">{script.title}</span>
-                <span className="badge text-body-secondary border me-3 fw-normal">
-                  <i className="bi bi-clock me-1"></i>
-                  {script.duration}
-                </span>
-              </button>
-            </h2>
-            <div className={`accordion-collapse collapse ${openScript === index ? 'show' : ''}`}>
-              <div className="accordion-body">
+          <Card key={index} flush>
+            <button
+              type="button"
+              onClick={() => setOpenScript(openScript === index ? null : index)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '16px 18px',
+                background: 'none',
+                border: 'none',
+                font: 'inherit',
+                fontWeight: 600,
+                color: 'var(--ink)',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <i className={`bi ${script.icon}`} style={{ color: script.color }}></i>
+              <span style={{ marginRight: 'auto' }}>{script.title}</span>
+              <span className="pill neutral">
+                <Icon name="clock" size={13} />
+                {script.duration}
+              </span>
+              <Icon name={openScript === index ? 'chevronDown' : 'chevronRight'} size={16} style={{ color: 'var(--ink-3)' }} />
+            </button>
+            {openScript === index && (
+              <div style={{ padding: '0 18px 18px' }}>
                 {/* Tips */}
-                <div className="alert alert-info border-0 mb-3">
-                  <div className="fw-semibold mb-2">
-                    <i className="bi bi-lightbulb me-1"></i> Conseils de réussite
+                <div
+                  style={{
+                    background: 'var(--komun-soft)',
+                    border: '1px solid var(--line)',
+                    borderRadius: 'var(--r-md)',
+                    padding: 14,
+                    marginBottom: 14,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                    <Icon name="zap" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} /> Conseils de réussite
                   </div>
-                  <ul className="mb-0 small">
+                  <ul style={{ margin: 0, fontSize: 13, paddingLeft: 18 }}>
                     {script.tips.map((tip, i) => (
                       <li key={i}>{tip}</li>
                     ))}
@@ -945,12 +988,20 @@ function PhoneScriptsSection() {
                 </div>
 
                 {/* Script content */}
-                <div className="p-3 rounded-3" style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}>
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--paper-2)',
+                    color: 'var(--ink)',
+                    border: '1px solid var(--line)',
+                  }}
+                >
                   <ScriptContent text={script.script} />
                 </div>
               </div>
-            </div>
-          </div>
+            )}
+          </Card>
         ))}
       </div>
     </div>
@@ -962,12 +1013,12 @@ function ScriptContent({ text }: { text: string }) {
   const lines = text.split('\n');
 
   return (
-    <div className="script-content small" style={{ lineHeight: 1.8 }}>
+    <div className="script-content" style={{ lineHeight: 1.8, fontSize: 13 }}>
       {lines.map((line, i) => {
         if (!line.trim()) return <br key={i} />;
 
         // Process bold (**text**) and highlight (==text==)
-        let processed = line;
+        const processed = line;
         const parts: JSX.Element[] = [];
         let lastIndex = 0;
         const regex = /(\*\*(.*?)\*\*)|(==(.*?)==)/g;
@@ -986,7 +1037,7 @@ function ScriptContent({ text }: { text: string }) {
             parts.push(
               <mark
                 key={`h${i}-${match.index}`}
-                className="px-1 rounded-1"
+                style={{ padding: '0 4px', borderRadius: 4 }}
               >
                 {match[4]}
               </mark>
@@ -1034,58 +1085,65 @@ function EmailTemplatesSection() {
   }, []);
 
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-envelope me-2 text-primary"></i>
-        Templates email
-      </h5>
-      <p className="text-secondary small mb-3">
-        Des modèles d'email prêts à personnaliser. Cliquez sur "Copier" pour les utiliser.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="mail"
+        title="Templates email"
+        sub={'Des modèles d\'email prêts à personnaliser. Cliquez sur "Copier" pour les utiliser.'}
+      />
 
-      <div className="row g-3">
+      <div className="grid-2">
         {EMAIL_TEMPLATES.map((template, index) => (
-          <div className="col-lg-6" key={index}>
-            <Card className="h-100">
-              <CardHeader>
-                <div className="d-flex justify-content-between align-items-center">
-                  <span>
-                    <i className={`bi ${template.icon} me-2 text-primary`}></i>
-                    {template.title}
-                  </span>
-                  <button
-                    className={`btn btn-sm ${copiedIndex === index ? 'btn-success' : 'btn-outline-primary'}`}
-                    onClick={() => handleCopy(`Objet : ${template.subject}\n\n${template.body}`, index)}
-                  >
-                    <i className={`bi ${copiedIndex === index ? 'bi-check-lg' : 'bi-clipboard'} me-1`}></i>
-                    {copiedIndex === index ? 'Copié !' : 'Copier'}
-                  </button>
-                </div>
-              </CardHeader>
-              <CardBody>
-                <p className="text-secondary small mb-2">
-                  <i className="bi bi-info-circle me-1"></i>
-                  {template.context}
-                </p>
-                <div className="mb-2 p-2 rounded-2" style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}>
-                  <span className="fw-semibold small text-secondary">Objet :</span>
-                  <br />
-                  <span className="small fw-medium">{template.subject}</span>
-                </div>
-                <div
-                  className="p-2 rounded-2 small"
-                  style={{
-                    background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)',
-                    whiteSpace: 'pre-line',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                  }}
-                >
-                  {template.body}
-                </div>
-              </CardBody>
-            </Card>
-          </div>
+          <Card
+            key={index}
+            head={template.title}
+            action={
+              <Btn
+                variant={copiedIndex === index ? 'success' : 'subtle'}
+                size="sm"
+                icon={copiedIndex === index ? 'check' : 'fileText'}
+                onClick={() => handleCopy(`Objet : ${template.subject}\n\n${template.body}`, index)}
+              >
+                {copiedIndex === index ? 'Copié !' : 'Copier'}
+              </Btn>
+            }
+          >
+            <div className="card-body">
+              <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="help" size={14} />
+                {template.context}
+              </p>
+              <div
+                style={{
+                  marginBottom: 8,
+                  padding: 10,
+                  borderRadius: 'var(--r-sm)',
+                  background: 'var(--paper-2)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--line)',
+                }}
+              >
+                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>Objet :</span>
+                <br />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{template.subject}</span>
+              </div>
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 'var(--r-sm)',
+                  fontSize: 13,
+                  background: 'var(--paper-2)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--line)',
+                  whiteSpace: 'pre-line',
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                }}
+              >
+                {template.body}
+              </div>
+            </div>
+          </Card>
         ))}
       </div>
     </div>
@@ -1096,70 +1154,59 @@ function ObjectionHandlingSection() {
   const [openObjection, setOpenObjection] = useState<number | null>(null);
 
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-shield-exclamation me-2 text-primary"></i>
-        Traitement des objections
-      </h5>
-      <p className="text-secondary small mb-3">
-        Les 8 objections les plus courantes et comment y répondre avec assurance.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="shield"
+        title="Traitement des objections"
+        sub="Les 8 objections les plus courantes et comment y répondre avec assurance."
+      />
 
-      <div className="row g-3">
+      <div className="grid-2">
         {OBJECTIONS.map((item, index) => (
-          <div className="col-lg-6" key={index}>
-            <div
-              className="card h-100"
-              style={{ cursor: 'pointer' }}
-              onClick={() => setOpenObjection(openObjection === index ? null : index)}
-            >
-              <div className="card-body">
-                {/* Objection */}
-                <div className="d-flex align-items-start gap-2 mb-2">
-                  <span
-                    className="badge rounded-pill flex-shrink-0"
-                    style={{ background: 'var(--neo-danger)', fontSize: '0.7rem' }}
-                  >
-                    Objection
-                  </span>
-                  <span className="fw-semibold" style={{ color: 'var(--neo-danger)' }}>
-                    "{item.objection}"
-                  </span>
-                  <i
-                    className={`bi bi-chevron-${openObjection === index ? 'up' : 'down'} ms-auto text-secondary`}
-                  ></i>
-                </div>
-
-                {/* Response (shown when expanded) */}
-                {openObjection === index && (
-                  <div className="mt-3">
-                    <div className="d-flex align-items-start gap-2 mb-2">
-                      <span
-                        className="badge rounded-pill flex-shrink-0"
-                        style={{ background: 'var(--neo-success)', fontSize: '0.7rem' }}
-                      >
-                        Réponse
-                      </span>
-                    </div>
-                    <p className="small mb-3" style={{ color: 'var(--neo-text-primary)', lineHeight: 1.7 }}>
-                      {item.response}
-                    </p>
-
-                    <div
-                      className="p-2 rounded-2 small"
-                      style={{
-                        background: 'rgba(13, 110, 253, 0.08)',
-                        color: 'var(--neo-primary)',
-                        borderLeft: '3px solid var(--neo-primary)',
-                      }}
-                    >
-                      <i className="bi bi-lightbulb me-1"></i>
-                      <strong>Astuce :</strong> {item.tip}
-                    </div>
-                  </div>
-                )}
-              </div>
+          <div
+            key={index}
+            className="card"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setOpenObjection(openObjection === index ? null : index)}
+          >
+            {/* Objection */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+              <Pill tone="danger">Objection</Pill>
+              <span style={{ fontWeight: 600, color: 'var(--danger)' }}>
+                "{item.objection}"
+              </span>
+              <Icon
+                name={openObjection === index ? 'chevronDown' : 'chevronRight'}
+                size={16}
+                style={{ marginLeft: 'auto', color: 'var(--ink-3)' }}
+              />
             </div>
+
+            {/* Response (shown when expanded) */}
+            {openObjection === index && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <Pill tone="success">Réponse</Pill>
+                </div>
+                <p style={{ fontSize: 13, marginBottom: 12, color: 'var(--ink)', lineHeight: 1.7 }}>
+                  {item.response}
+                </p>
+
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 'var(--r-sm)',
+                    fontSize: 13,
+                    background: 'var(--komun-soft)',
+                    color: 'var(--komun-ink)',
+                    borderLeft: '3px solid var(--komun)',
+                  }}
+                >
+                  <Icon name="zap" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  <strong>Astuce :</strong> {item.tip}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -1183,68 +1230,65 @@ function GuideTab() {
 
 function DailyRoutineSection() {
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-clock-history me-2 text-primary"></i>
-        Ma journée type
-      </h5>
-      <p className="text-secondary small mb-3">
-        L'organisation idéale pour maximiser votre productivité et vos résultats.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="clock"
+        title="Ma journée type"
+        sub="L'organisation idéale pour maximiser votre productivité et vos résultats."
+      />
 
       <Card>
-        <CardBody className="p-4">
-          <div className="position-relative">
-            {DAILY_ROUTINE.map((item, index) => (
-              <div className="d-flex mb-4" key={index}>
-                {/* Time column */}
-                <div
-                  className="text-end me-3 flex-shrink-0 fw-semibold"
-                  style={{ width: '60px', color: item.color, fontSize: '0.9rem' }}
-                >
-                  {item.time}
-                </div>
-
-                {/* Timeline dot and line */}
-                <div className="d-flex flex-column align-items-center me-3 flex-shrink-0" style={{ width: '24px' }}>
-                  <div
-                    className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      background: item.color,
-                      color: '#fff',
-                      fontSize: '0.65rem',
-                    }}
-                  >
-                    <i className={`bi ${item.icon}`}></i>
-                  </div>
-                  {index < DAILY_ROUTINE.length - 1 && (
-                    <div
-                      className="flex-grow-1"
-                      style={{
-                        width: '2px',
-                        background: 'var(--neo-border-color)',
-                        minHeight: '20px',
-                      }}
-                    ></div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-grow-1 pb-1">
-                  <div className="d-flex align-items-center gap-2 mb-1">
-                    <span className="fw-semibold">{item.title}</span>
-                    <span className="badge text-body-secondary border fw-normal" style={{ fontSize: '0.7rem' }}>
-                      {item.duration}
-                    </span>
-                  </div>
-                  <p className="text-secondary small mb-0">{item.description}</p>
-                </div>
+        <div style={{ position: 'relative' }}>
+          {DAILY_ROUTINE.map((item, index) => (
+            <div style={{ display: 'flex', marginBottom: 16 }} key={index}>
+              {/* Time column */}
+              <div
+                style={{ width: 60, textAlign: 'right', marginRight: 12, flexShrink: 0, fontWeight: 600, color: item.color, fontSize: 14 }}
+              >
+                {item.time}
               </div>
-            ))}
-          </div>
-        </CardBody>
+
+              {/* Timeline dot and line */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginRight: 12, flexShrink: 0, width: 24 }}>
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    background: item.color,
+                    color: '#fff',
+                    fontSize: '0.65rem',
+                  }}
+                >
+                  <i className={`bi ${item.icon}`}></i>
+                </div>
+                {index < DAILY_ROUTINE.length - 1 && (
+                  <div
+                    style={{
+                      flexGrow: 1,
+                      width: 2,
+                      background: 'var(--line)',
+                      minHeight: 20,
+                    }}
+                  ></div>
+                )}
+              </div>
+
+              {/* Content */}
+              <div style={{ flexGrow: 1, paddingBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>{item.title}</span>
+                  <span className="pill neutral">{item.duration}</span>
+                </div>
+                <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: 0 }}>{item.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );
@@ -1254,83 +1298,74 @@ function PlaybookSection() {
   const [openStage, setOpenStage] = useState<number | null>(null);
 
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-map me-2 text-primary"></i>
-        Playbook par étape
-      </h5>
-      <p className="text-secondary small mb-3">
-        Pour chaque étape du pipeline, les actions à faire et les erreurs à éviter.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="crosshair"
+        title="Playbook par étape"
+        sub="Pour chaque étape du pipeline, les actions à faire et les erreurs à éviter."
+      />
 
-      <div className="row g-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {PLAYBOOK_STAGES.map((stage, index) => (
-          <div className="col-12" key={index}>
-            <div
-              className="card overflow-hidden"
-              style={{ cursor: 'pointer' }}
-              onClick={() => setOpenStage(openStage === index ? null : index)}
-            >
-              <div className="card-body">
-                <div className="d-flex align-items-center gap-3">
-                  <div
-                    className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      background: stage.color,
-                      color: '#fff',
-                    }}
-                  >
-                    <i className={`bi ${stage.icon}`}></i>
-                  </div>
-                  <div className="flex-grow-1">
-                    <div className="d-flex align-items-center gap-2">
-                      <span className="fw-semibold">{stage.stage}</span>
-                      <span className="badge text-body-secondary border fw-normal">
-                        Objectif : {stage.objective}
-                      </span>
-                    </div>
-                  </div>
-                  <i className={`bi bi-chevron-${openStage === index ? 'up' : 'down'} text-secondary`}></i>
-                </div>
-
-                {openStage === index && (
-                  <div className="row mt-3 g-3">
-                    <div className="col-md-6">
-                      <div
-                        className="p-3 rounded-3 h-100"
-                        style={{ background: 'rgba(25, 135, 84, 0.06)', border: '1px solid rgba(25, 135, 84, 0.15)' }}
-                      >
-                        <div className="fw-semibold mb-2" style={{ color: 'var(--neo-success)' }}>
-                          <i className="bi bi-check-circle me-1"></i> À faire
-                        </div>
-                        <ul className="small mb-0 ps-3">
-                          {stage.doList.map((item, i) => (
-                            <li key={i} className="mb-1">{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div
-                        className="p-3 rounded-3 h-100"
-                        style={{ background: 'rgba(220, 53, 69, 0.06)', border: '1px solid rgba(220, 53, 69, 0.15)' }}
-                      >
-                        <div className="fw-semibold mb-2" style={{ color: 'var(--neo-danger)' }}>
-                          <i className="bi bi-x-circle me-1"></i> À ne PAS faire
-                        </div>
-                        <ul className="small mb-0 ps-3">
-                          {stage.dontList.map((item, i) => (
-                            <li key={i} className="mb-1">{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
+          <div
+            key={index}
+            className="card"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setOpenStage(openStage === index ? null : index)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  background: stage.color,
+                  color: '#fff',
+                }}
+              >
+                <i className={`bi ${stage.icon}`}></i>
               </div>
+              <div style={{ flexGrow: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{stage.stage}</span>
+                  <span className="pill neutral">Objectif : {stage.objective}</span>
+                </div>
+              </div>
+              <Icon name={openStage === index ? 'chevronDown' : 'chevronRight'} size={16} style={{ color: 'var(--ink-3)' }} />
             </div>
+
+            {openStage === index && (
+              <div className="grid-2" style={{ marginTop: 12 }}>
+                <div
+                  style={{ padding: 14, borderRadius: 'var(--r-md)', height: '100%', background: 'var(--success-soft)', border: '1px solid var(--line)' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--success-ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="checkCircle" size={15} /> À faire
+                  </div>
+                  <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
+                    {stage.doList.map((item, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div
+                  style={{ padding: 14, borderRadius: 'var(--r-md)', height: '100%', background: 'var(--danger-soft)', border: '1px solid var(--line)' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--danger-ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="x" size={15} /> À ne PAS faire
+                  </div>
+                  <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
+                    {stage.dontList.map((item, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -1340,56 +1375,53 @@ function PlaybookSection() {
 
 function BenchmarkKPIsSection() {
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-graph-up me-2 text-primary"></i>
-        Métriques de référence
-      </h5>
-      <p className="text-secondary small mb-3">
-        Les benchmarks d'un commercial performant chez Neo.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="chart"
+        title="Métriques de référence"
+        sub="Les benchmarks d'un commercial performant chez Neo."
+      />
 
-      <div className="row g-3">
+      <div className="grid-3">
         {BENCHMARK_KPIS.map((kpi, index) => (
-          <div className="col-md-6 col-lg-4" key={index}>
-            <Card className="h-100">
-              <CardBody>
-                <div className="d-flex align-items-center gap-2 mb-3">
-                  <div
-                    className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      background: kpi.color,
-                      color: '#fff',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <i className={`bi ${kpi.icon}`}></i>
-                  </div>
-                  <span className="fw-semibold">{kpi.label}</span>
-                </div>
+          <Card key={index}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  background: kpi.color,
+                  color: '#fff',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <i className={`bi ${kpi.icon}`}></i>
+              </div>
+              <span style={{ fontWeight: 600 }}>{kpi.label}</span>
+            </div>
 
-                {/* Progress bar */}
-                <div className="progress mb-2" style={{ height: '8px' }}>
-                  <div
-                    className="progress-bar"
-                    role="progressbar"
-                    style={{ width: `${kpi.percentage}%`, background: kpi.color }}
-                  ></div>
-                </div>
+            {/* Progress bar */}
+            <div style={{ height: 8, borderRadius: 99, background: 'var(--paper-2)', overflow: 'hidden', marginBottom: 8 }}>
+              <div
+                role="progressbar"
+                style={{ width: `${kpi.percentage}%`, height: '100%', background: kpi.color }}
+              ></div>
+            </div>
 
-                <div className="d-flex justify-content-between small">
-                  <span className="text-secondary">
-                    Cible : <strong>{kpi.target}</strong>
-                  </span>
-                  <span style={{ color: kpi.color }}>
-                    Top : <strong>{kpi.stretch}</strong>
-                  </span>
-                </div>
-              </CardBody>
-            </Card>
-          </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: 'var(--ink-3)' }}>
+                Cible : <strong>{kpi.target}</strong>
+              </span>
+              <span style={{ color: kpi.color }}>
+                Top : <strong>{kpi.stretch}</strong>
+              </span>
+            </div>
+          </Card>
         ))}
       </div>
     </div>
@@ -1398,43 +1430,47 @@ function BenchmarkKPIsSection() {
 
 function CommandmentsSection() {
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-stars me-2 text-primary"></i>
-        Les 10 commandements du commercial Neo
-      </h5>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading icon="sparkles" title="Les 10 commandements du commercial Neo" />
 
       <Card>
-        <CardBody className="p-4">
-          <div className="row g-3">
-            {COMMANDMENTS.map((cmd, index) => (
-              <div className="col-md-6" key={index}>
-                <div
-                  className="d-flex align-items-center gap-3 p-3 rounded-3"
-                  style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}
-                >
-                  <div
-                    className="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle"
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      background: 'var(--neo-primary-light)',
-                      fontSize: '1.2rem',
-                    }}
-                  >
-                    {cmd.emoji}
-                  </div>
-                  <div>
-                    <span className="badge bg-primary rounded-pill me-2" style={{ fontSize: '0.65rem' }}>
-                      #{index + 1}
-                    </span>
-                    <span className="fw-medium small">{cmd.text}</span>
-                  </div>
-                </div>
+        <div className="grid-2">
+          {COMMANDMENTS.map((cmd, index) => (
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: 14,
+                borderRadius: 'var(--r-md)',
+                background: 'var(--paper-2)',
+                color: 'var(--ink)',
+                border: '1px solid var(--line)',
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  borderRadius: '50%',
+                  background: 'var(--komun-soft)',
+                  fontSize: '1.2rem',
+                }}
+              >
+                {cmd.emoji}
               </div>
-            ))}
-          </div>
-        </CardBody>
+              <div>
+                <span className="pill info" style={{ marginRight: 8 }}>#{index + 1}</span>
+                <span style={{ fontWeight: 500, fontSize: 13 }}>{cmd.text}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );
@@ -1455,74 +1491,54 @@ function TrainingTab() {
 
 function ProductKnowledgeSection() {
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-box-seam me-2 text-primary"></i>
-        Connaissance produit
-      </h5>
-      <p className="text-secondary small mb-3">
-        Maîtrisez votre catalogue pour répondre à toutes les questions de vos prospects.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="boxes"
+        title="Connaissance produit"
+        sub="Maîtrisez votre catalogue pour répondre à toutes les questions de vos prospects."
+      />
 
-      <div className="row g-3">
+      <div className="grid-3">
         {PRODUCTS.map((product, index) => (
-          <div className="col-md-6 col-lg-4" key={index}>
-            <Card className="h-100">
-              <CardHeader>
-                <div className="d-flex align-items-center gap-2">
-                  <div
-                    className="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      background: product.color,
-                      color: '#fff',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    <i className={`bi ${product.icon}`}></i>
-                  </div>
-                  <div>
-                    <div className="fw-semibold">{product.name}</div>
-                    <div className="text-secondary small">{product.brand}</div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardBody>
-                {/* Price range */}
-                <div className="mb-3">
-                  <span className="badge border fw-normal" style={{ color: 'var(--neo-text-primary)' }}>
-                    <i className="bi bi-tag me-1"></i>
-                    {product.priceRange}
-                  </span>
-                </div>
+          <Card
+            key={index}
+            head={product.name}
+            action={<span style={{ color: 'var(--ink-3)', fontSize: 13 }}>{product.brand}</span>}
+          >
+            <div className="card-body">
+              {/* Price range */}
+              <div style={{ marginBottom: 14 }}>
+                <span className="pill neutral">
+                  <Icon name="receipt" size={13} />
+                  {product.priceRange}
+                </span>
+              </div>
 
-                {/* Selling points */}
-                <div className="mb-3">
-                  <div className="fw-semibold small mb-2" style={{ color: 'var(--neo-success)' }}>
-                    <i className="bi bi-star me-1"></i> Arguments clés
-                  </div>
-                  <ul className="small mb-0 ps-3">
-                    {product.sellingPoints.map((point, i) => (
-                      <li key={i} className="mb-1">{point}</li>
-                    ))}
-                  </ul>
+              {/* Selling points */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--success-ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="star" size={14} /> Arguments clés
                 </div>
-
-                {/* Common questions */}
-                <div>
-                  <div className="fw-semibold small mb-2" style={{ color: 'var(--neo-primary)' }}>
-                    <i className="bi bi-question-circle me-1"></i> Questions fréquentes
-                  </div>
-                  {product.commonQuestions.map((q, i) => (
-                    <p key={i} className="small mb-1" style={{ lineHeight: 1.5 }}>
-                      {q}
-                    </p>
+                <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
+                  {product.sellingPoints.map((point, i) => (
+                    <li key={i} style={{ marginBottom: 4 }}>{point}</li>
                   ))}
+                </ul>
+              </div>
+
+              {/* Common questions */}
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--komun-ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="help" size={14} /> Questions fréquentes
                 </div>
-              </CardBody>
-            </Card>
-          </div>
+                {product.commonQuestions.map((q, i) => (
+                  <p key={i} style={{ fontSize: 13, marginBottom: 4, lineHeight: 1.5 }}>
+                    {q}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </Card>
         ))}
       </div>
     </div>
@@ -1531,30 +1547,29 @@ function ProductKnowledgeSection() {
 
 function SalesMethodsSection() {
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-mortarboard me-2 text-primary"></i>
-        Techniques de vente
-      </h5>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading icon="medal" title="Techniques de vente" />
 
       {/* SPIN Selling */}
-      <Card className="mb-4">
-        <CardHeader>
-          <div>
-            <span className="fw-semibold">{SALES_TECHNIQUES.spin.title}</span>
-            <span className="text-secondary small ms-2">— {SALES_TECHNIQUES.spin.subtitle}</span>
-          </div>
-        </CardHeader>
-        <CardBody>
-          <div className="row g-3">
+      <Card
+        head={SALES_TECHNIQUES.spin.title}
+        action={<span style={{ color: 'var(--ink-3)', fontSize: 13 }}>— {SALES_TECHNIQUES.spin.subtitle}</span>}
+        style={{ marginBottom: 16 }}
+      >
+        <div className="card-body">
+          <div className="grid-2" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {SALES_TECHNIQUES.spin.steps.map((step, index) => (
-              <div className="col-md-6 col-lg-3" key={index}>
-                <div className="text-center mb-2">
+              <div key={index}>
+                <div style={{ textAlign: 'center', marginBottom: 8 }}>
                   <span
-                    className="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold"
                     style={{
-                      width: '48px',
-                      height: '48px',
+                      width: 48,
+                      height: 48,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '50%',
+                      fontWeight: 700,
                       background: step.color,
                       color: '#fff',
                       fontSize: '1.3rem',
@@ -1563,178 +1578,171 @@ function SalesMethodsSection() {
                     {step.letter}
                   </span>
                 </div>
-                <div className="text-center mb-2">
-                  <span className="fw-semibold">{step.name}</span>
+                <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{step.name}</span>
                 </div>
-                <p className="text-secondary small text-center mb-2">{step.description}</p>
-                <div className="p-2 rounded-2 small" style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}>
-                  <div className="fw-semibold mb-1 text-center" style={{ fontSize: '0.75rem', color: step.color }}>
+                <p style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', marginBottom: 8 }}>{step.description}</p>
+                <div style={{ padding: 10, borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--paper-2)', color: 'var(--ink)', border: '1px solid var(--line)' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4, textAlign: 'center', fontSize: '0.75rem', color: step.color }}>
                     Exemples de questions
                   </div>
-                  <ul className="mb-0 ps-3">
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {step.examples.map((ex, i) => (
-                      <li key={i} className="mb-1">{ex}</li>
+                      <li key={i} style={{ marginBottom: 4 }}>{ex}</li>
                     ))}
                   </ul>
                 </div>
               </div>
             ))}
           </div>
-        </CardBody>
+        </div>
       </Card>
 
       {/* SONCAS */}
-      <Card className="mb-4">
-        <CardHeader>
-          <div>
-            <span className="fw-semibold">{SALES_TECHNIQUES.soncas.title}</span>
-            <span className="text-secondary small ms-2">— {SALES_TECHNIQUES.soncas.subtitle}</span>
-          </div>
-        </CardHeader>
-        <CardBody>
-          <div className="row g-3">
+      <Card
+        head={SALES_TECHNIQUES.soncas.title}
+        action={<span style={{ color: 'var(--ink-3)', fontSize: 13 }}>— {SALES_TECHNIQUES.soncas.subtitle}</span>}
+        style={{ marginBottom: 16 }}
+      >
+        <div className="card-body">
+          <div className="grid-3">
             {SALES_TECHNIQUES.soncas.profiles.map((profile, index) => (
-              <div className="col-md-6 col-lg-4" key={index}>
-                <div
-                  className="p-3 rounded-3 h-100"
-                  style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}
-                >
-                  <div className="d-flex align-items-center gap-2 mb-2">
-                    <div
-                      className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        background: profile.color,
-                        color: '#fff',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      <i className={`bi ${profile.icon}`}></i>
-                    </div>
-                    <div>
-                      <span className="fw-semibold">{profile.name}</span>
-                      <span
-                        className="ms-1 fw-bold"
-                        style={{ color: profile.color, fontSize: '0.75rem' }}
-                      >
-                        ({profile.letter})
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-secondary small mb-2">{profile.description}</p>
-
-                  <div className="small mb-2">
-                    <span className="fw-semibold" style={{ fontSize: '0.75rem' }}>Signaux :</span>
-                    <ul className="mb-0 ps-3 text-secondary">
-                      {profile.signals.map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ul>
-                  </div>
-
+              <div
+                key={index}
+                style={{ padding: 14, borderRadius: 'var(--r-md)', height: '100%', background: 'var(--paper-2)', color: 'var(--ink)', border: '1px solid var(--line)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <div
-                    className="small p-2 rounded-2"
-                    style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', borderLeft: `3px solid ${profile.color}` }}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      background: profile.color,
+                      color: '#fff',
+                      fontSize: '0.8rem',
+                    }}
                   >
-                    <i className="bi bi-arrow-right me-1" style={{ color: profile.color }}></i>
-                    {profile.approach}
+                    <i className={`bi ${profile.icon}`}></i>
                   </div>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{profile.name}</span>
+                    <span style={{ marginLeft: 4, fontWeight: 700, color: profile.color, fontSize: '0.75rem' }}>
+                      ({profile.letter})
+                    </span>
+                  </div>
+                </div>
+                <p style={{ color: 'var(--ink-3)', fontSize: 13, marginBottom: 8 }}>{profile.description}</p>
+
+                <div style={{ fontSize: 13, marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>Signaux :</span>
+                  <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--ink-3)' }}>
+                    {profile.signals.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div
+                  style={{ fontSize: 13, padding: 10, borderRadius: 'var(--r-sm)', background: 'var(--card)', color: 'var(--ink)', borderLeft: `3px solid ${profile.color}` }}
+                >
+                  <Icon name="arrowRight" size={14} style={{ verticalAlign: '-2px', marginRight: 4, color: profile.color }} />
+                  {profile.approach}
                 </div>
               </div>
             ))}
           </div>
-        </CardBody>
+        </div>
       </Card>
 
       {/* Closing Techniques */}
-      <Card className="mb-4">
-        <CardHeader>
-          <span className="fw-semibold">5 techniques de closing</span>
-          <span className="text-secondary small ms-2">— Pour conclure la vente avec confiance</span>
-        </CardHeader>
-        <CardBody>
-          <div className="row g-3">
+      <Card
+        head="5 techniques de closing"
+        action={<span style={{ color: 'var(--ink-3)', fontSize: 13 }}>— Pour conclure la vente avec confiance</span>}
+        style={{ marginBottom: 16 }}
+      >
+        <div className="card-body">
+          <div className="grid-3">
             {SALES_TECHNIQUES.closingTechniques.map((tech, index) => (
-              <div className="col-md-6 col-lg-4" key={index}>
+              <div
+                key={index}
+                style={{ padding: 14, borderRadius: 'var(--r-md)', height: '100%', background: 'var(--paper-2)', color: 'var(--ink)', border: '1px solid var(--line)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <i className={`bi ${tech.icon}`} style={{ color: 'var(--komun)' }}></i>
+                  <span style={{ fontWeight: 600 }}>{tech.name}</span>
+                </div>
+                <p style={{ color: 'var(--ink-3)', fontSize: 13, marginBottom: 8 }}>{tech.description}</p>
                 <div
-                  className="p-3 rounded-3 h-100"
-                  style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}
+                  style={{ fontSize: 13, padding: 10, borderRadius: 'var(--r-sm)', fontStyle: 'italic', background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)' }}
                 >
-                  <div className="d-flex align-items-center gap-2 mb-2">
-                    <i className={`bi ${tech.icon} text-primary`}></i>
-                    <span className="fw-semibold">{tech.name}</span>
-                  </div>
-                  <p className="text-secondary small mb-2">{tech.description}</p>
-                  <div
-                    className="small p-2 rounded-2 fst-italic"
-                    style={{ background: 'var(--neo-bg-body)', color: 'var(--neo-text-primary)', border: '1px solid var(--neo-border-color)' }}
-                  >
-                    {tech.example}
-                  </div>
+                  {tech.example}
                 </div>
               </div>
             ))}
           </div>
-        </CardBody>
+        </div>
       </Card>
 
       {/* Active Listening */}
-      <Card className="mb-4">
-        <CardHeader>
-          <span className="fw-semibold">L'écoute active</span>
-          <span className="text-secondary small ms-2">— La compétence n°1 du commercial</span>
-        </CardHeader>
-        <CardBody>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <h6 className="fw-semibold small mb-3">
-                <i className="bi bi-check-circle text-success me-1"></i>
+      <Card
+        head="L'écoute active"
+        action={<span style={{ color: 'var(--ink-3)', fontSize: 13 }}>— La compétence n°1 du commercial</span>}
+        style={{ marginBottom: 16 }}
+      >
+        <div className="card-body">
+          <div className="grid-2">
+            <div>
+              <h6 style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="checkCircle" size={15} style={{ color: 'var(--success)' }} />
                 Les bonnes pratiques
               </h6>
-              <ul className="small">
-                <li className="mb-2">
+              <ul style={{ fontSize: 13 }}>
+                <li style={{ marginBottom: 8 }}>
                   <strong>Reformulez</strong> : "Si je comprends bien, vous cherchez..." confirme au client que vous écoutez
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Posez des questions ouvertes</strong> : "Comment..." / "Qu'est-ce qui..." plutôt que des questions fermées
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Prenez des notes</strong> : montrez que chaque détail compte
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Silence</strong> : laissez 3 secondes après chaque réponse, le client complétera souvent
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Langage corporel</strong> : hochez la tête, maintenez le contact visuel
                 </li>
               </ul>
             </div>
-            <div className="col-md-6">
-              <h6 className="fw-semibold small mb-3">
-                <i className="bi bi-x-circle text-danger me-1"></i>
+            <div>
+              <h6 style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="x" size={15} style={{ color: 'var(--danger)' }} />
                 Les erreurs à éviter
               </h6>
-              <ul className="small">
-                <li className="mb-2">
+              <ul style={{ fontSize: 13 }}>
+                <li style={{ marginBottom: 8 }}>
                   <strong>Couper la parole</strong> : même si vous connaissez déjà la réponse
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Préparer sa réponse</strong> pendant que le client parle
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Parler trop</strong> : le ratio 70/30 est votre boussole
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Juger ou minimiser</strong> : "Ce n'est pas un problème" → interdit !
                 </li>
-                <li className="mb-2">
+                <li style={{ marginBottom: 8 }}>
                   <strong>Regarder son téléphone</strong> pendant l'échange
                 </li>
               </ul>
             </div>
           </div>
-        </CardBody>
+        </div>
       </Card>
     </div>
   );
@@ -1786,25 +1794,27 @@ function QuizSection() {
   };
 
   return (
-    <div className="mb-5">
-      <h5 className="fw-semibold mb-3">
-        <i className="bi bi-patch-question me-2 text-primary"></i>
-        Quiz rapide
-      </h5>
-      <p className="text-secondary small mb-3">
-        Testez vos connaissances en technique de vente. 5 questions pour vous évaluer.
-      </p>
+    <div style={{ marginBottom: 36 }}>
+      <SectionHeading
+        icon="help"
+        title="Quiz rapide"
+        sub="Testez vos connaissances en technique de vente. 5 questions pour vous évaluer."
+      />
 
       <Card>
-        <CardBody className="p-4">
+        <div className="card-body" style={{ padding: 8 }}>
           {showResults ? (
             /* Results */
-            <div className="text-center py-4">
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <div
-                className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
                 style={{
-                  width: '80px',
-                  height: '80px',
+                  width: 80,
+                  height: 80,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                  marginBottom: 14,
                   background: getScoreFeedback().color,
                   color: '#fff',
                   fontSize: '1.5rem',
@@ -1812,32 +1822,37 @@ function QuizSection() {
               >
                 <i className={`bi ${getScoreFeedback().icon}`}></i>
               </div>
-              <h4 className="fw-bold mb-2">
+              <h4 style={{ fontWeight: 700, marginBottom: 8 }}>
                 {score} / {QUIZ_QUESTIONS.length}
               </h4>
-              <p className="text-secondary mb-4">{getScoreFeedback().text}</p>
+              <p style={{ color: 'var(--ink-3)', marginBottom: 22 }}>{getScoreFeedback().text}</p>
 
               {/* Answer review */}
-              <div className="text-start mb-4">
+              <div style={{ textAlign: 'left', marginBottom: 22 }}>
                 {QUIZ_QUESTIONS.map((q, index) => {
                   const isCorrect = selectedAnswers[index] === q.correct;
                   return (
                     <div
                       key={index}
-                      className="d-flex align-items-start gap-2 mb-2 p-2 rounded-2"
                       style={{
-                        background: isCorrect
-                          ? 'rgba(25, 135, 84, 0.06)'
-                          : 'rgba(220, 53, 69, 0.06)',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 8,
+                        marginBottom: 8,
+                        padding: 10,
+                        borderRadius: 'var(--r-sm)',
+                        background: isCorrect ? 'var(--success-soft)' : 'var(--danger-soft)',
                       }}
                     >
-                      <i
-                        className={`bi ${isCorrect ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} mt-1`}
-                      ></i>
+                      <Icon
+                        name={isCorrect ? 'checkCircle' : 'x'}
+                        size={16}
+                        style={{ marginTop: 2, color: isCorrect ? 'var(--success)' : 'var(--danger)' }}
+                      />
                       <div>
-                        <div className="small fw-medium">{q.question}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{q.question}</div>
                         {!isCorrect && (
-                          <div className="small text-success mt-1">
+                          <div style={{ fontSize: 13, color: 'var(--success-ink)', marginTop: 4 }}>
                             Bonne réponse : {q.options[q.correct]}
                           </div>
                         )}
@@ -1847,33 +1862,32 @@ function QuizSection() {
                 })}
               </div>
 
-              <button className="btn btn-primary" onClick={handleRetry}>
-                <i className="bi bi-arrow-repeat me-2"></i>
+              <Btn icon="activity" onClick={handleRetry}>
                 Réessayer
-              </button>
+              </Btn>
             </div>
           ) : (
             /* Question */
             <div>
               {/* Progress */}
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <span className="small text-secondary">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
                   Question {currentQuestion + 1} / {QUIZ_QUESTIONS.length}
                 </span>
-                <div className="d-flex gap-1">
+                <div style={{ display: 'flex', gap: 4 }}>
                   {QUIZ_QUESTIONS.map((_, index) => (
                     <div
                       key={index}
-                      className="rounded-circle"
                       style={{
-                        width: '8px',
-                        height: '8px',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
                         background:
                           index === currentQuestion
-                            ? 'var(--neo-primary)'
+                            ? 'var(--komun)'
                             : index < currentQuestion
-                              ? 'var(--neo-success)'
-                              : 'var(--neo-border-color)',
+                              ? 'var(--success)'
+                              : 'var(--line-2)',
                       }}
                     ></div>
                   ))}
@@ -1881,65 +1895,87 @@ function QuizSection() {
               </div>
 
               {/* Progress bar */}
-              <div className="progress mb-4" style={{ height: '4px' }}>
+              <div style={{ height: 4, borderRadius: 99, background: 'var(--paper-2)', overflow: 'hidden', marginBottom: 22 }}>
                 <div
-                  className="progress-bar"
                   style={{
                     width: `${((currentQuestion + 1) / QUIZ_QUESTIONS.length) * 100}%`,
-                    background: 'var(--neo-primary)',
+                    height: '100%',
+                    background: 'var(--komun)',
                   }}
                 ></div>
               </div>
 
               {/* Question text */}
-              <h6 className="fw-semibold mb-4">{QUIZ_QUESTIONS[currentQuestion].question}</h6>
+              <h6 style={{ fontWeight: 600, marginBottom: 22 }}>{QUIZ_QUESTIONS[currentQuestion].question}</h6>
 
               {/* Options */}
-              <div className="d-flex flex-column gap-2 mb-4">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
                 {QUIZ_QUESTIONS[currentQuestion].options.map((option, index) => {
                   const isSelected = selectedAnswers[currentQuestion] === index;
                   const isCorrect = index === QUIZ_QUESTIONS[currentQuestion].correct;
                   const hasAnswered = selectedAnswers[currentQuestion] !== null;
 
-                  let btnClass = 'btn-outline-secondary';
+                  let borderColor = 'var(--line-2)';
+                  let bgColor = 'var(--card)';
                   if (hasAnswered) {
-                    if (isCorrect) btnClass = 'btn-success';
-                    else if (isSelected) btnClass = 'btn-danger';
-                    else btnClass = 'btn-outline-secondary';
+                    if (isCorrect) {
+                      borderColor = 'var(--success)';
+                      bgColor = 'var(--success-soft)';
+                    } else if (isSelected) {
+                      borderColor = 'var(--danger)';
+                      bgColor = 'var(--danger-soft)';
+                    }
                   }
 
                   return (
                     <button
                       key={index}
-                      className={`btn ${btnClass} text-start d-flex align-items-center gap-2`}
                       onClick={() => handleAnswer(index)}
                       disabled={hasAnswered}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        textAlign: 'left',
+                        padding: '10px 12px',
+                        borderRadius: 'var(--r-sm)',
+                        border: `1px solid ${borderColor}`,
+                        background: bgColor,
+                        color: 'var(--ink)',
+                        font: 'inherit',
+                        cursor: hasAnswered ? 'default' : 'pointer',
+                      }}
                     >
                       <span
-                        className="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle fw-semibold"
                         style={{
-                          width: '28px',
-                          height: '28px',
+                          width: 28,
+                          height: 28,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          borderRadius: '50%',
+                          fontWeight: 600,
                           fontSize: '0.8rem',
                           background: hasAnswered
                             ? isCorrect
-                              ? 'var(--neo-success)'
+                              ? 'var(--success)'
                               : isSelected
-                                ? 'var(--neo-danger)'
-                                : 'var(--neo-bg-light)'
-                            : 'var(--neo-bg-light)',
-                          color: hasAnswered && (isCorrect || isSelected) ? '#fff' : 'var(--neo-text-secondary)',
+                                ? 'var(--danger)'
+                                : 'var(--paper-2)'
+                            : 'var(--paper-2)',
+                          color: hasAnswered && (isCorrect || isSelected) ? '#fff' : 'var(--ink-3)',
                         }}
                       >
                         {hasAnswered && isCorrect ? (
-                          <i className="bi bi-check"></i>
+                          <Icon name="check" size={15} />
                         ) : hasAnswered && isSelected ? (
-                          <i className="bi bi-x"></i>
+                          <Icon name="x" size={15} />
                         ) : (
                           String.fromCharCode(65 + index)
                         )}
                       </span>
-                      <span className="small">{option}</span>
+                      <span style={{ fontSize: 13 }}>{option}</span>
                     </button>
                   );
                 })}
@@ -1948,40 +1984,35 @@ function QuizSection() {
               {/* Explanation */}
               {showExplanation && (
                 <div
-                  className="alert border-0 mb-3"
                   style={{
-                    background: 'rgba(13, 110, 253, 0.08)',
-                    color: 'var(--neo-text-primary)',
+                    marginBottom: 14,
+                    padding: 14,
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--komun-soft)',
+                    color: 'var(--ink)',
                   }}
                 >
-                  <div className="d-flex align-items-start gap-2">
-                    <i className="bi bi-info-circle text-primary mt-1"></i>
-                    <div className="small">{QUIZ_QUESTIONS[currentQuestion].explanation}</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <Icon name="help" size={16} style={{ marginTop: 2, color: 'var(--komun)' }} />
+                    <div style={{ fontSize: 13 }}>{QUIZ_QUESTIONS[currentQuestion].explanation}</div>
                   </div>
                 </div>
               )}
 
               {/* Next button */}
               {showExplanation && (
-                <div className="text-end">
-                  <button className="btn btn-primary" onClick={handleNext}>
-                    {currentQuestion < QUIZ_QUESTIONS.length - 1 ? (
-                      <>
-                        Suivant
-                        <i className="bi bi-arrow-right ms-2"></i>
-                      </>
-                    ) : (
-                      <>
-                        Voir les résultats
-                        <i className="bi bi-check-all ms-2"></i>
-                      </>
-                    )}
-                  </button>
+                <div style={{ textAlign: 'right' }}>
+                  <Btn
+                    onClick={handleNext}
+                    iconRight={currentQuestion < QUIZ_QUESTIONS.length - 1 ? 'arrowRight' : 'check'}
+                  >
+                    {currentQuestion < QUIZ_QUESTIONS.length - 1 ? 'Suivant' : 'Voir les résultats'}
+                  </Btn>
                 </div>
               )}
             </div>
           )}
-        </CardBody>
+        </div>
       </Card>
     </div>
   );

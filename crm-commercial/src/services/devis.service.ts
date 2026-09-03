@@ -8,7 +8,39 @@ import type {
 } from '../types';
 import type { PaginatedResult } from './users.service';
 
+/** Ligne saisie dans le formulaire de creation. */
+export interface CreateQuoteLineInput {
+  productId?: string;
+  description: string;
+  quantity: number;
+  unitPriceHT: number;
+  tvaRate: number;
+}
+
+export interface CreateQuoteInput {
+  validUntil?: string;
+  discount?: number;
+  notes?: string;
+  lines: CreateQuoteLineInput[];
+}
+
 export const devisService = {
+  /** Un devis est toujours rattache a un projet : l'API le prend en chemin. */
+  async createQuote(projectId: string, input: CreateQuoteInput): Promise<QuoteDetail> {
+    const response = await api.post<QuoteDetail>(`/api/projets/${projectId}/devis`, input);
+    return response.data;
+  },
+
+  async deleteQuote(id: string): Promise<void> {
+    await api.delete(`/api/devis/${id}`);
+  },
+
+  /** Devis d'un projet. Il n'existe pas d'endpoint « devis d'un client ». */
+  async getQuotesByProject(projectId: string): Promise<QuoteListItem[]> {
+    const response = await api.get<QuoteListItem[]>(`/api/projets/${projectId}/devis`);
+    return response.data;
+  },
+
   async getQuotes(
     filter?: QuoteFilter,
     page = 1,

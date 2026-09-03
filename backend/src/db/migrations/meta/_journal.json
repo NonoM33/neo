@@ -141,6 +141,34 @@
       "when": 1780620525104,
       "tag": "0019_tricky_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781566827368,
+      "tag": "0020_long_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781566827369,
+      "tag": "0021_devis_permission",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788439495729,
+      "tag": "0022_boxes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788441724324,
+      "tag": "0023_box_mesh",
+      "breakpoints": true
     }
   ]
 }
