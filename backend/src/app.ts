@@ -110,6 +110,9 @@ app.route('/', scanSessionsRoutes);
 app.route('/api/public/booking', bookingRoutes);
 // Public devis (quote request) route (no auth required)
 app.route('/api/public/devis', devisRoutes);
+// Box physiques : /api/boxes/announce est appele par une box SANS cle (1er boot).
+// Doit etre monte avant les routeurs /api a middleware catch-all, sinon 401.
+app.route('/api/boxes', boxesRoutes);
 // Public configurateur ("type IKEA") route (no auth required)
 app.route('/api/public/configurateur', configurateurRoutes);
 // Public marketing (bannière/popup site vitrine + validation code promo)
@@ -156,7 +159,6 @@ app.route('/api/system-tokens', systemTokensRoutes);
 app.route('/api/calls', callsRoutes);
 app.route('/api/tracking', trackingRoutes);
 app.route('/api/cloud-instances', cloudInstancesRoutes);
-app.route('/api/boxes', boxesRoutes);
 app.route('/api', floorPlansRoutes);
 app.route('/api', signaturesRouter);
 app.route('/api/recette', recetteRoutes);

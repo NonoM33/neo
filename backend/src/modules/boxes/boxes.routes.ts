@@ -53,23 +53,37 @@ boxesRouter.post(
 );
 
 // ============ Administration ============
+//
+// Les gardes sont posees route par route (pas de `use('*')` sur un sous-routeur
+// monte a la racine) : un middleware global ici s'appliquerait AUSSI a /announce,
+// que la box appelle sans aucune cle — et l'enrolement serait impossible.
 
-const adminRouter = new Hono();
-adminRouter.use('*', authMiddleware, requireAdmin());
+boxesRouter.get(
+  '/',
+  authMiddleware,
+  requireAdmin(),
+  zValidator('query', paginationSchema.merge(boxFilterSchema)),
+  async (c) => {
+    const { page, limit, ...filters } = c.req.valid('query');
+    return c.json(await service.listBoxes({ page, limit }, filters));
+  },
+);
 
-adminRouter.get('/', zValidator('query', paginationSchema.merge(boxFilterSchema)), async (c) => {
-  const { page, limit, ...filters } = c.req.valid('query');
-  return c.json(await service.listBoxes({ page, limit }, filters));
-});
+boxesRouter.get('/stats', authMiddleware,
+  requireAdmin(), async (c) => c.json(await service.getBoxStats()));
 
-adminRouter.get('/stats', async (c) => c.json(await service.getBoxStats()));
+boxesRouter.get(
+  '/support-requests',
+  authMiddleware,
+  requireAdmin(),
+  zValidator('query', supportFilterSchema),
+  async (c) => c.json(await service.listSupportRequests(c.req.valid('query'))),
+);
 
-adminRouter.get('/support-requests', zValidator('query', supportFilterSchema), async (c) => {
-  return c.json(await service.listSupportRequests(c.req.valid('query')));
-});
-
-adminRouter.post(
+boxesRouter.post(
   '/support-requests/:id/close',
+  authMiddleware,
+  requireAdmin(),
   zValidator('json', z.object({ note: z.string().max(2000).optional() }).default({})),
   async (c) => {
     const user = c.get('user') as JWTPayload;
@@ -78,10 +92,16 @@ adminRouter.post(
   },
 );
 
-adminRouter.get('/:id', async (c) => c.json(await service.getBox(c.req.param('id'))));
+// `param('id')` est type `string | undefined` des qu'un middleware precede le
+// handler : le motif de route garantit pourtant sa presence.
+boxesRouter.get('/:id', authMiddleware, requireAdmin(), async (c) => {
+  const id = c.req.param('id') as string;
+  return c.json(await service.getBox(id));
+});
 
-adminRouter.post('/:id/revoke', async (c) => c.json(await service.revokeBox(c.req.param('id'))));
-
-boxesRouter.route('/', adminRouter);
+boxesRouter.post('/:id/revoke', authMiddleware, requireAdmin(), async (c) => {
+  const id = c.req.param('id') as string;
+  return c.json(await service.revokeBox(id));
+});
 
 export default boxesRouter;
