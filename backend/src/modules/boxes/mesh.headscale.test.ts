@@ -93,6 +93,32 @@ describe('HeadscaleMeshProvider.findBoxNode', () => {
     expect(node).toEqual({ ip: '100.64.0.5', online: true, lastSeen: new Date('2026-09-03T11:59:00Z') });
   });
 
+  it('prefere le noeud en ligne quand la box a ete reenrolee', async () => {
+    const hs = fakeHeadscale({
+      'GET /api/v1/node': () => [200, {
+        nodes: [
+          { ipAddresses: ['100.64.0.1'], givenName: 'neo-box-x', online: false, lastSeen: '2026-09-03T11:00:00Z' },
+          { ipAddresses: ['100.64.0.3'], givenName: 'neo-box-x-1', online: true, lastSeen: '2026-09-03T11:59:00Z' },
+        ],
+      }],
+    });
+    const node = await new HeadscaleMeshProvider('https://mesh.example', 'a', hs.fetchFn, now).findBoxNode('neo-box-x');
+    expect(node?.ip).toBe('100.64.0.3');
+  });
+
+  it('sinon le plus recemment vu', async () => {
+    const hs = fakeHeadscale({
+      'GET /api/v1/node': () => [200, {
+        nodes: [
+          { ipAddresses: ['100.64.0.1'], givenName: 'a', online: false, lastSeen: '2026-09-03T11:00:00Z' },
+          { ipAddresses: ['100.64.0.3'], givenName: 'b', online: false, lastSeen: '2026-09-03T11:30:00Z' },
+        ],
+      }],
+    });
+    const node = await new HeadscaleMeshProvider('https://mesh.example', 'a', hs.fetchFn, now).findBoxNode('neo-box-x');
+    expect(node?.ip).toBe('100.64.0.3');
+  });
+
   it('rend null si la box n a jamais rejoint le mesh', async () => {
     const hs = fakeHeadscale({ 'GET /api/v1/node': () => [200, { nodes: [] }] });
     expect(await new HeadscaleMeshProvider('https://mesh.example', 'a', hs.fetchFn, now).findBoxNode('neo-box-x')).toBeNull();

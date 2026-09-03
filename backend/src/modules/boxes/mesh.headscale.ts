@@ -43,7 +43,11 @@ export class HeadscaleMeshProvider implements MeshProvider {
       'GET',
       `/api/v1/node?user=${encodeURIComponent(hostname)}`,
     );
-    const node = nodes.find((n) => n.ipAddresses.length > 0);
+    // Une box reenrolee (SD refaite) laisse un noeud perime derriere elle :
+    // on prefere celui qui est en ligne, sinon le plus recemment vu.
+    const node = [...nodes]
+      .filter((n) => n.ipAddresses.length > 0)
+      .sort((a, b) => Number(b.online) - Number(a.online) || seen(b) - seen(a))[0];
     if (!node) return null;
     const ip = node.ipAddresses.find((a) => a.includes('.')) ?? node.ipAddresses[0]!;
     return { ip, online: node.online, lastSeen: node.lastSeen ? new Date(node.lastSeen) : null };
@@ -74,6 +78,10 @@ export class HeadscaleMeshProvider implements MeshProvider {
     if (!response.ok) throw new HeadscaleError(`${method} ${path}`, response.status, text);
     return (text ? JSON.parse(text) : {}) as T;
   }
+}
+
+function seen(node: HeadscaleNode): number {
+  return node.lastSeen ? new Date(node.lastSeen).getTime() : 0;
 }
 
 interface HeadscaleUser {
