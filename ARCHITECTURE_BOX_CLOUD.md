@@ -271,6 +271,17 @@ et rendus en PNG par `tools/render_screens.py` : on les regarde avant de livrer.
 **Non verifie sur materiel** (pas de carte SD ni d'ecran au 2026-09-03) : driver
 Waveshare, boutons GPIO, `devices` du `config.yaml`, `Dockerfile`.
 
-Reste a faire, dans l'ordre : module backend `boxes` (table, `/enroll`, `/claim`,
-session d'assistance) ; ecran « claim » dans l'app Flutter ; premier boot sur le Pi ;
-NetBird self-hosted (§5) ; app client = fork companion (`neo-apps/neo-android`).
+Fait le 2026-09-03, tout verifie en simulateur (`neo-box/neo_box/tools/simulator.py`)
+contre le backend local :
+
+- backend `boxes` : `POST /api/boxes/announce` (box, sans cle) -> `POST /api/boxes/claim`
+  (installateur) -> cle `neo_box_...` livree UNE fois a l'annonce suivante ->
+  `POST /api/boxes/me/heartbeat` (telemetrie + code erreur) et
+  `POST /api/boxes/me/support-requests` (menu de la box). Migration 0022.
+- back-office `/backoffice/boxes` (permission `box.manage`) : flotte, stats,
+  rattachement par code, demandes d'assistance, detail telemetrie, revocation.
+- app integrateur : fiche projet > Box > scan du QR (ou code) > claim.
+
+Reste a faire : premier boot sur le Pi (carte SD + ecran) ; acces distant
+(NetBird §5 : deploiement self-hosted + add-on + setup-key a l'enrolement) ;
+snapshots vers MinIO ; app client = fork companion (`neo-apps/neo-android`).
