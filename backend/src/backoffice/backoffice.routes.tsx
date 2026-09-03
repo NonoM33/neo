@@ -35,6 +35,9 @@ import {
   listTokens,
   revokeToken,
 } from '../modules/system-tokens/system-tokens.service';
+import * as boxesService from '../modules/boxes/boxes.service';
+import { AppError } from '../lib/errors';
+import { BoxesListPage, BoxDetailPage } from './pages/boxes';
 import { CreneauxPage } from './pages/creneaux';
 import { ChatbotLivePage } from './pages/chatbot';
 import { getAvailability, setAvailability } from '../modules/appointments/appointments.service';
@@ -628,6 +631,68 @@ backofficeRouter.post('/api-tokens/:id/revoke', async (c) => {
   await revokeToken(c.req.param('id'));
   c.header('HX-Redirect', '/backoffice/api-tokens?success=Jeton révoqué');
   return c.text('');
+});
+
+// ============ Box domotiques (flotte) ============
+
+backofficeRouter.get('/boxes', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const [list, stats, openRequests, clientRows] = await Promise.all([
+    boxesService.listBoxes({ page: 1, limit: 100 }, {}),
+    boxesService.getBoxStats(),
+    boxesService.listSupportRequests({ status: 'open' }),
+    db
+      .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName })
+      .from(clients)
+      .orderBy(clients.lastName, clients.firstName),
+  ]);
+  return c.html(
+    <BoxesListPage
+      boxes={list.data}
+      stats={stats}
+      openRequests={openRequests}
+      clients={clientRows}
+      success={c.req.query('success')}
+      error={c.req.query('error')}
+      user={adminUser}
+    />
+  );
+});
+
+backofficeRouter.post('/boxes/claim', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody();
+  const token = typeof body.provisioning_token === 'string' ? body.provisioning_token : '';
+  const clientId = typeof body.client_id === 'string' ? body.client_id : '';
+  try {
+    const box = await boxesService.claimBox({ provisioning_token: token, client_id: clientId }, adminUser.id);
+    return c.redirect(`/backoffice/boxes?success=${encodeURIComponent(`Box …${box.tokenSuffix} rattachee : elle recoit sa cle a sa prochaine annonce (moins d'une minute).`)}`);
+  } catch (err) {
+    const message = err instanceof AppError ? err.message : 'Rattachement impossible';
+    return c.redirect(`/backoffice/boxes?error=${encodeURIComponent(message)}`);
+  }
+});
+
+backofficeRouter.get('/boxes/:id', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const box = await boxesService.getBox(c.req.param('id'));
+  return c.html(
+    <BoxDetailPage box={box} success={c.req.query('success')} error={c.req.query('error')} user={adminUser} />
+  );
+});
+
+backofficeRouter.post('/boxes/:id/revoke', async (c) => {
+  const id = c.req.param('id');
+  await boxesService.revokeBox(id);
+  return c.redirect(`/backoffice/boxes/${id}?success=${encodeURIComponent('Box revoquee')}`);
+});
+
+backofficeRouter.post('/boxes/support-requests/:id/close', async (c) => {
+  const adminUser = c.get('adminUser') as AdminUser;
+  const body = await c.req.parseBody();
+  await boxesService.closeSupportRequest(c.req.param('id'), adminUser.id);
+  const back = typeof body.boxId === 'string' && body.boxId ? `/backoffice/boxes/${body.boxId}` : '/backoffice/boxes';
+  return c.redirect(`${back}?success=${encodeURIComponent("Demande d'assistance cloturee")}`);
 });
 
 // ============ Créneaux de disponibilité ============

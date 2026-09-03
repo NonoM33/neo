@@ -33,6 +33,7 @@ export const PERMISSIONS: Permission[] = [
 
   // Support
   { key: 'support.manage', label: 'Support & base de connaissances', group: 'Support', path: '/backoffice/support' },
+  { key: 'box.manage', label: 'Box domotiques (flotte)', group: 'Support', path: '/backoffice/boxes' },
 
   // Communication
   { key: 'newsletter.manage', label: 'Newsletter', group: 'Communication', path: '/backoffice/newsletter' },
