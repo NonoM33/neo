@@ -1,0 +1,20 @@
+# Deploye par Coolify (build pack docker-compose, base_directory /neo-cloud/headscale).
+# Le volume est declare ICI, donc versionne : il survit aux redeploiements.
+services:
+  headscale:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - headscale-data:/var/lib/headscale
+      - headscale-run:/var/run/headscale
+    environment:
+      - TZ=Europe/Paris
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  headscale-data:
+  headscale-run:

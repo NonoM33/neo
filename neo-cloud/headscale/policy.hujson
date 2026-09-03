@@ -1,0 +1,19 @@
+// Politique du mesh Neo (grants = format v2 de headscale).
+//
+// Regle unique : les appareils de l'utilisateur `ops` (l'equipe Neo) atteignent
+// toutes les box, sur tous les ports. Rien d'autre n'est autorise : une box ne
+// voit ni les autres box, ni les postes ops. Une box est identifiee par le tag
+// `tag:box`, pose par la cle pre-auth que le backend genere a l'enrolement.
+{
+  "tagOwners": {
+    "tag:box": ["ops@"],
+    "tag:ops": ["ops@"],
+  },
+  "grants": [
+    {
+      "src": ["ops@", "tag:ops"],
+      "dst": ["tag:box"],
+      "ip": ["*"],
+    },
+  ],
+}
