@@ -142,6 +142,32 @@ full: pill (avatars, status dots)
 - Calculer les colonnes : `(constraints.maxWidth / targetItemWidth).floor().clamp(min, max)`
 - `childAspectRatio` entre 0.8 et 2.0
 
+#### Modales et feuilles (regles non negociables)
+
+Ces regles viennent de trois defauts constates en recette sur la feuille
+« Ajouter au devis » : carte noire en theme clair, deux poignees de glissement
+empilees, contenu coupe en bas d'ecran. Elles sont verifiees automatiquement
+par `test/ds/modal_guards_test.dart` — un manquement fait echouer la suite.
+
+1. **Toujours `showDsSheet`**, jamais `showModalBottomSheet` brut. `DsSheet`
+   garantit l'entete, le bouton de fermeture, le defilement du corps et la
+   hauteur maximale. Les quatre feuilles anterieures au DS sont listees
+   nominativement dans le test : cette liste ne doit pas s'allonger.
+2. **Jamais de poignee de glissement dessinee a la main.** Le theme pose deja
+   `showDragHandle: true` ; en redessiner une en affiche deux.
+3. **Le corps d'une feuille defile toujours** (`SingleChildScrollView`). Une
+   feuille figee coupe son contenu des que l'ecran raccourcit : clavier
+   ouvert, paysage, petit iPad. Si l'action principale est dans la zone
+   coupee, la fonctionnalite devient inatteignable.
+4. **Respecter le clavier** : ajouter `MediaQuery.viewInsetsOf(context).bottom`
+   au padding bas.
+5. **Ne jamais s'appuyer sur `surfaceContainerHighest` en croyant a une surface
+   claire.** En theme clair, `surface5` est le fond des infobulles, donc
+   sombre : c'est ce qui rendait la carte produit noire. Les surfaces du
+   `ColorScheme` sont desormais verifiees par luminance et par contraste.
+6. **Rien ne doit flotter par-dessus une action.** Un bouton flottant qui
+   recouvre une zone tactile est un defaut, pas un detail d'esthetique.
+
 #### Empty States
 - Icone >= 64dp
 - Texte principal en `titleMedium` avec `fontWeight: FontWeight.w600`
