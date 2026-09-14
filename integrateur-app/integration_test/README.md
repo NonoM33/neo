@@ -59,6 +59,31 @@ débordement de mise en page. Les frames de transition sont volontairement
 ignorées : une carte brièvement mise en page à une taille intermédiaire n'est
 pas un défaut visible.
 
+## Reprise apres coupure — `sync_recovery_test.dart`
+
+Le parcours qui prouve la file d'attente : une saisie faite sans reseau part
+en attente, puis arrive au serveur une fois le reseau revenu.
+
+```bash
+flutter test integration_test/sync_recovery_test.dart -d <UDID> \
+  --dart-define=E2E_ITEM_ID=<identifiant d un point de controle>
+```
+
+Deux partis pris, chacun paye a l'usage :
+
+- **La coupure est simulee par un port mort**, pas en arretant le backend.
+  Reinstaller l'app entre deux executions efface ses donnees locales : une
+  file remplie dans un premier passage n'existe plus au second. Tout tient
+  donc dans UNE execution. Du point de vue du client HTTP, un port sur lequel
+  personne n'ecoute est exactement une connexion refusee.
+- **Pas d'interface.** L'ecran d'audit est deja couvert par `app_test.dart` ;
+  un demarrage hors ligne noie le harnais de test sous les erreurs reseau
+  jusqu'a le faire tomber. Ce parcours pilote la vraie pile de l'app (memes
+  providers, meme Hive, meme API) sans passer par les widgets.
+
+L'identifiant se recupere sur l'API : `/projets` puis `/projets/<id>/pieces`
+puis `/pieces/<id>` — la checklist n'est pas dans la liste des pieces.
+
 ## Parcours hors ligne
 
 `offline_test.dart` se lance **backend arrêté** : il vérifie que l'app démarre
