@@ -7,7 +7,13 @@ import { requireAuditeur } from '../../middleware/rbac.middleware';
 
 const devicesRouter = new Hono();
 
-devicesRouter.use('*', authMiddleware, requireAuditeur());
+for (const chemin of [
+  '/devices/:id',
+  '/pieces/:roomId/devices',
+  '/projets/:projectId/devices',
+]) {
+  devicesRouter.use(chemin, authMiddleware, requireAuditeur());
+}
 
 // Get devices by project
 devicesRouter.get('/projets/:projectId/devices', async (c) => {

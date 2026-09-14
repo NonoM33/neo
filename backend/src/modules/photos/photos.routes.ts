@@ -6,7 +6,12 @@ import { ValidationError } from '../../lib/errors';
 
 const photosRouter = new Hono();
 
-photosRouter.use('*', authMiddleware, requireAuditeur());
+for (const chemin of [
+  '/photos/:id',
+  '/pieces/:roomId/photos',
+]) {
+  photosRouter.use(chemin, authMiddleware, requireAuditeur());
+}
 
 // Upload photo to a room
 photosRouter.post('/pieces/:roomId/photos', async (c) => {

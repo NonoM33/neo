@@ -25,12 +25,13 @@ const fichiers = readdirSync(dossier).filter((f) => f.endsWith('.sql'));
 const sql = postgres(url, { max: 1 });
 
 try {
-  const [{ exists }] = await sql<{ exists: boolean }[]>`
+  const lignes = await sql<{ exists: boolean }[]>`
     select exists (
       select 1 from information_schema.tables
       where table_schema = 'drizzle' and table_name = '__drizzle_migrations'
     ) as exists
   `;
+  const exists = lignes[0]?.exists ?? false;
 
   const appliquees = exists
     ? Number(
@@ -38,7 +39,7 @@ try {
           await sql<{ n: string }[]>`
             select count(*)::text as n from drizzle.__drizzle_migrations
           `
-        )[0].n,
+        )[0]?.n ?? '0',
       )
     : 0;
 
