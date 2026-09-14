@@ -13,15 +13,17 @@ import { beforeAll, describe, expect, it } from 'bun:test';
  */
 
 const API = process.env.E2E_API ?? 'http://localhost:3000/api';
+const RACINE = API.replace(/\/api$/, '');
 
 type Json = Record<string, unknown>;
 
 async function call(
   method: string,
   path: string,
-  options: { token?: string; body?: unknown } = {},
+  options: { token?: string; body?: unknown; racine?: boolean } = {},
 ): Promise<{ status: number; body: any }> {
-  const response = await fetch(`${API}${path}`, {
+  const base = options.racine ? RACINE : API;
+  const response = await fetch(`${base}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -65,6 +67,10 @@ describe('du prospect a l encaissement', () => {
   let projetId = '';
   let pieceId = '';
   let devisId = '';
+  let signatureId = '';
+  let factureId = '';
+  let paiementToken = '';
+  let stripeConfigure = false;
 
   beforeAll(async () => {
     tokenAdmin = await login(COMPTES.admin);
@@ -209,18 +215,92 @@ describe('du prospect a l encaissement', () => {
     });
 
     expect(status).toBeLessThan(400);
-    expect(body).toBeTruthy();
+    expect(body.id).toBeTruthy();
+    expect(body.signingUrl).toContain('/signer/');
+    signatureId = body.id as string;
+  });
+
+  it('8. le client signe, et le devis change d etat', async () => {
+    const signature = await call('POST', `/signer/${signatureId}/submit`, {
+      racine: true,
+      body: {
+        signatureData:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      },
+    });
+    expect(signature.status).toBe(200);
+
+    const devis = await call('GET', `/devis/${devisId}`, {
+      token: tokenIntegrateur,
+    });
+    expect(devis.status).toBe(200);
+    // Un devis signe ne se remodifie pas : c'est ce qui le rend opposable.
+    expect(['signe', 'accepte']).toContain(String(devis.body.status));
+  });
+
+  it('9. la facture reprend le montant du devis', async () => {
+    const devis = await call('GET', `/devis/${devisId}`, {
+      token: tokenIntegrateur,
+    });
+    const lignes = (devis.body.lines ?? []) as Json[];
+    const facturables = lignes
+      .filter((l) => Number(l.unitPriceHT ?? 0) > 0)
+      .map((l) => ({
+        description: String(l.description ?? 'Prestation'),
+        quantity: Number(l.quantity ?? 1),
+        unitPriceHT: Number(l.unitPriceHT ?? 0),
+        tvaRate: Number(l.tvaRate ?? 20),
+      }));
+    expect(facturables.length).toBeGreaterThan(0);
+
+    const { status, body } = await call('POST', '/factures', {
+      token: tokenAdmin,
+      body: { projectId: projetId, lines: facturables },
+    });
+
+    expect(status).toBe(201);
+    expect(body.id).toBeTruthy();
+    factureId = body.id as string;
+    expect(Number(body.totalTTC ?? body.totalHT ?? 0)).toBeGreaterThan(0);
+  });
+
+  it('10. le paiement en ligne repond clairement, configure ou non', async () => {
+    const { status, body } = await call('POST', '/payments', {
+      token: tokenAdmin,
+      body: { targetType: 'invoice', targetId: factureId },
+    });
+
+    if (status === 503) {
+      // Stripe n'est pas configure sur cet environnement. Ce qui compte
+      // alors : que l'API le DISE, au lieu d'echouer en silence ou de
+      // laisser croire au client que son paiement est parti.
+      expect(body.error?.code ?? body.code).toBe('STRIPE_DISABLED');
+      stripeConfigure = false;
+      return;
+    }
+
+    expect(status).toBeLessThan(300);
+    const token = body.token ?? body.publicToken ?? body.payment?.token;
+    expect(token).toBeTruthy();
+    paiementToken = String(token);
+    stripeConfigure = true;
+  });
+
+  it('11. le client ouvre son lien sans avoir a se connecter', async () => {
+    if (!stripeConfigure) {
+      // Maillon NON VERIFIE ici : poser STRIPE_SECRET_KEY pour que le
+      // parcours aille jusqu'a l'encaissement.
+      expect(paiementToken).toBe('');
+      return;
+    }
+
+    const { status, body } = await call('GET', `/payments/${paiementToken}`);
+
+    expect(status).toBe(200);
+    expect(Number(body.amount ?? body.amountTTC ?? 0)).toBeGreaterThan(0);
   });
 });
 
-
-/**
- * Ce que les roles ne permettent PAS aujourd'hui.
- *
- * Constat, pas satisfecit : ces trois tests figent l'etat actuel pour qu'il
- * reste visible et mesurable. Le jour ou les droits sont ouverts, ils doivent
- * etre INVERSES — c'est le signal que la chaine entre equipes fonctionne.
- */
 describe('passage de relais entre equipes', () => {
   let tokenAdmin = '';
   let tokenIntegrateur = '';
