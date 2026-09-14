@@ -346,7 +346,9 @@ abstract final class DsTheme {
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          // Android 14+ montre l'ecran precedent pendant le geste de retour.
+          // Lui servir la transition iOS est un contresens de plateforme.
+          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         },
       ),

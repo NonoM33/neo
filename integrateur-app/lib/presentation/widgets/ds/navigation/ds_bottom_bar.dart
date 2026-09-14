@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -28,9 +30,14 @@ class DsBottomBar extends StatelessWidget {
     final ds = context.ds;
     final type = context.dsType;
 
-    return Container(
+    // Flutter dessine ses propres pixels : il n'existe pas de vraie UITabBar
+    // a instancier. Ce qui s'en approche le plus sur iOS, c'est un materiau
+    // translucide qui laisse deviner le contenu qui defile dessous.
+    final surIOS = Theme.of(context).platform == TargetPlatform.iOS;
+
+    final contenu = Container(
       decoration: BoxDecoration(
-        color: ds.surface1,
+        color: surIOS ? ds.surface1.withValues(alpha: 0.82) : ds.surface1,
         border: Border(top: BorderSide(color: ds.borderSubtle)),
       ),
       child: SafeArea(
@@ -54,6 +61,15 @@ class DsBottomBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+
+    if (!surIOS) return contenu;
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: contenu,
       ),
     );
   }
