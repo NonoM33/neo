@@ -170,6 +170,7 @@ final catalogueRepositoryProvider = Provider<CatalogueRepository>((ref) {
 final quoteRepositoryProvider = Provider<QuoteRepository>((ref) {
   return QuoteRepositoryImpl(
     remoteDataSource: ref.watch(quoteRemoteDataSourceProvider),
+    outbox: ref.watch(outboxStoreProvider),
   );
 });
 
