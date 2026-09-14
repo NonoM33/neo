@@ -29,6 +29,11 @@ export const createProjectSchema = z.object({
 
 export const updateProjectSchema = createProjectSchema.partial();
 
+/** Confier un projet a quelqu'un, ou le rendre (null). */
+export const assignProjectSchema = z.object({
+  assignedToId: z.string().uuid('Utilisateur invalide').nullable(),
+});
+
 export const projectFilterSchema = z.object({
   status: z.enum(['brouillon', 'en_cours', 'termine', 'archive']).optional(),
   clientId: z.string().uuid().optional(),

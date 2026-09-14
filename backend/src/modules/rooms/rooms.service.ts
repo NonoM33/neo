@@ -1,4 +1,4 @@
-import { eq, and, SQL } from 'drizzle-orm';
+import { eq, and, or, SQL } from 'drizzle-orm';
 import { db } from '../../config/database';
 import { rooms, photos, checklistItems, projects } from '../../db/schema';
 import { NotFoundError, ForbiddenError } from '../../lib/errors';
@@ -13,7 +13,11 @@ async function verifyProjectAccess(projectId: string, userId: string, userRole: 
   const conditions: SQL[] = [eq(projects.id, projectId)];
 
   if (userRole !== 'admin') {
-    conditions.push(eq(projects.userId, userId));
+    // Le projet confie compte autant que le projet possede : sinon
+    // l'auditeur a qui on passe la main ne voit rien.
+    conditions.push(
+      or(eq(projects.userId, userId), eq(projects.assignedToId, userId))!,
+    );
   }
 
   const [project] = await db

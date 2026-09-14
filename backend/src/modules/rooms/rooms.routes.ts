@@ -8,11 +8,11 @@ import {
 } from './rooms.schema';
 import * as roomsService from './rooms.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireAuditeur } from '../../middleware/rbac.middleware';
 
 const roomsRouter = new Hono();
 
-roomsRouter.use('*', authMiddleware, requireIntegrateurOrAdmin());
+roomsRouter.use('*', authMiddleware, requireAuditeur());
 
 // Get rooms by project
 roomsRouter.get('/projets/:projectId/pieces', async (c) => {

@@ -221,16 +221,23 @@ describe('du prospect a l encaissement', () => {
  * reste visible et mesurable. Le jour ou les droits sont ouverts, ils doivent
  * etre INVERSES — c'est le signal que la chaine entre equipes fonctionne.
  */
-describe('passage de relais entre equipes — etat actuel', () => {
+describe('passage de relais entre equipes', () => {
   let tokenAdmin = '';
   let tokenIntegrateur = '';
   let tokenAuditeur = '';
-  let projetDeLAdmin = '';
+  let projetDuCommercial = '';
+  let auditeurId = '';
 
   beforeAll(async () => {
     tokenAdmin = await login(COMPTES.admin);
     tokenIntegrateur = await login(COMPTES.integrateur);
     tokenAuditeur = await login(COMPTES.auditeur);
+
+    const utilisateurs = await call('GET', '/users', { token: tokenAdmin });
+    const liste = Array.isArray(utilisateurs.body)
+      ? utilisateurs.body
+      : (utilisateurs.body.items ?? []);
+    auditeurId = liste.find((u: any) => u.email === COMPTES.auditeur)?.id ?? '';
 
     const client = await call('POST', '/projets/clients', {
       token: tokenAdmin,
@@ -245,41 +252,82 @@ describe('passage de relais entre equipes — etat actuel', () => {
       token: tokenAdmin,
       body: { clientId: client.body.id, name: `Relais ${Date.now()}` },
     });
-    projetDeLAdmin = projet.body.id as string;
+    projetDuCommercial = projet.body.id as string;
   });
 
-  it("l auditeur ne peut PAS relever un audit : aucune route metier ne l autorise",
-    async () => {
-      const { status } = await call('POST', `/projets/${projetDeLAdmin}/pieces`, {
-        token: tokenAuditeur,
-        body: { name: 'Salon', type: 'salon' },
-      });
-
-      // requireAuditeur() existe (admin + integrateur + auditeur) mais n'est
-      // utilisee par aucune route metier : pieces, equipements, photos et
-      // plans exigent tous requireIntegrateurOrAdmin().
-      expect(status).toBe(403);
+  it('un projet se confie a quelqu un d autre', async () => {
+    // Sans cela, un projet ouvert par le commercial reste invisible pour
+    // l equipe qui doit l executer : la chaine s arrete la.
+    const avant = await call('GET', `/projets/${projetDuCommercial}`, {
+      token: tokenAuditeur,
     });
+    expect(avant.status).toBe(404);
 
-  it("un projet cree par quelqu un d autre est INVISIBLE pour l integrateur",
-    async () => {
-      const { status } = await call('GET', `/projets/${projetDeLAdmin}`, {
-        token: tokenIntegrateur,
-      });
-
-      // Les projets sont filtres par proprietaire, et aucun champ de l API
-      // ne permet d attribuer un projet a un autre utilisateur : le
-      // commercial ne peut donc pas passer la main a l integrateur.
-      expect(status).toBe(404);
-    });
-
-  it("le role commercial n existe pas : personne ne peut le porter", async () => {
-    const { status, body } = await call('GET', '/users', { token: tokenAdmin });
-
-    expect(status).toBe(200);
-    const roles = new Set(
-      (Array.isArray(body) ? body : body.items ?? []).map((u: any) => u.role),
+    const attribution = await call(
+      'PUT',
+      `/projets/${projetDuCommercial}/assigner`,
+      { token: tokenAdmin, body: { assignedToId: auditeurId } },
     );
-    expect(roles.has('commercial')).toBe(false);
+    expect(attribution.status).toBe(200);
+
+    const apres = await call('GET', `/projets/${projetDuCommercial}`, {
+      token: tokenAuditeur,
+    });
+    expect(apres.status).toBe(200);
+  });
+
+  it('l auditeur releve l audit du projet qu on lui a confie', async () => {
+    const piece = await call('POST', `/projets/${projetDuCommercial}/pieces`, {
+      token: tokenAuditeur,
+      body: { name: 'Cuisine', type: 'cuisine', surface: 18 },
+    });
+    expect(piece.status).toBe(201);
+
+    const besoin = await call('POST', `/pieces/${piece.body.id}/checklist`, {
+      token: tokenAuditeur,
+      body: { label: 'Ajax DoorProtect', category: 'securite', quantity: 1 },
+    });
+    expect(besoin.status).toBe(201);
+
+    const coche = await call('PUT', `/checklist/${besoin.body.id}`, {
+      token: tokenAuditeur,
+      body: { checked: true },
+    });
+    expect(coche.status).toBe(200);
+  });
+
+  it('l auditeur ne chiffre pas : le devis reste au metier commercial',
+      async () => {
+    const { status } = await call(
+      'POST',
+      `/projets/${projetDuCommercial}/devis/from-checklist`,
+      { token: tokenAuditeur, body: {} },
+    );
+
+    expect(status).toBe(403);
+  });
+
+  it('l integrateur reprend le projet une fois l audit fait', async () => {
+    const attribution = await call(
+      'PUT',
+      `/projets/${projetDuCommercial}/assigner`,
+      { token: tokenAdmin, body: { assignedToId: null } },
+    );
+    expect(attribution.status).toBe(200);
+
+    const rendu = await call('GET', `/projets/${projetDuCommercial}`, {
+      token: tokenAuditeur,
+    });
+    expect(rendu.status).toBe(404);
+  });
+
+  it('seul un responsable attribue un projet', async () => {
+    const { status } = await call(
+      'PUT',
+      `/projets/${projetDuCommercial}/assigner`,
+      { token: tokenIntegrateur, body: { assignedToId: auditeurId } },
+    );
+
+    expect(status).toBe(403);
   });
 });

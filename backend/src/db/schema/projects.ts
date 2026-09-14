@@ -30,6 +30,16 @@ export const projects = pgTable('projects', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),
+  /**
+   * Personne a qui le projet est confie pendant une etape.
+   *
+   * Le proprietaire (`userId`) ne change pas : c'est celui qui a ouvert
+   * l'affaire. L'attribution permet de passer la main — un commercial confie
+   * l'audit, l'auditeur rend le projet — sans perdre la trace de l'origine.
+   */
+  assignedToId: uuid('assigned_to_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   status: projectStatusEnum('status').notNull().default('brouillon'),

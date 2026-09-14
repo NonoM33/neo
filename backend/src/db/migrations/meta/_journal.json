@@ -169,6 +169,13 @@
       "when": 1788441724324,
       "tag": "0023_box_mesh",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789413908206,
+      "tag": "0024_lame_doctor_faustus",
+      "breakpoints": true
     }
   ]
 }

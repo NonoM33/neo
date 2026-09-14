@@ -1,7 +1,7 @@
 import { eq, ilike, or, count, and, desc, SQL } from 'drizzle-orm';
 import { db } from '../../config/database';
 import { clients, projects, users } from '../../db/schema';
-import { NotFoundError } from '../../lib/errors';
+import { ForbiddenError, NotFoundError } from '../../lib/errors';
 import { paginate, getOffset, type PaginationParams } from '../../lib/pagination';
 import type {
   CreateClientInput,
@@ -100,9 +100,13 @@ export async function getProjects(
 ) {
   const conditions: SQL[] = [];
 
-  // Non-admin users can only see their own projects
+  // Hors admin : ses propres projets, plus ceux qu'on lui a confies. Sans
+  // cette seconde condition, un projet ouvert par le commercial resterait
+  // invisible a l'equipe qui doit l'executer.
   if (userRole !== 'admin') {
-    conditions.push(eq(projects.userId, userId));
+    conditions.push(
+      or(eq(projects.userId, userId), eq(projects.assignedToId, userId))!,
+    );
   }
 
   if (filters.status) {
@@ -166,9 +170,13 @@ export async function getProjects(
 export async function getProjectById(id: string, userId: string, userRole: string) {
   const conditions: SQL[] = [eq(projects.id, id)];
 
-  // Non-admin users can only see their own projects
+  // Hors admin : ses propres projets, plus ceux qu'on lui a confies. Sans
+  // cette seconde condition, un projet ouvert par le commercial resterait
+  // invisible a l'equipe qui doit l'executer.
   if (userRole !== 'admin') {
-    conditions.push(eq(projects.userId, userId));
+    conditions.push(
+      or(eq(projects.userId, userId), eq(projects.assignedToId, userId))!,
+    );
   }
 
   const [project] = await db
@@ -294,4 +302,42 @@ export async function deleteProject(id: string, userId: string, userRole: string
   }
 
   await db.delete(projects).where(eq(projects.id, id));
+}
+
+/**
+ * Confie un projet a quelqu'un, ou le rend (assignedToId a null).
+ *
+ * Le proprietaire ne change pas : c'est lui qui a ouvert l'affaire. Seuls un
+ * admin ou le proprietaire peuvent passer la main, sinon n'importe qui
+ * pourrait s'attribuer le chantier d'un autre.
+ */
+export async function assignProject(
+  projectId: string,
+  assignedToId: string | null,
+  userId: string,
+  userRole: string,
+) {
+  const [projet] = await db
+    .select({ id: projects.id, userId: projects.userId })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (!projet) {
+    throw new NotFoundError('Projet non trouvé');
+  }
+
+  if (userRole !== 'admin' && projet.userId !== userId) {
+    throw new ForbiddenError(
+      "Seul le responsable du projet peut le confier à quelqu'un d'autre",
+    );
+  }
+
+  const [misAJour] = await db
+    .update(projects)
+    .set({ assignedToId, updatedAt: new Date() })
+    .where(eq(projects.id, projectId))
+    .returning();
+
+  return misAJour;
 }
