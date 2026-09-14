@@ -2,6 +2,8 @@ import 'dart:developer' as developer;
 
 import '../../core/errors/exceptions.dart';
 import '../../core/errors/failures.dart';
+import '../../domain/services/outbox_replay.dart';
+import '../../domain/entities/outbox_entry.dart';
 import '../../domain/entities/checklist_item.dart';
 import '../../domain/entities/project.dart';
 import '../../domain/entities/room.dart';
@@ -14,9 +16,40 @@ import '../models/project_model.dart';
 class ProjectRepositoryImpl implements ProjectRepository {
   final ProjectRemoteDataSource _remoteDataSource;
 
+  /// File d'attente locale. Absente, l'app retrouve son ancien comportement :
+  /// une saisie faite sans reseau est perdue.
+  final OutboxStore? _outbox;
+
   ProjectRepositoryImpl({
     required ProjectRemoteDataSource remoteDataSource,
-  }) : _remoteDataSource = remoteDataSource;
+    OutboxStore? outbox,
+  })  : _remoteDataSource = remoteDataSource,
+        _outbox = outbox;
+
+  /// Met une saisie en attente quand l'echec est PASSAGER.
+  ///
+  /// Coupure reseau ou serveur en panne : la saisie repartira. Un refus du
+  /// serveur (donnee invalide, objet disparu), lui, ne reussira jamais —
+  /// le rejouer encombrerait la file et retarderait tout le reste.
+  Future<bool> _queueIfTransient(
+    OutboxOperation operation,
+    String targetId,
+    Map<String, dynamic> payload,
+    Object error,
+  ) async {
+    final outbox = _outbox;
+    if (outbox == null) return false;
+    if (error is! NetworkException && error is! ServerException) return false;
+
+    await outbox.add(OutboxEntry(
+      id: '${operation.name}:$targetId:${DateTime.now().microsecondsSinceEpoch}',
+      operation: operation,
+      targetId: targetId,
+      payload: payload,
+      queuedAt: DateTime.now(),
+    ));
+    return true;
+  }
 
   @override
   Future<Result<List<Project>>> getProjects({
@@ -250,6 +283,13 @@ class ProjectRepositoryImpl implements ProjectRepository {
       final item = await _remoteDataSource.updateChecklistItem(id, data);
       return Success(item);
     } catch (e) {
+      final queued = await _queueIfTransient(
+        OutboxOperation.checklistItemUpdate,
+        id,
+        data,
+        e,
+      );
+      if (queued) return const Error(OfflineQueuedFailure());
       return Error(UnknownFailure(originalError: e));
     }
   }

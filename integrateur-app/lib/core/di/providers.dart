@@ -17,6 +17,9 @@ import '../../data/datasources/remote/user_remote_datasource.dart';
 import '../../data/repositories/floor_plan_repository_impl.dart';
 import '../../domain/repositories/floor_plan_repository.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../domain/services/outbox_replay.dart';
+import '../../data/repositories/outbox_sender_impl.dart';
+import '../../data/repositories/outbox_store_impl.dart';
 import '../../data/repositories/catalogue_repository_impl.dart';
 import '../../data/repositories/device_repository_impl.dart';
 import '../../data/repositories/project_repository_impl.dart';
@@ -139,9 +142,22 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
+/// File d'attente des saisies faites hors ligne — une seule pour toute l'app.
+final outboxStoreProvider = Provider<OutboxStoreImpl>((ref) {
+  return OutboxStoreImpl();
+});
+
+final outboxSenderProvider = Provider<OutboxSender>((ref) {
+  return OutboxSenderImpl(
+    projects: ref.watch(projectRemoteDataSourceProvider),
+    quotes: ref.watch(quoteRemoteDataSourceProvider),
+  );
+});
+
 final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
   return ProjectRepositoryImpl(
     remoteDataSource: ref.watch(projectRemoteDataSourceProvider),
+    outbox: ref.watch(outboxStoreProvider),
   );
 });
 
@@ -166,6 +182,8 @@ final deviceRepositoryProvider = Provider<DeviceRepository>((ref) {
 final syncRepositoryProvider = Provider<SyncRepository>((ref) {
   return SyncRepositoryImpl(
     remoteDataSource: ref.watch(syncRemoteDataSourceProvider),
+    outbox: ref.watch(outboxStoreProvider),
+    outboxSender: ref.watch(outboxSenderProvider),
   );
 });
 

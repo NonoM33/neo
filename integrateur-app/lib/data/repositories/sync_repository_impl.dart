@@ -5,17 +5,27 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/errors/failures.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/sync_repository.dart';
+import '../../domain/services/outbox_replay.dart';
 import '../datasources/remote/sync_remote_datasource.dart';
 
 /// Implementation of SyncRepository using backend sync API.
 class SyncRepositoryImpl implements SyncRepository {
   final SyncRemoteDataSource _remoteDataSource;
   bool _offlineMode = false;
+
+  /// Saisies faites sans reseau, en attente de depart.
+  final OutboxStore? _outbox;
+  final OutboxSender? _outboxSender;
   DateTime? _lastSyncTime;
   final _connectivityController = StreamController<bool>.broadcast();
 
-  SyncRepositoryImpl({required SyncRemoteDataSource remoteDataSource})
-      : _remoteDataSource = remoteDataSource {
+  SyncRepositoryImpl({
+    required SyncRemoteDataSource remoteDataSource,
+    OutboxStore? outbox,
+    OutboxSender? outboxSender,
+  })  : _remoteDataSource = remoteDataSource,
+        _outbox = outbox,
+        _outboxSender = outboxSender {
     Connectivity().onConnectivityChanged.listen((results) {
       final isOnline = results.any((r) => r != ConnectivityResult.none);
       _connectivityController.add(isOnline);
@@ -46,6 +56,8 @@ class SyncRepositoryImpl implements SyncRepository {
   }) async {
     try {
       onProgress?.call(const SyncProgress(status: SyncStatus.syncing, currentItem: 'Pull...'));
+
+      await _pushPending();
 
       // Pull changes
       final pullResult = await _remoteDataSource.pullChanges(
@@ -112,7 +124,19 @@ class SyncRepositoryImpl implements SyncRepository {
   }
 
   @override
-  Future<int> getPendingUploadsCount() async => 0;
+  Future<int> getPendingUploadsCount() async =>
+      (await _outbox?.pending())?.length ?? 0;
+
+  /// Transmet les saisies faites hors ligne.
+  ///
+  /// Appele AVANT de tirer les changements du serveur : pousser d'abord evite
+  /// d'ecraser une saisie locale par une version serveur plus ancienne.
+  Future<OutboxReplayReport?> _pushPending() async {
+    final outbox = _outbox;
+    final sender = _outboxSender;
+    if (outbox == null || sender == null) return null;
+    return OutboxReplay.drain(outbox, sender);
+  }
 
   @override
   Future<DateTime?> getLastSyncTime() async => _lastSyncTime;
