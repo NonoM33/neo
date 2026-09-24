@@ -47,6 +47,8 @@ import '../../domain/usecases/ticket_usecases.dart';
 import '../../domain/usecases/appointment_usecases.dart';
 import '../../presentation/blocs/audit/audit_bloc.dart';
 import '../../presentation/blocs/auth/auth_bloc.dart';
+import '../../presentation/blocs/auth/auth_state.dart';
+import '../../domain/entities/user.dart';
 import '../../presentation/blocs/auth/auth_event.dart';
 import '../../presentation/blocs/catalogue/catalogue_bloc.dart';
 import '../../presentation/blocs/dashboard/dashboard_bloc.dart';
@@ -417,6 +419,23 @@ final authBlocProvider = Provider<AuthBloc>((ref) {
       () => bloc.add(const AuthLogoutRequested());
 
   return bloc;
+});
+
+/// Le profil connecte, ou `null` tant que la session n'est pas etablie.
+///
+/// Un seul endroit sait deplier l'etat d'authentification : sans cela chaque
+/// ecran refait le test et l'un d'eux finit par l'oublier.
+final currentUserProvider = Provider<User?>((ref) {
+  final state = ref.watch(authBlocProvider).state;
+  return state is AuthAuthenticated ? state.user : null;
+});
+
+/// Vrai quand le profil connecte a le droit d'ouvrir un projet.
+///
+/// Par defaut NON : tant qu'on ne sait pas qui est la, on ne propose pas une
+/// action que le serveur refusera.
+final canCreateProjectProvider = Provider<bool>((ref) {
+  return ref.watch(currentUserProvider)?.canCreateProject ?? false;
 });
 
 final syncBlocProvider = Provider<SyncBloc>((ref) {

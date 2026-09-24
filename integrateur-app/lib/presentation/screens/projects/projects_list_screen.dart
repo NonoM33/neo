@@ -58,13 +58,16 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
     final bloc = ref.watch(projectsBlocProvider);
     final ds = context.ds;
     final device = context.dsDevice;
+    // L'auditeur ne cree pas de projet : on ne lui propose donc pas une
+    // action que le serveur refusera (403).
+    final peutCreer = ref.watch(canCreateProjectProvider);
 
     return Scaffold(
       backgroundColor: ds.surfaceBase,
       appBar: DsAppBar(
         title: 'Projets',
         actions: [
-          if (!device.isPhone)
+          if (!device.isPhone && peutCreer)
             Padding(
               padding: const EdgeInsets.only(right: DsSpacing.s2),
               child: DsButton(
@@ -75,7 +78,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
             ),
         ],
       ),
-      floatingActionButton: device.isPhone
+      floatingActionButton: device.isPhone && peutCreer
           ? FloatingActionButton.extended(
               onPressed: () => context.goToProjectCreate(),
               icon: const Icon(DsGlyph.add),
@@ -105,6 +108,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
           final masterDetail = device.isDesktop && context.dsIsLandscape;
 
           final list = _ProjectsPane(
+      canCreate: peutCreer,
             projects: visible,
             allCount: all.length,
             search: _search,
@@ -144,6 +148,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
 
 class _ProjectsPane extends StatelessWidget {
   const _ProjectsPane({
+    required this.canCreate,
     required this.projects,
     required this.allCount,
     required this.search,
@@ -156,6 +161,8 @@ class _ProjectsPane extends StatelessWidget {
     required this.columns,
   });
 
+  /// Le profil connecte peut-il ouvrir un projet ? (faux pour l'auditeur)
+  final bool canCreate;
   final List<Project> projects;
   final int allCount;
   final String search;
@@ -217,17 +224,24 @@ class _ProjectsPane extends StatelessWidget {
                       // « Liste vide » et « recherche vide » sont deux messages
                       // differents : ne jamais reutiliser le meme texte.
                       allCount == 0
-                          ? DsEmptyState(
-                              icon: DsGlyph.folderOutline,
-                              title: 'Aucun projet pour l’instant',
-                              description:
-                                  'Un projet regroupe le client, l’audit de sa maison, le plan des pièces et le devis.',
-                              action: DsButton(
-                                label: 'Créer le premier projet',
-                                icon: DsGlyph.add,
-                                onPressed: () => context.goToProjectCreate(),
-                              ),
-                            )
+                          ? (canCreate
+                              ? DsEmptyState(
+                                  icon: DsGlyph.folderOutline,
+                                  title: 'Aucun projet pour l’instant',
+                                  description:
+                                      'Un projet regroupe le client, l’audit de sa maison, le plan des pièces et le devis.',
+                                  action: DsButton(
+                                    label: 'Créer le premier projet',
+                                    icon: DsGlyph.add,
+                                    onPressed: () => context.goToProjectCreate(),
+                                  ),
+                                )
+                              : const DsEmptyState(
+                                  icon: DsGlyph.folderOutline,
+                                  title: 'Aucun projet confié',
+                                  description:
+                                      'Les projets sur lesquels vous devez intervenir apparaîtront ici dès qu’un responsable vous en confiera un.',
+                                ))
                           : const DsEmptyState(
                               icon: DsGlyph.search,
                               title: 'Aucun projet ne correspond',

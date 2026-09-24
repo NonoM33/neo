@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context, Next } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import {
@@ -20,13 +21,38 @@ import {
 import * as ticketsService from './tickets.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { clientAuthMiddleware } from '../middleware/client-auth.middleware';
-import { requireIntegrateurOrAdmin, requireAdmin } from '../../middleware/rbac.middleware';
+import { requireIntegrateurOrAdmin, requireRole } from '../../middleware/rbac.middleware';
 import { paginationSchema } from '../../lib/pagination';
 
 // ============ Staff Routes ============
 
+/**
+ * Qui entre dans le module Support.
+ *
+ * L'auditeur a « acces en lecture, sans gestion backoffice »
+ * (`modules/roles/system-roles.ts`) : il consulte les tickets. Sans cela
+ * l'application lui affiche un onglet Support dont CHAQUE appel repond 403 —
+ * un onglet qui ne repond jamais est un onglet casse.
+ *
+ * Exporte pour etre teste tel quel : un test qui recopierait la chaine de
+ * gardes ne prouverait rien sur celle que le routeur emploie vraiment.
+ */
+export const supportStaffAcces = requireRole('admin', 'integrateur', 'auditeur');
+
+/**
+ * La gestion reste au metier. Le filtre porte sur la METHODE, donc une route
+ * d'ecriture ajoutee demain est protegee sans qu'on ait a y penser.
+ */
+export const supportStaffEcriture = async (c: Context, next: Next) => {
+  if (c.req.method === 'GET') {
+    return next();
+  }
+  return requireIntegrateurOrAdmin()(c, next);
+};
+
 const staffTickets = new Hono();
-staffTickets.use('*', authMiddleware, requireIntegrateurOrAdmin());
+staffTickets.use('*', authMiddleware, supportStaffAcces);
+staffTickets.use('*', supportStaffEcriture);
 
 // List tickets with filters
 staffTickets.get(

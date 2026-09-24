@@ -63,6 +63,11 @@ class User extends Equatable {
   bool get isIntegrateur => role == UserRole.integrateur;
   bool get isAuditeur => role == UserRole.auditeur;
 
+  /// L'auditeur releve, il n'ouvre pas d'affaire : un projet lui est CONFIE
+  /// par un admin ou par son proprietaire. Le serveur repond 403 s'il tente
+  /// la creation — l'ecran ne doit donc pas la lui proposer.
+  bool get canCreateProject => isAdmin || isIntegrateur;
+
   User copyWith({
     String? id,
     String? email,

@@ -36,6 +36,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bloc = ref.watch(dashboardBlocProvider);
     final ds = context.ds;
     final device = context.dsDevice;
+    // L'auditeur ne cree pas de projet : on ne lui propose donc pas une
+    // action que le serveur refusera (403).
+    final peutCreer = ref.watch(canCreateProjectProvider);
 
     return Scaffold(
       backgroundColor: ds.surfaceBase,
@@ -50,7 +53,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             label: 'Actualiser',
             onPressed: () => bloc.add(const DashboardRefreshRequested()),
           ),
-          if (!device.isPhone) ...[
+          if (!device.isPhone && peutCreer) ...[
             const SizedBox(width: DsSpacing.s2),
             DsButton(
               label: 'Nouveau projet',
@@ -62,7 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ],
       ),
-      floatingActionButton: device.isPhone
+      floatingActionButton: device.isPhone && peutCreer
           ? FloatingActionButton.extended(
               onPressed: () => context.goToProjectCreate(),
               icon: const Icon(DsGlyph.add),
@@ -82,7 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   onPressed: () => bloc.add(const DashboardLoadRequested()),
                 ),
               ),
-            DashboardLoaded() => _Loaded(state: state, bloc: bloc),
+            DashboardLoaded() => _Loaded(state: state, bloc: bloc, canCreate: peutCreer),
           };
         },
       ),
@@ -98,10 +101,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 }
 
 class _Loaded extends StatelessWidget {
-  const _Loaded({required this.state, required this.bloc});
+  const _Loaded({
+    required this.state,
+    required this.bloc,
+    required this.canCreate,
+  });
 
   final DashboardLoaded state;
   final DashboardBloc bloc;
+
+  /// Le profil connecte peut-il ouvrir un projet ? (faux pour l'auditeur)
+  final bool canCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -200,17 +210,24 @@ class _Loaded extends StatelessWidget {
               onPressed: () => context.goToProjects(),
             ),
             child: state.recentProjects.isEmpty
-                ? DsEmptyState(
-                    icon: DsGlyph.folderOutline,
-                    title: 'Aucun projet pour l’instant',
-                    description:
-                        'Créez un projet pour démarrer un audit chez un client et générer son devis.',
-                    action: DsButton(
-                      label: 'Nouveau projet',
-                      icon: DsGlyph.add,
-                      onPressed: () => context.goToProjectCreate(),
-                    ),
-                  )
+                ? (canCreate
+                    ? DsEmptyState(
+                        icon: DsGlyph.folderOutline,
+                        title: 'Aucun projet pour l’instant',
+                        description:
+                            'Créez un projet pour démarrer un audit chez un client et générer son devis.',
+                        action: DsButton(
+                          label: 'Nouveau projet',
+                          icon: DsGlyph.add,
+                          onPressed: () => context.goToProjectCreate(),
+                        ),
+                      )
+                    : const DsEmptyState(
+                        icon: DsGlyph.folderOutline,
+                        title: 'Aucun projet confié',
+                        description:
+                            'Les projets sur lesquels vous devez intervenir apparaîtront ici dès qu’un responsable vous en confiera un.',
+                      ))
                 : GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
