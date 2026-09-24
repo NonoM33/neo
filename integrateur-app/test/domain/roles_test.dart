@@ -21,6 +21,17 @@ User _profil(UserRole role) => User(
     );
 
 void main() {
+  group('Qui peut ouvrir un ticket de support', () {
+    test("l'admin et l'integrateur peuvent", () {
+      expect(_profil(UserRole.admin).canCreateTicket, isTrue);
+      expect(_profil(UserRole.integrateur).canCreateTicket, isTrue);
+    });
+
+    test("l'auditeur ne peut pas : il consulte le Support, il ne le gere pas", () {
+      expect(_profil(UserRole.auditeur).canCreateTicket, isFalse);
+    });
+  });
+
   group('Qui peut ouvrir un projet', () {
     test("l'admin et l'integrateur peuvent", () {
       expect(_profil(UserRole.admin).canCreateProject, isTrue);

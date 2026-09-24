@@ -438,6 +438,11 @@ final canCreateProjectProvider = Provider<bool>((ref) {
   return ref.watch(currentUserProvider)?.canCreateProject ?? false;
 });
 
+/// Vrai quand le profil connecte a le droit d'ouvrir un ticket de support.
+final canCreateTicketProvider = Provider<bool>((ref) {
+  return ref.watch(currentUserProvider)?.canCreateTicket ?? false;
+});
+
 final syncBlocProvider = Provider<SyncBloc>((ref) {
   return SyncBloc(
     syncRepository: ref.watch(syncRepositoryProvider),

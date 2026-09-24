@@ -68,6 +68,11 @@ class User extends Equatable {
   /// la creation — l'ecran ne doit donc pas la lui proposer.
   bool get canCreateProject => isAdmin || isIntegrateur;
 
+  /// L'auditeur CONSULTE le Support, il ne le gere pas : creer, assigner ou
+  /// faire evoluer un ticket reste au metier. Meme raison que ci-dessus —
+  /// le serveur refuse, l'ecran ne doit pas le proposer.
+  bool get canCreateTicket => isAdmin || isIntegrateur;
+
   User copyWith({
     String? id,
     String? email,

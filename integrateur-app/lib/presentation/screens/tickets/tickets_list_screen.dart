@@ -55,13 +55,16 @@ class _TicketsListScreenState extends ConsumerState<TicketsListScreen> {
     final bloc = ref.watch(ticketsBlocProvider);
     final ds = context.ds;
     final device = context.dsDevice;
+    // L'auditeur consulte le Support sans le gerer : on ne lui propose pas
+    // une creation que le serveur refusera (403).
+    final peutCreer = ref.watch(canCreateTicketProvider);
 
     return Scaffold(
       backgroundColor: ds.surfaceBase,
       appBar: DsAppBar(
         title: 'Support',
         actions: [
-          if (!device.isPhone)
+          if (!device.isPhone && peutCreer)
             Padding(
               padding: const EdgeInsets.only(right: DsSpacing.s2),
               child: DsButton(
@@ -72,7 +75,7 @@ class _TicketsListScreenState extends ConsumerState<TicketsListScreen> {
             ),
         ],
       ),
-      floatingActionButton: device.isPhone
+      floatingActionButton: device.isPhone && peutCreer
           ? FloatingActionButton.extended(
               onPressed: () => context.goToTicketCreate(),
               icon: const Icon(DsGlyph.add),
@@ -171,11 +174,13 @@ class _TicketsListScreenState extends ConsumerState<TicketsListScreen> {
                             title: 'Aucun ticket de support',
                             description:
                                 'Les demandes clients arrivent ici : panne, réglage, question sur une installation livrée.',
-                            action: DsButton(
-                              label: 'Créer un ticket',
-                              icon: DsGlyph.add,
-                              onPressed: () => context.goToTicketCreate(),
-                            ),
+                            action: peutCreer
+                                ? DsButton(
+                                    label: 'Créer un ticket',
+                                    icon: DsGlyph.add,
+                                    onPressed: () => context.goToTicketCreate(),
+                                  )
+                                : null,
                           )
                         : const DsEmptyState(
                             icon: DsGlyph.search,
