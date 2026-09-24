@@ -124,3 +124,15 @@ class UnknownFailure extends Failure {
   @override
   List<Object?> get props => [message, code, originalError];
 }
+
+/// La saisie n'est pas partie, mais elle n'est pas perdue : elle attend le
+/// retour du reseau dans la file locale.
+///
+/// Distinguee d'une panne pour que l'interface annonce « en attente » plutot
+/// que d'alarmer l'integrateur au milieu d'un chantier.
+class OfflineQueuedFailure extends Failure {
+  const OfflineQueuedFailure({
+    super.message = 'Saisie enregistree sur l appareil, elle partira a la reconnexion',
+    super.code = 'OFFLINE_QUEUED',
+  });
+}

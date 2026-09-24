@@ -67,6 +67,12 @@ export const ProjectsListPage: FC<ProjectsListPageProps> = ({
     <Layout title="Projets" currentPath="/backoffice/projects" user={user}>
       <FlashMessages success={success} error={error} />
 
+      <div class="d-flex justify-content-end mb-3">
+        <a href="/backoffice/projects/new" class="btn btn-primary">
+          <i class="bi bi-plus-lg me-2"></i>Nouveau projet
+        </a>
+      </div>
+
       {/* Filters */}
       <div class="card mb-4">
         <div class="card-body">

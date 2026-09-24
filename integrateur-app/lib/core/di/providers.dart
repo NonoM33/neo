@@ -12,10 +12,14 @@ import '../../data/datasources/remote/appointment_remote_datasource.dart';
 import '../../data/datasources/remote/floor_plan_remote_datasource.dart';
 import '../../data/datasources/remote/signature_remote_datasource.dart';
 import '../../data/datasources/remote/ha_remote_datasource.dart';
+import '../../data/datasources/remote/box_remote_datasource.dart';
 import '../../data/datasources/remote/user_remote_datasource.dart';
 import '../../data/repositories/floor_plan_repository_impl.dart';
 import '../../domain/repositories/floor_plan_repository.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../domain/services/outbox_replay.dart';
+import '../../data/repositories/outbox_sender_impl.dart';
+import '../../data/repositories/outbox_store_impl.dart';
 import '../../data/repositories/catalogue_repository_impl.dart';
 import '../../data/repositories/device_repository_impl.dart';
 import '../../data/repositories/project_repository_impl.dart';
@@ -23,6 +27,7 @@ import '../../data/repositories/quote_repository_impl.dart';
 import '../../data/repositories/sync_repository_impl.dart';
 import '../../data/repositories/ticket_repository_impl.dart';
 import '../../data/repositories/appointment_repository_impl.dart';
+import '../../data/repositories/box_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/catalogue_repository.dart';
@@ -32,6 +37,7 @@ import '../../domain/repositories/quote_repository.dart';
 import '../../domain/repositories/sync_repository.dart';
 import '../../domain/repositories/ticket_repository.dart';
 import '../../domain/repositories/appointment_repository.dart';
+import '../../domain/repositories/box_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/usecases/auth_usecases.dart';
 import '../../domain/usecases/catalogue_usecases.dart';
@@ -41,6 +47,9 @@ import '../../domain/usecases/ticket_usecases.dart';
 import '../../domain/usecases/appointment_usecases.dart';
 import '../../presentation/blocs/audit/audit_bloc.dart';
 import '../../presentation/blocs/auth/auth_bloc.dart';
+import '../../presentation/blocs/auth/auth_state.dart';
+import '../../domain/entities/user.dart';
+import '../../presentation/blocs/auth/auth_event.dart';
 import '../../presentation/blocs/catalogue/catalogue_bloc.dart';
 import '../../presentation/blocs/dashboard/dashboard_bloc.dart';
 import '../../presentation/blocs/projects/projects_bloc.dart';
@@ -101,6 +110,10 @@ final syncRemoteDataSourceProvider = Provider<SyncRemoteDataSource>((ref) {
   return SyncRemoteDataSourceImpl(ref.watch(apiClientProvider));
 });
 
+final boxRemoteDataSourceProvider = Provider<BoxRemoteDataSource>((ref) {
+  return BoxRemoteDataSourceImpl(ref.watch(apiClientProvider));
+});
+
 final userRemoteDataSourceProvider = Provider<UserRemoteDataSource>((ref) {
   return UserRemoteDataSourceImpl(ref.watch(apiClientProvider));
 });
@@ -131,9 +144,22 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
+/// File d'attente des saisies faites hors ligne — une seule pour toute l'app.
+final outboxStoreProvider = Provider<OutboxStoreImpl>((ref) {
+  return OutboxStoreImpl();
+});
+
+final outboxSenderProvider = Provider<OutboxSender>((ref) {
+  return OutboxSenderImpl(
+    projects: ref.watch(projectRemoteDataSourceProvider),
+    quotes: ref.watch(quoteRemoteDataSourceProvider),
+  );
+});
+
 final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
   return ProjectRepositoryImpl(
     remoteDataSource: ref.watch(projectRemoteDataSourceProvider),
+    outbox: ref.watch(outboxStoreProvider),
   );
 });
 
@@ -146,6 +172,7 @@ final catalogueRepositoryProvider = Provider<CatalogueRepository>((ref) {
 final quoteRepositoryProvider = Provider<QuoteRepository>((ref) {
   return QuoteRepositoryImpl(
     remoteDataSource: ref.watch(quoteRemoteDataSourceProvider),
+    outbox: ref.watch(outboxStoreProvider),
   );
 });
 
@@ -158,6 +185,14 @@ final deviceRepositoryProvider = Provider<DeviceRepository>((ref) {
 final syncRepositoryProvider = Provider<SyncRepository>((ref) {
   return SyncRepositoryImpl(
     remoteDataSource: ref.watch(syncRemoteDataSourceProvider),
+    outbox: ref.watch(outboxStoreProvider),
+    outboxSender: ref.watch(outboxSenderProvider),
+  );
+});
+
+final boxRepositoryProvider = Provider<BoxRepository>((ref) {
+  return BoxRepositoryImpl(
+    remoteDataSource: ref.watch(boxRemoteDataSourceProvider),
   );
 });
 
@@ -370,12 +405,42 @@ final updateAuditDataUseCaseProvider = Provider<UpdateAuditDataUseCase>((ref) {
 // ============================================================================
 
 final authBlocProvider = Provider<AuthBloc>((ref) {
-  return AuthBloc(
+  final bloc = AuthBloc(
     loginUseCase: ref.watch(loginUseCaseProvider),
     logoutUseCase: ref.watch(logoutUseCaseProvider),
     getCurrentUserUseCase: ref.watch(getCurrentUserUseCaseProvider),
     checkAuthStatusUseCase: ref.watch(checkAuthStatusUseCaseProvider),
   );
+
+  // Une session perdue ramene a la connexion. Sans ce branchement, l'app
+  // restait sur un ecran d'erreur dont le bouton « Recharger » ne pouvait
+  // rien changer.
+  ref.watch(apiClientProvider).onSessionExpired =
+      () => bloc.add(const AuthLogoutRequested());
+
+  return bloc;
+});
+
+/// Le profil connecte, ou `null` tant que la session n'est pas etablie.
+///
+/// Un seul endroit sait deplier l'etat d'authentification : sans cela chaque
+/// ecran refait le test et l'un d'eux finit par l'oublier.
+final currentUserProvider = Provider<User?>((ref) {
+  final state = ref.watch(authBlocProvider).state;
+  return state is AuthAuthenticated ? state.user : null;
+});
+
+/// Vrai quand le profil connecte a le droit d'ouvrir un projet.
+///
+/// Par defaut NON : tant qu'on ne sait pas qui est la, on ne propose pas une
+/// action que le serveur refusera.
+final canCreateProjectProvider = Provider<bool>((ref) {
+  return ref.watch(currentUserProvider)?.canCreateProject ?? false;
+});
+
+/// Vrai quand le profil connecte a le droit d'ouvrir un ticket de support.
+final canCreateTicketProvider = Provider<bool>((ref) {
+  return ref.watch(currentUserProvider)?.canCreateTicket ?? false;
 });
 
 final syncBlocProvider = Provider<SyncBloc>((ref) {

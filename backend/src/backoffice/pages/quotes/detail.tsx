@@ -79,6 +79,8 @@ export const QuoteDetailPage: FC<QuoteDetailPageProps> = ({
   const status = statusLabels[quote.status] || { label: quote.status, color: 'secondary' };
   const canResend = quote.status === 'brouillon' || quote.status === 'envoye';
 
+  const canManageQuotes = user.isSuperAdmin || user.permissions.includes('devis.manage');
+
   return (
     <Layout title={`Devis ${quote.number}`} currentPath="/backoffice/quotes" user={user}>
       <FlashMessages success={success} error={error} />
@@ -103,6 +105,23 @@ export const QuoteDetailPage: FC<QuoteDetailPageProps> = ({
           </div>
         </div>
         <div class="btn-group">
+          {canManageQuotes && (
+            <a href={`/backoffice/quotes/${quote.id}/edit`} class="btn btn-outline-secondary">
+              <i class="bi bi-pencil me-1"></i>Modifier
+            </a>
+          )}
+          {canManageQuotes && (
+            <button
+              type="button"
+              class="btn btn-outline-danger"
+              hx-delete={`/backoffice/quotes/${quote.id}`}
+              hx-confirm={`Supprimer le devis ${quote.number} ? Cette action est irreversible.`}
+              hx-on--after-request="if(event.detail.successful){window.location.href='/backoffice/quotes';}"
+              title="Supprimer le devis"
+            >
+              <i class="bi bi-trash me-1"></i>Supprimer
+            </button>
+          )}
           <a
             href={`/backoffice/quotes/${quote.id}/pdf`}
             target="_blank"

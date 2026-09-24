@@ -3,12 +3,12 @@ import { zValidator } from '@hono/zod-validator';
 import { createFloorPlanSchema, updateFloorPlanSchema } from './floor-plans.schema';
 import * as floorPlansService from './floor-plans.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireAuditeur } from '../../middleware/rbac.middleware';
 import { ValidationError } from '../../lib/errors';
 
 const floorPlansRouter = new Hono();
 
-floorPlansRouter.use('*', authMiddleware, requireIntegrateurOrAdmin());
+floorPlansRouter.use('*', authMiddleware, requireAuditeur());
 
 // Get floor plan for a room
 floorPlansRouter.get('/pieces/:roomId/plan', async (c) => {

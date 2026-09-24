@@ -1,12 +1,17 @@
 import { Hono } from 'hono';
 import * as photosService from './photos.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireAuditeur } from '../../middleware/rbac.middleware';
 import { ValidationError } from '../../lib/errors';
 
 const photosRouter = new Hono();
 
-photosRouter.use('*', authMiddleware, requireIntegrateurOrAdmin());
+for (const chemin of [
+  '/photos/:id',
+  '/pieces/:roomId/photos',
+]) {
+  photosRouter.use(chemin, authMiddleware, requireAuditeur());
+}
 
 // Upload photo to a room
 photosRouter.post('/pieces/:roomId/photos', async (c) => {

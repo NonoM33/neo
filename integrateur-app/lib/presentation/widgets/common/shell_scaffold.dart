@@ -3,319 +3,297 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../routes/app_router.dart';
-import '../../blocs/auth/auth_event.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/sync/sync_bloc.dart';
+import '../feedback/feedback_overlay.dart';
+import '../ds/ds.dart';
 
-/// Main shell scaffold with navigation rail for tablet layout
+/// Sections de premier niveau.
+///
+/// Six entrees au rail iPad ; **cinq maximum** en barre basse iPhone, ou
+/// Catalogue, Ma Maison et Support se regroupent sous « Plus ».
+enum _Section {
+  dashboard('dashboard', 'Tableau de bord', 'Aujourd’hui', DsGlyph.dashboardOutline, DsGlyph.dashboard),
+  projects('projects', 'Projets', 'Projets', DsGlyph.folderOutline, DsGlyph.folder),
+  calendar('calendar', 'Agenda', 'Agenda', DsGlyph.eventOutline, DsGlyph.event),
+  catalogue('catalogue', 'Catalogue', 'Catalogue', Icons.inventory_2_outlined, DsGlyph.catalogue),
+  homes('homes', 'Ma Maison', 'Maison', DsGlyph.homeOutline, DsGlyph.home),
+  tickets('tickets', 'Support', 'Support', Icons.support_agent_outlined, DsGlyph.support);
+
+  const _Section(this.id, this.railLabel, this.phoneLabel, this.icon, this.activeIcon);
+
+  final String id;
+  final String railLabel;
+  final String phoneLabel;
+  final IconData icon;
+  final IconData activeIcon;
+
+  String get path => switch (this) {
+        _Section.dashboard => AppPaths.dashboard,
+        _Section.projects => AppPaths.projects,
+        _Section.calendar => AppPaths.calendar,
+        _Section.catalogue => AppPaths.catalogue,
+        _Section.homes => AppPaths.homes,
+        _Section.tickets => AppPaths.tickets,
+      };
+
+  static _Section fromLocation(String location) {
+    if (location.startsWith('/projects')) return _Section.projects;
+    if (location.startsWith('/calendar') || location.startsWith('/availability')) {
+      return _Section.calendar;
+    }
+    if (location.startsWith('/catalogue')) return _Section.catalogue;
+    if (location.startsWith('/homes')) return _Section.homes;
+    if (location.startsWith('/tickets')) return _Section.tickets;
+    return _Section.dashboard;
+  }
+}
+
+/// Coquille de navigation.
+///
+/// - iPad : `DsNavRail` (etendu au-dela de 1200 pt), synchro et compte en pied.
+/// - iPhone : `DsBottomBar` a cinq entrees ; la synchro vit dans l'app bar
+///   des ecrans, jamais dans la barre basse.
+/// - Ecrans immersifs (audit, plan) : plein ecran, aucune navigation.
 class ShellScaffold extends ConsumerStatefulWidget {
-  final Widget child;
+  const ShellScaffold({required this.child, super.key});
 
-  const ShellScaffold({
-    super.key,
-    required this.child,
-  });
+  final Widget child;
 
   @override
   ConsumerState<ShellScaffold> createState() => _ShellScaffoldState();
 }
 
 class _ShellScaffoldState extends ConsumerState<ShellScaffold> {
-  int _selectedIndex = 0;
+  static const List<_Section> _phoneSections = [
+    _Section.dashboard,
+    _Section.projects,
+    _Section.calendar,
+    _Section.catalogue,
+  ];
+
+  static const List<_Section> _moreSections = [
+    _Section.homes,
+    _Section.tickets,
+  ];
+
+  bool _isImmersive(String location) =>
+      location.contains('/audit') || location.contains('/rooms/');
+
+  void _go(BuildContext context, _Section section) => context.go(section.path);
 
   @override
   Widget build(BuildContext context) {
-    final syncBloc = ref.watch(syncBlocProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    // Tablet starts at 600px - always show NavigationRail on tablet
-    final isTabletOrLarger = screenWidth >= 600;
-    final isExtended = screenWidth >= 1200;
+    final location = GoRouterState.of(context).matchedLocation;
+    final active = _Section.fromLocation(location);
 
-    // Determine current route for selection
-    final currentLocation = GoRouterState.of(context).matchedLocation;
-    _selectedIndex = _getIndexFromLocation(currentLocation);
-
-    // Immersive routes: full screen, no navigation
-    if (_isImmersive(currentLocation)) {
+    if (_isImmersive(location)) {
       return Scaffold(body: widget.child);
     }
 
-    if (isTabletOrLarger) {
+    final device = context.dsDevice;
+
+    if (device.isTabletOrLarger) {
       return Scaffold(
         body: Row(
           children: [
-            // Navigation Rail
-            NavigationRail(
-              selectedIndex: _selectedIndex,
-              extended: isExtended,
-              minExtendedWidth: 220,
-              leading: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: _buildLogo(context),
-              ),
-              trailing: Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: _buildTrailingActions(context, syncBloc),
-                  ),
-                ),
-              ),
-              destinations: _buildDestinations(),
-              onDestinationSelected: (index) => _onDestinationSelected(context, index),
+            _Rail(
+              active: active,
+              expanded: device.isDesktop,
+              onSelected: (section) => _go(context, section),
             ),
-
-            // Divider
-            VerticalDivider(
-              thickness: 1,
-              width: 1,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withAlpha(8)
-                  : colorScheme.outlineVariant.withAlpha(40),
-            ),
-
-            // Content
             Expanded(child: widget.child),
           ],
         ),
       );
     }
 
-    // Mobile layout with bottom navigation
+    final isMoreActive = _moreSections.contains(active);
+
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        destinations: _buildMobileDestinations(),
-        onDestinationSelected: (index) => _onDestinationSelected(context, index),
-      ),
-    );
-  }
-
-  Widget _buildLogo(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colorScheme.primary, const Color(0xFF0D47A1)],
-        ),
-        borderRadius: AppRadius.borderRadiusMd,
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withAlpha(40),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+      bottomNavigationBar: DsBottomBar(
+        activeId: isMoreActive ? 'more' : active.id,
+        onSelected: (id) {
+          if (id == 'more') {
+            _openMoreSheet(context);
+            return;
+          }
+          _go(context, _Section.values.firstWhere((s) => s.id == id));
+        },
+        items: [
+          for (final section in _phoneSections)
+            DsNavItem(
+              id: section.id,
+              label: section.phoneLabel,
+              icon: section.icon,
+              activeIcon: section.activeIcon,
+            ),
+          const DsNavItem(
+            id: 'more',
+            label: 'Plus',
+            icon: DsGlyph.more,
           ),
         ],
       ),
-      child: const Icon(
-        Icons.home_work_rounded,
-        size: 32,
-        color: Colors.white,
-      ),
     );
   }
 
-  Widget _buildTrailingActions(BuildContext context, SyncBloc syncBloc) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Sync button
-        StreamBuilder<SyncState>(
-          stream: syncBloc.stream,
-          initialData: syncBloc.state,
-          builder: (context, snapshot) {
-            final state = snapshot.data;
-            final isSyncing = state is SyncInProgress;
-            final isOnline = state is SyncIdle ? state.isOnline : true;
-            final pendingCount = state is SyncIdle ? state.pendingUploads : 0;
+  Future<void> _openMoreSheet(BuildContext context) async {
+    await showDsSheet<void>(
+      context,
+      title: 'Plus',
+      detent: DsSheetDetent.medium,
+      builder: (sheetContext) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final section in _moreSections)
+            _MoreEntry(
+              icon: section.activeIcon,
+              label: section.railLabel,
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _go(context, section);
+              },
+            ),
+          _MoreEntry(
+            icon: DsGlyph.schedule,
+            label: 'Mes disponibilités',
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              context.goToAvailability();
+            },
+          ),
+          _MoreEntry(
+            icon: DsGlyph.account,
+            label: 'Mon compte',
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              context.goToProfile();
+            },
+          ),
+          Consumer(
+            builder: (consumerContext, ref, _) => _MoreEntry(
+              icon: DsGlyph.help,
+              label: 'Aide / Bug',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                showFeedbackDialog(context, ref);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  icon: isSyncing
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        )
-                      : Icon(
-                          isOnline ? Icons.sync : Icons.cloud_off,
-                          color: isOnline
-                              ? null
-                              : Theme.of(context).colorScheme.tertiary,
-                        ),
-                  onPressed: isSyncing
-                      ? null
-                      : () => syncBloc.add(const SyncRequested()),
-                  tooltip: isSyncing ? 'Synchronisation...' : 'Synchroniser',
-                ),
-                // Pending sync badge
-                if (pendingCount > 0)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$pendingCount',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onError,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+class _MoreEntry extends StatelessWidget {
+  const _MoreEntry({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: DsRadius.mdAll,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: DsRadius.mdAll,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: DsSpacing.targetIdeal),
+          padding: const EdgeInsets.symmetric(horizontal: DsSpacing.s2),
+          child: Row(
+            children: [
+              DsIcon(icon, size: 24, color: ds.textSecondary),
+              const SizedBox(width: DsSpacing.s4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: context.dsType.bodySize,
+                    fontWeight: DsWeight.medium,
+                    color: ds.textPrimary,
                   ),
-              ],
-            );
-          },
-        ),
-        AppSpacing.vGapMd,
-        // Profile/Logout button
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.account_circle),
-          tooltip: 'Mon compte',
-          onSelected: (value) {
-            if (value == 'logout') {
-              ref.read(authBlocProvider).add(const AuthLogoutRequested());
-              context.goToLogin();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'profile',
-              child: ListTile(
-                leading: Icon(Icons.person),
-                title: Text('Mon profil'),
-                contentPadding: EdgeInsets.zero,
+                ),
               ),
-            ),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              value: 'logout',
-              child: ListTile(
-                leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
-                title: Text('Deconnexion', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ],
+              DsIcon(DsGlyph.chevronRight, size: 22, color: ds.textTertiary),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
+}
 
-  List<NavigationRailDestination> _buildDestinations() {
-    return const [
-      NavigationRailDestination(
-        icon: Icon(Icons.dashboard_outlined),
-        selectedIcon: Icon(Icons.dashboard),
-        label: Text('Tableau de bord'),
-      ),
-      NavigationRailDestination(
-        icon: Icon(Icons.folder_outlined),
-        selectedIcon: Icon(Icons.folder),
-        label: Text('Projets'),
-      ),
-      NavigationRailDestination(
-        icon: Icon(Icons.calendar_month_outlined),
-        selectedIcon: Icon(Icons.calendar_month),
-        label: Text('Agenda'),
-      ),
-      NavigationRailDestination(
-        icon: Icon(Icons.inventory_2_outlined),
-        selectedIcon: Icon(Icons.inventory_2),
-        label: Text('Catalogue'),
-      ),
-      NavigationRailDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: Text('Maison'),
-      ),
-      NavigationRailDestination(
-        icon: Icon(Icons.support_agent_outlined),
-        selectedIcon: Icon(Icons.support_agent),
-        label: Text('Support'),
-      ),
-    ];
-  }
+class _Rail extends ConsumerWidget {
+  const _Rail({
+    required this.active,
+    required this.expanded,
+    required this.onSelected,
+  });
 
-  List<NavigationDestination> _buildMobileDestinations() {
-    return const [
-      NavigationDestination(
-        icon: Icon(Icons.dashboard_outlined),
-        selectedIcon: Icon(Icons.dashboard),
-        label: 'Accueil',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.folder_outlined),
-        selectedIcon: Icon(Icons.folder),
-        label: 'Projets',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.calendar_month_outlined),
-        selectedIcon: Icon(Icons.calendar_month),
-        label: 'Agenda',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.inventory_2_outlined),
-        selectedIcon: Icon(Icons.inventory_2),
-        label: 'Catalogue',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: 'Maison',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.support_agent_outlined),
-        selectedIcon: Icon(Icons.support_agent),
-        label: 'Support',
-      ),
-    ];
-  }
+  final _Section active;
+  final bool expanded;
+  final ValueChanged<_Section> onSelected;
 
-  bool _isImmersive(String location) =>
-      location.contains('/audit') || location.contains('/rooms/');
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncBloc = ref.watch(syncBlocProvider);
+    final authState = ref.watch(authBlocProvider).state;
+    final user = authState is AuthAuthenticated ? authState.user : null;
 
-  int _getIndexFromLocation(String location) {
-    if (location.startsWith('/projects')) return 1;
-    if (location.startsWith('/calendar')) return 2;
-    if (location.startsWith('/catalogue')) return 3;
-    if (location.startsWith('/homes')) return 4;
-    if (location.startsWith('/tickets')) return 5;
-    return 0; // Dashboard
-  }
+    return StreamBuilder<SyncState>(
+      stream: syncBloc.stream,
+      initialData: syncBloc.state,
+      builder: (context, snapshot) {
+        final sync = snapshot.data;
+        final (DsSyncState state, int pending) = switch (sync) {
+          SyncInProgress() => (DsSyncState.syncing, 0),
+          SyncFailed() => (DsSyncState.failed, 0),
+          SyncIdle(isOnline: false) => (DsSyncState.offline, 0),
+          SyncIdle(pendingUploads: final p) when p > 0 => (
+              DsSyncState.pending,
+              p,
+            ),
+          _ => (DsSyncState.online, 0),
+        };
 
-  void _onDestinationSelected(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.goToDashboard();
-      case 1:
-        context.goToProjects();
-      case 2:
-        context.goToCalendar();
-      case 3:
-        context.goToCatalogue();
-      case 4:
-        context.goToHomes();
-      case 5:
-        context.goToTickets();
-    }
+        return DsNavRail(
+          activeId: active.id,
+          expanded: expanded,
+          accountName: user?.fullName,
+          accountRole: user?.role.displayName,
+          onAccountTap: () => context.goToProfile(),
+          onSelected: (id) =>
+              onSelected(_Section.values.firstWhere((s) => s.id == id)),
+          helpSlot: FeedbackRailButton(expanded: expanded),
+          syncSlot: DsSyncIndicator(
+            state: state,
+            pending: pending,
+            expanded: expanded,
+            onTap: () => syncBloc.add(const SyncRequested()),
+          ),
+          items: [
+            for (final section in _Section.values)
+              DsNavItem(
+                id: section.id,
+                label: section.railLabel,
+                icon: section.icon,
+                activeIcon: section.activeIcon,
+              ),
+          ],
+        );
+      },
+    );
   }
 }

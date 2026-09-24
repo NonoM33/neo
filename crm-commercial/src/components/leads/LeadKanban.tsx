@@ -17,8 +17,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Card, CardHeader, CardBody } from '../ui';
 import { QualificationBadge } from '../prospection';
+import { Icon } from '../neo';
 import {
   LEAD_STATUS_LABELS,
   LEAD_SOURCE_LABELS,
@@ -31,6 +31,15 @@ interface LeadKanbanProps {
   /** Called when a card is dropped into a different column. */
   onStatusChange: (leadId: string, newStatus: LeadStatus) => Promise<void> | void;
 }
+
+const STAGE_DOT: Record<LeadStatus, string> = {
+  prospect: 'var(--ink-3)',
+  qualifie: 'var(--komun)',
+  proposition: 'var(--ochre)',
+  negociation: 'var(--warning)',
+  gagne: 'var(--success)',
+  perdu: 'var(--danger)',
+};
 
 function formatCurrency(value?: string) {
   if (!value) return '-';
@@ -55,39 +64,28 @@ function KanbanCardInner({
 
   return (
     <div
-      className="card kanban-card mb-2"
+      className="kcard"
       style={{
-        borderLeft: isHighValue ? '3px solid var(--neo-xp-color)' : undefined,
+        borderLeft: isHighValue ? '3px solid var(--ochre)' : undefined,
         opacity: isDragging ? 0.4 : 1,
-        cursor: 'grab',
       }}
     >
-      <div className="card-body p-3">
-        <h6 className="mb-1">
+      <div className="kc-top">
+        <span className="kc-name">
           {lead.firstName} {lead.lastName}
-        </h6>
-        <div className="d-flex align-items-center gap-1 mb-2">
-          <p className="text-muted small mb-0" style={{ flex: 1 }}>
-            {lead.title}
-          </p>
-          <QualificationBadge lead={lead} />
-        </div>
-        <div className="d-flex justify-content-between align-items-center">
-          <small className="text-muted">{LEAD_SOURCE_LABELS[lead.source]}</small>
-          <strong className="text-primary">
-            {formatCurrency(lead.estimatedValue)}
-          </strong>
-        </div>
-        {lead.probability !== undefined && (
-          <div className="progress progress-neo mt-2">
-            <div
-              className="progress-bar"
-              role="progressbar"
-              style={{ width: `${lead.probability}%` }}
-            ></div>
-          </div>
-        )}
+        </span>
+        <QualificationBadge lead={lead} />
       </div>
+      {lead.title && <div className="kc-desc">{lead.title}</div>}
+      <div className="kc-foot">
+        <span className="kc-src">{LEAD_SOURCE_LABELS[lead.source]}</span>
+        <span className="kc-val">{formatCurrency(lead.estimatedValue)}</span>
+      </div>
+      {lead.probability !== undefined && (
+        <div className="kc-prog">
+          <i style={{ width: `${lead.probability}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -143,47 +141,42 @@ function KanbanColumn({
   // The whole column acts as a droppable area via SortableContext + a
   // sentinel "empty" droppable so dragging into an empty column works.
   const ids = useMemo(() => leads.map((l) => l.id), [leads]);
+  const total = leads.reduce(
+    (sum, l) => sum + (l.estimatedValue ? parseFloat(l.estimatedValue) : 0),
+    0,
+  );
 
   return (
-    <div className="col-md-6 col-xl-3">
-      <Card className="kanban-column h-100">
-        <CardHeader
-          className={`badge-${status}`}
-          style={{
-            color: '#fff',
-            borderRadius: 'var(--neo-radius-md) var(--neo-radius-md) 0 0',
-          }}
-        >
-          <div className="d-flex justify-content-between align-items-center">
-            <span>{LEAD_STATUS_LABELS[status]}</span>
-            <span className="badge bg-white text-dark">{leads.length}</span>
-          </div>
-        </CardHeader>
-        <CardBody
-          className="p-2"
-          data-status={status}
-          style={{ minHeight: '120px' }}
-        >
-          <SortableContext items={ids} strategy={rectSortingStrategy}>
-            {leads.map((lead) => (
-              <SortableLeadCard
-                key={lead.id}
-                lead={lead}
-                onClick={() => onCardClick(lead.id)}
-              />
-            ))}
-            {leads.length === 0 && (
-              <div
-                className="text-center text-muted py-4"
-                data-empty-column={status}
-              >
-                <i className="bi bi-inbox fs-4"></i>
-                <p className="mb-0 small">Aucun lead</p>
-              </div>
-            )}
-          </SortableContext>
-        </CardBody>
-      </Card>
+    <div className="kcol">
+      <div className="kcol-head">
+        <span className="kdot" style={{ background: STAGE_DOT[status] }} />
+        <b>{LEAD_STATUS_LABELS[status]}</b>
+        <span className="kn">{leads.length}</span>
+        {total > 0 && <span className="ksum">{formatCurrency(String(total))}</span>}
+      </div>
+      <div className="kcol-body" data-status={status} style={{ minHeight: 80 }}>
+        <SortableContext items={ids} strategy={rectSortingStrategy}>
+          {leads.map((lead) => (
+            <SortableLeadCard
+              key={lead.id}
+              lead={lead}
+              onClick={() => onCardClick(lead.id)}
+            />
+          ))}
+          {leads.length === 0 && (
+            <div
+              className="empty"
+              data-empty-column={status}
+              style={{ padding: '22px 12px' }}
+            >
+              <span className="em-ic" style={{ width: 40, height: 40, marginBottom: 8 }}>
+                <Icon name="inbox" size={18} />
+              </span>
+              <p>Aucun lead</p>
+            </div>
+          )}
+        </SortableContext>
+      </div>
     </div>
   );
 }
@@ -293,7 +286,7 @@ export function LeadKanban({ leads, onStatusChange }: LeadKanbanProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="row g-3">
+      <div className="kanban">
         {PIPELINE_STAGES.map((status) => (
           <KanbanColumn
             key={status}

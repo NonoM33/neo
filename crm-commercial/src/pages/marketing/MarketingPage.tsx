@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Icon } from '../../components/neo';
+import type { IconName } from '../../components/neo';
 import { PromoCodesTab } from './PromoCodesTab';
 import { BannersTab } from './BannersTab';
 import { PopupsTab } from './PopupsTab';
@@ -6,42 +8,40 @@ import { CampaignsTab } from './CampaignsTab';
 
 type TabKey = 'promo' | 'banners' | 'popups' | 'campaigns';
 
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'promo', label: 'Codes promo', icon: 'bi-ticket-perforated' },
-  { key: 'banners', label: 'Bannières', icon: 'bi-megaphone' },
-  { key: 'popups', label: 'Pop-ups', icon: 'bi-window-stack' },
-  { key: 'campaigns', label: 'Campagnes email', icon: 'bi-envelope-paper' },
+const TABS: { key: TabKey; label: string; icon: IconName }[] = [
+  { key: 'promo', label: 'Codes promo', icon: 'receipt' },
+  { key: 'banners', label: 'Bannières', icon: 'megaphone' },
+  { key: 'popups', label: 'Pop-ups', icon: 'message' },
+  { key: 'campaigns', label: 'Campagnes email', icon: 'mail' },
 ];
 
 export function MarketingPage() {
   const [tab, setTab] = useState<TabKey>('promo');
 
   return (
-    <div className="marketing-page">
-      <div className="mb-4">
-        <h1 className="page-title mb-0">
-          <i className="bi bi-badge-ad me-2"></i>
-          Marketing
-        </h1>
-        <p className="mb-0 mt-1" style={{ color: 'var(--neo-text-secondary)', fontSize: '0.9rem' }}>
-          Codes promo, bannières, pop-ups et campagnes email
-        </p>
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Marketing</h1>
+          <p>Codes promo, bannières, pop-ups et campagnes email</p>
+        </div>
       </div>
 
-      <ul className="nav nav-tabs mb-4">
+      <div className="seg" style={{ marginBottom: 20 }}>
         {TABS.map((t) => (
-          <li className="nav-item" key={t.key}>
-            <button
-              type="button"
-              className={`nav-link ${tab === t.key ? 'active' : ''}`}
-              onClick={() => setTab(t.key)}
-            >
-              <i className={`bi ${t.icon} me-2`}></i>
+          <button
+            key={t.key}
+            type="button"
+            className={tab === t.key ? 'on' : ''}
+            onClick={() => setTab(t.key)}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name={t.icon} size={15} />
               {t.label}
-            </button>
-          </li>
+            </span>
+          </button>
         ))}
-      </ul>
+      </div>
 
       {tab === 'promo' && <PromoCodesTab />}
       {tab === 'banners' && <BannersTab />}

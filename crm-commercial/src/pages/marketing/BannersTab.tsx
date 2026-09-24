@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Button, Table } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
 import { marketingService } from '../../services';
 import { useUIStore } from '../../stores';
 import type { Banner, BannerPayload } from '../../types/marketing.types';
@@ -139,185 +140,222 @@ export function BannersTab() {
 
   return (
     <>
-      <div className="d-flex justify-content-end mb-3">
-        <Button icon="bi-plus-lg" onClick={openCreate}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Btn icon="plus" onClick={openCreate}>
           Nouvelle bannière
-        </Button>
+        </Btn>
       </div>
 
-      <Table
-        data={items}
-        loading={loading}
-        keyExtractor={(b) => b.id}
-        emptyMessage="Aucune bannière"
-        columns={[
-          {
-            key: 'message',
-            header: 'Aperçu',
-            render: (b) => (
-              <span
-                className="badge"
-                style={{ background: b.bgColor, color: b.textColor, maxWidth: 340 }}
-              >
-                {b.message}
-              </span>
-            ),
-          },
-          { key: 'priority', header: 'Priorité', render: (b) => b.priority },
-          {
-            key: 'active',
-            header: 'Statut',
-            render: (b) =>
-              b.active ? (
-                <span className="badge" style={{ background: 'var(--neo-status-gagne)' }}>
-                  Active
-                </span>
+      <Card flush>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Aperçu</th>
+                <th>Priorité</th>
+                <th>Statut</th>
+                <th style={{ textAlign: 'right' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={4}>
+                    <Spinner />
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="megaphone" size={22} />
+                      </span>
+                      <b>Aucune bannière</b>
+                      <p>Créez une bannière pour mettre en avant une offre.</p>
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                <span className="badge border text-body-secondary">Inactive</span>
-              ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            className: 'text-end',
-            render: (b) => (
-              <div className="d-flex gap-2 justify-content-end">
-                <Button size="sm" variant="outline-secondary" icon="bi-pencil" onClick={() => openEdit(b)}>
-                  {''}
-                </Button>
-                <Button size="sm" variant="danger" icon="bi-trash" onClick={() => remove(b)}>
-                  {''}
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+                items.map((b) => (
+                  <tr key={b.id}>
+                    <td>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          maxWidth: 340,
+                          padding: '4px 10px',
+                          borderRadius: 'var(--r-pill)',
+                          background: b.bgColor,
+                          color: b.textColor,
+                          fontSize: 13,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {b.message}
+                      </span>
+                    </td>
+                    <td className="t-sub">{b.priority}</td>
+                    <td>
+                      {b.active ? (
+                        <Pill tone="success" dot>
+                          Active
+                        </Pill>
+                      ) : (
+                        <Pill tone="neutral">Inactive</Pill>
+                      )}
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button className="icon-btn" aria-label="Modifier" onClick={() => openEdit(b)}>
+                          <Icon name="edit" size={16} />
+                        </button>
+                        <button className="icon-btn" aria-label="Supprimer" onClick={() => remove(b)}>
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {showForm && (
         <MarketingModal
           title={editing ? 'Modifier la bannière' : 'Nouvelle bannière'}
-          icon="bi-megaphone"
+          icon="megaphone"
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <Button variant="outline-secondary" onClick={() => setShowForm(false)}>
+              <Btn variant="subtle" onClick={() => setShowForm(false)}>
                 Annuler
-              </Button>
-              <Button onClick={save} loading={saving}>
-                Enregistrer
-              </Button>
+              </Btn>
+              <Btn onClick={save} disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Btn>
             </>
           }
         >
           <div
-            className="text-center mb-3 p-2"
-            style={{ background: form.bgColor, color: form.textColor, borderRadius: 6 }}
+            style={{
+              textAlign: 'center',
+              marginBottom: 16,
+              padding: 8,
+              background: form.bgColor,
+              color: form.textColor,
+              borderRadius: 'var(--r-md)',
+            }}
           >
             {form.message || 'Aperçu de la bannière'}
-            {form.linkLabel && <strong className="ms-2 text-decoration-underline">{form.linkLabel}</strong>}
+            {form.linkLabel && (
+              <strong style={{ marginLeft: 8, textDecoration: 'underline' }}>{form.linkLabel}</strong>
+            )}
           </div>
-          <div className="row g-3">
-            <div className="col-12">
-              <label className="form-label">Message</label>
+          <div>
+            <div className="field-label">Message</div>
+            <input
+              className="neo-field"
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              placeholder="-10 % sur votre première installation !"
+            />
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Lien (URL)</div>
               <input
-                className="form-control"
-                value={form.message}
-                onChange={(e) => setForm({ ...form, message: e.target.value })}
-                placeholder="-10 % sur votre première installation !"
-              />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Lien (URL)</label>
-              <input
-                className="form-control"
+                className="neo-field"
                 value={form.linkUrl}
                 onChange={(e) => setForm({ ...form, linkUrl: e.target.value })}
                 placeholder="https://…"
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Libellé du lien</label>
+            <div>
+              <div className="field-label">Libellé du lien</div>
               <input
-                className="form-control"
+                className="neo-field"
                 value={form.linkLabel}
                 onChange={(e) => setForm({ ...form, linkLabel: e.target.value })}
                 placeholder="J'en profite"
               />
             </div>
-            <div className="col-md-3">
-              <label className="form-label">Fond</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Fond</div>
               <input
                 type="color"
-                className="form-control form-control-color w-100"
+                className="neo-field"
+                style={{ height: 40, padding: 4 }}
                 value={form.bgColor}
                 onChange={(e) => setForm({ ...form, bgColor: e.target.value })}
               />
             </div>
-            <div className="col-md-3">
-              <label className="form-label">Texte</label>
+            <div>
+              <div className="field-label">Texte</div>
               <input
                 type="color"
-                className="form-control form-control-color w-100"
+                className="neo-field"
+                style={{ height: 40, padding: 4 }}
                 value={form.textColor}
                 onChange={(e) => setForm({ ...form, textColor: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Priorité</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Priorité</div>
               <input
                 type="number"
-                className="form-control"
+                className="neo-field"
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Début</label>
+            <div>
+              <div className="field-label">Début</div>
               <input
                 type="datetime-local"
-                className="form-control"
+                className="neo-field"
                 value={form.startsAt}
                 onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <label className="form-label">Fin</label>
+          </div>
+          <div className="field-grid">
+            <div>
+              <div className="field-label">Fin</div>
               <input
                 type="datetime-local"
-                className="form-control"
+                className="neo-field"
                 value={form.endsAt}
                 onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
               />
             </div>
-            <div className="col-md-6">
-              <div className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="banner-dismissible"
-                  checked={form.dismissible}
-                  onChange={(e) => setForm({ ...form, dismissible: e.target.checked })}
-                />
-                <label className="form-check-label" htmlFor="banner-dismissible">
-                  Fermable par le visiteur
-                </label>
-              </div>
-            </div>
-            <div className="col-md-6">
-              <div className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="banner-active"
-                  checked={form.active}
-                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                />
-                <label className="form-check-label" htmlFor="banner-active">
-                  Active
-                </label>
-              </div>
-            </div>
+            <div />
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.dismissible}
+                onChange={(e) => setForm({ ...form, dismissible: e.target.checked })}
+                style={{ accentColor: 'var(--komun)', width: 16, height: 16 }}
+              />
+              Fermable par le visiteur
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                style={{ accentColor: 'var(--komun)', width: 16, height: 16 }}
+              />
+              Active
+            </label>
           </div>
         </MarketingModal>
       )}

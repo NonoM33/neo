@@ -10,6 +10,9 @@ class ApiEndpoints {
   static const String clients = '/projets/clients';
   static String client(String id) => '/projets/clients/$id';
 
+  // Box domotiques (rattachement par l'installateur)
+  static const String boxClaim = '/boxes/claim';
+
   // Projects
   static const String projects = '/projets';
   static String project(String id) => '/projets/$id';

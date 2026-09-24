@@ -53,6 +53,14 @@ export const QuotesListPage: FC<QuotesListPageProps> = ({
     <Layout title="Devis" currentPath="/backoffice/quotes" user={user}>
       <FlashMessages success={success} error={error} />
 
+      {(user.isSuperAdmin || user.permissions.includes('devis.manage')) && (
+        <div class="d-flex justify-content-end mb-3">
+          <a href="/backoffice/quotes/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-2"></i>Nouveau devis
+          </a>
+        </div>
+      )}
+
       {/* Filters */}
       <div class="card mb-4">
         <div class="card-body">

@@ -7,6 +7,11 @@ class AuthInterceptor extends Interceptor {
   String? _accessToken;
   String? _refreshToken;
 
+  /// Appele quand la session est definitivement perdue (401 sans jeton de
+  /// rafraichissement valide). Sans ce signal, l'utilisateur restait bloque
+  /// sur un ecran d'erreur au lieu d'etre ramene a la connexion.
+  void Function()? onSessionExpired;
+
   void setTokens({required String accessToken, String? refreshToken}) {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
@@ -27,6 +32,14 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response?.statusCode == 401 && _refreshToken == null) {
+      // Aucune session a rafraichir : inutile d'insister.
+      clearTokens();
+      onSessionExpired?.call();
+      handler.next(err);
+      return;
+    }
+
     if (err.response?.statusCode == 401 && _refreshToken != null) {
       // Token expired, attempt refresh
       try {
@@ -44,6 +57,7 @@ class AuthInterceptor extends Interceptor {
       } catch (_) {
         // Refresh failed, clear tokens and propagate error
         clearTokens();
+        onSessionExpired?.call();
       }
     }
     handler.next(err);

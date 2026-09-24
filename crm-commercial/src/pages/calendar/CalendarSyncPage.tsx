@@ -1,5 +1,35 @@
 import { useState } from 'react';
 import appointmentsService from '../../services/appointments.service';
+import { Card, Btn, Icon } from '../../components/neo';
+import type { IconName } from '../../components/neo';
+
+interface Guide {
+  name: string;
+  icon: IconName;
+  tone: string;
+  steps: string[];
+}
+
+const GUIDES: Guide[] = [
+  {
+    name: 'Apple Calendar',
+    icon: 'calendar',
+    tone: 'var(--ink)',
+    steps: ['Ouvrez Calendrier', 'Fichier → Nouvel abonnement', "Collez l'URL du feed", 'Validez'],
+  },
+  {
+    name: 'Google Calendar',
+    icon: 'calendar',
+    tone: 'var(--komun)',
+    steps: ['Ouvrez Google Calendar', "Autres agendas → S'abonner", "Collez l'URL du feed", 'Validez'],
+  },
+  {
+    name: 'Outlook / Teams',
+    icon: 'mail',
+    tone: 'var(--ochre-ink)',
+    steps: ['Ouvrez Outlook Calendar', 'Ajouter un calendrier → Internet', "Collez l'URL du feed", 'Validez'],
+  },
+];
 
 export default function CalendarSyncPage() {
   const [feedUrl, setFeedUrl] = useState<string | null>(null);
@@ -46,179 +76,125 @@ export default function CalendarSyncPage() {
   };
 
   return (
-    <div className="content-area" style={{ padding: 25 }}>
-      <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="page-title">Synchronisation calendrier</h1>
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Synchronisation calendrier</h1>
+          <p>Reliez vos rendez-vous Neo à votre agenda externe</p>
+        </div>
       </div>
 
       {error && (
-        <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError(null)} aria-label="Fermer"></button>
+        <div
+          style={{
+            marginBottom: 18,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 13px',
+            borderRadius: 8,
+            background: 'var(--danger-soft)',
+            border: '1px solid var(--danger-soft)',
+            color: 'var(--danger-ink)',
+            fontSize: 13,
+          }}
+        >
+          <Icon name="bell" size={16} />
+          <span style={{ flex: 1 }}>{error}</span>
+          <Btn variant="subtle" size="sm" icon="x" onClick={() => setError(null)} />
         </div>
       )}
 
-      <div className="row">
-        <div className="col-lg-8">
-          {/* Main card */}
-          <div className="card mb-4">
-            <div className="card-header d-flex align-items-center">
-              <i className="bi bi-calendar-check me-2"></i>
-              Synchroniser avec votre agenda externe
-            </div>
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Synchroniser avec votre agenda externe" icon="calendar">
             <div className="card-body">
-              <p className="text-muted mb-4">
-                Synchronisez vos rendez-vous Neo avec Apple Calendar, Google Calendar,
-                Outlook ou tout autre client compatible iCal. Les rendez-vous apparaitront
-                automatiquement dans votre agenda.
+              <p style={{ color: 'var(--ink-3)', marginBottom: 18, lineHeight: 1.55 }}>
+                Synchronisez vos rendez-vous Neo avec Apple Calendar, Google Calendar, Outlook ou
+                tout autre client compatible iCal. Les rendez-vous apparaitront automatiquement
+                dans votre agenda.
               </p>
 
               {!feedUrl ? (
-                <button
-                  className="btn btn-primary"
-                  onClick={generateToken}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Generation...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-link-45deg me-2"></i>
-                      Generer mon lien de calendrier
-                    </>
-                  )}
-                </button>
+                <Btn icon="send" onClick={generateToken} disabled={isLoading}>
+                  {isLoading ? 'Génération…' : 'Générer mon lien de calendrier'}
+                </Btn>
               ) : (
                 <div>
-                  <label className="form-label fw-semibold">Votre lien de calendrier :</label>
-                  <div className="input-group mb-3">
+                  <div className="field-label">Votre lien de calendrier</div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                     <input
                       type="text"
-                      className="form-control font-monospace"
+                      className="neo-field"
                       value={feedUrl}
                       readOnly
-                      style={{ fontSize: '0.85rem' }}
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                     />
-                    <button
-                      className={`btn ${copied ? 'btn-success' : 'btn-outline-primary'}`}
+                    <Btn
+                      variant={copied ? 'success' : 'ghost'}
+                      icon={copied ? 'check' : 'fileText'}
                       onClick={copyUrl}
                     >
-                      <i className={`bi ${copied ? 'bi-check-lg' : 'bi-clipboard'} me-1`}></i>
-                      {copied ? 'Copie !' : 'Copier'}
-                    </button>
+                      {copied ? 'Copié !' : 'Copier'}
+                    </Btn>
                   </div>
 
-                  <div className="d-flex gap-2">
-                    <button className="btn btn-outline-secondary btn-sm" onClick={generateToken} disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                          Regeneration...
-                        </>
-                      ) : (
-                        <>
-                          <i className="bi bi-arrow-clockwise me-1"></i>
-                          Regenerer
-                        </>
-                      )}
-                    </button>
-                    <button className="btn btn-outline-danger btn-sm" onClick={revokeToken}>
-                      <i className="bi bi-trash me-1"></i>
-                      Revoquer
-                    </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Btn variant="subtle" size="sm" icon="zap" onClick={generateToken} disabled={isLoading}>
+                      {isLoading ? 'Régénération…' : 'Régénérer'}
+                    </Btn>
+                    <Btn variant="danger-ghost" size="sm" icon="trash" onClick={revokeToken}>
+                      Révoquer
+                    </Btn>
                   </div>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
-          {/* Instructions */}
-          <div className="card">
-            <div className="card-header d-flex align-items-center">
-              <i className="bi bi-question-circle me-2"></i>
-              Comment utiliser ?
-            </div>
+          <Card head="Comment utiliser ?" icon="help">
             <div className="card-body">
-              <div className="row g-4">
-                {/* Apple Calendar */}
-                <div className="col-md-4">
-                  <div className="text-center mb-3">
-                    <i className="bi bi-apple" style={{ fontSize: '2rem', color: 'var(--neo-text-primary)' }}></i>
+              <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                {GUIDES.map((g) => (
+                  <div key={g.name}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ color: g.tone, display: 'inline-flex' }}>
+                        <Icon name={g.icon} size={20} />
+                      </span>
+                      <strong style={{ fontSize: 14 }}>{g.name}</strong>
+                    </div>
+                    <ol style={{ color: 'var(--ink-3)', fontSize: 13, paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
+                      {g.steps.map((s) => (
+                        <li key={s}>{s}</li>
+                      ))}
+                    </ol>
                   </div>
-                  <h6 className="text-center fw-semibold">Apple Calendar</h6>
-                  <ol className="small text-muted ps-3">
-                    <li>Ouvrez Calendrier</li>
-                    <li>Fichier &rarr; Nouvel abonnement</li>
-                    <li>Collez l'URL du feed</li>
-                    <li>Validez</li>
-                  </ol>
-                </div>
-
-                {/* Google Calendar */}
-                <div className="col-md-4">
-                  <div className="text-center mb-3">
-                    <i className="bi bi-google" style={{ fontSize: '2rem', color: '#4285F4' }}></i>
-                  </div>
-                  <h6 className="text-center fw-semibold">Google Calendar</h6>
-                  <ol className="small text-muted ps-3">
-                    <li>Ouvrez Google Calendar</li>
-                    <li>Autres agendas &rarr; S'abonner</li>
-                    <li>Collez l'URL du feed</li>
-                    <li>Validez</li>
-                  </ol>
-                </div>
-
-                {/* Outlook */}
-                <div className="col-md-4">
-                  <div className="text-center mb-3">
-                    <i className="bi bi-microsoft" style={{ fontSize: '2rem', color: '#00A4EF' }}></i>
-                  </div>
-                  <h6 className="text-center fw-semibold">Outlook / Teams</h6>
-                  <ol className="small text-muted ps-3">
-                    <li>Ouvrez Outlook Calendar</li>
-                    <li>Ajouter un calendrier &rarr; Internet</li>
-                    <li>Collez l'URL du feed</li>
-                    <li>Validez</li>
-                  </ol>
-                </div>
+                ))}
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
-        {/* Sidebar info */}
-        <div className="col-lg-4">
-          <div className="card" style={{ backgroundColor: 'var(--neo-bg-light)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Informations" icon="inbox">
             <div className="card-body">
-              <h6 className="fw-semibold mb-3">
-                <i className="bi bi-info-circle me-2 text-primary"></i>
-                Informations
-              </h6>
-              <ul className="small text-muted mb-0 ps-3">
-                <li className="mb-2">Le calendrier se met a jour automatiquement</li>
-                <li className="mb-2">Les RDV des 30 derniers jours et 90 prochains jours sont synchronises</li>
-                <li className="mb-2">Regenerez le lien si vous suspectez un acces non autorise</li>
+              <ul style={{ color: 'var(--ink-3)', fontSize: 13, paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
+                <li>Le calendrier se met à jour automatiquement</li>
+                <li>Les RDV des 30 derniers jours et 90 prochains jours sont synchronisés</li>
+                <li>Régénérez le lien si vous suspectez un accès non autorisé</li>
                 <li>Un seul lien actif par utilisateur</li>
               </ul>
             </div>
-          </div>
+          </Card>
 
-          <div className="card mt-4" style={{ backgroundColor: 'var(--neo-bg-light)' }}>
+          <Card head="Sécurité" icon="shield">
             <div className="card-body">
-              <h6 className="fw-semibold mb-3">
-                <i className="bi bi-shield-check me-2 text-success"></i>
-                Securite
-              </h6>
-              <p className="small text-muted mb-0">
-                Le lien contient un jeton unique et personnel. Ne le partagez pas.
-                Si le lien est compromis, revoquez-le et generez-en un nouveau.
+              <p style={{ color: 'var(--ink-3)', fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                Le lien contient un jeton unique et personnel. Ne le partagez pas. Si le lien est
+                compromis, révoquez-le et générez-en un nouveau.
               </p>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

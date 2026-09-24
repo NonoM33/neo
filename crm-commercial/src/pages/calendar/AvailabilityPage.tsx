@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Card, Icon } from '../../components/neo';
 import { appointmentsService } from '../../services/appointments.service';
 import { useAuthStore } from '../../stores/auth.store';
 import type { AvailabilitySlot, AvailabilityOverride, DayOfWeek } from '../../types/appointment.types';
@@ -131,14 +132,30 @@ export function AvailabilityPage() {
     });
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   useEffect(() => {
+    const handleMouseUp = () => setIsDragging(false);
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, []);
+
+  const isNextSlot = (time1: string, time2: string): boolean => {
+    const [h1, m1] = time1.split(':').map(Number);
+    const [h2, m2] = time2.split(':').map(Number);
+    const minutes1 = h1 * 60 + m1;
+    const minutes2 = h2 * 60 + m2;
+    return minutes2 - minutes1 === 30;
+  };
+
+  const addThirtyMinutes = (time: string): string => {
+    const [h, m] = time.split(':').map(Number);
+    let newM = m + 30;
+    let newH = h;
+    if (newM >= 60) {
+      newH += 1;
+      newM = 0;
+    }
+    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -191,25 +208,6 @@ export function AvailabilityPage() {
     }
   };
 
-  const isNextSlot = (time1: string, time2: string): boolean => {
-    const [h1, m1] = time1.split(':').map(Number);
-    const [h2, m2] = time2.split(':').map(Number);
-    const minutes1 = h1 * 60 + m1;
-    const minutes2 = h2 * 60 + m2;
-    return minutes2 - minutes1 === 30;
-  };
-
-  const addThirtyMinutes = (time: string): string => {
-    const [h, m] = time.split(':').map(Number);
-    let newM = m + 30;
-    let newH = h;
-    if (newM >= 60) {
-      newH += 1;
-      newM = 0;
-    }
-    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
-  };
-
   const handleAddOverride = async () => {
     if (!overrideDate) return;
     setAddingOverride(true);
@@ -226,7 +224,7 @@ export function AvailabilityPage() {
       setOverrideDate('');
       setOverrideReason('');
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de l\'exception:', error);
+      console.error("Erreur lors de l'ajout de l'exception:", error);
     } finally {
       setAddingOverride(false);
     }
@@ -249,9 +247,10 @@ export function AvailabilityPage() {
       return;
     }
 
-    const days = preset === 'weekdays'
-      ? ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'] as DayOfWeek[]
-      : DAYS;
+    const days =
+      preset === 'weekdays'
+        ? (['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'] as DayOfWeek[])
+        : DAYS;
 
     days.forEach((day) => {
       // Set 9:00-12:00 and 14:00-18:00
@@ -274,273 +273,233 @@ export function AvailabilityPage() {
 
   return (
     <div className="availability-page">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate('/calendar')}>
-            <i className="bi bi-arrow-left me-1"></i>
+      <div className="page-head">
+        <div className="ph-l">
+          <button
+            type="button"
+            onClick={() => navigate('/calendar')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              color: 'var(--ink-3)',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: 8,
+              fontSize: 13,
+            }}
+          >
+            <Icon name="arrowLeft" size={15} />
             Retour à l'agenda
           </button>
-          <h2 className="mb-0" style={{ fontWeight: 600 }}>
-            <i className="bi bi-clock me-2"></i>
-            Mes disponibilités
-          </h2>
+          <h1>Mes disponibilités</h1>
+          <p>Définissez vos créneaux récurrents et vos exceptions</p>
         </div>
-        <Button icon="bi-check-lg" loading={saving} onClick={handleSave}>
-          Enregistrer
-        </Button>
+        <div className="page-actions">
+          <Btn icon="check" disabled={saving} onClick={handleSave}>
+            Enregistrer
+          </Btn>
+        </div>
       </div>
 
-      <div className="row g-4">
-        {/* Weekly Grid */}
-        <div className="col-lg-9">
-          <Card>
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>Plage horaire hebdomadaire</span>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => setPreset('weekdays')}
-                  >
-                    Semaine standard
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => setPreset('fullweek')}
-                  >
-                    Semaine complète
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => setPreset('clear')}
-                  >
-                    Tout effacer
-                  </button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardBody className="p-0">
-              <p className="text-muted px-3 pt-3 mb-2" style={{ fontSize: '0.8rem' }}>
-                <i className="bi bi-info-circle me-1"></i>
-                Cliquez et glissez pour sélectionner vos créneaux de disponibilité.
-              </p>
-              <div className="table-responsive" style={{ userSelect: 'none' }}>
-                <table className="table table-bordered mb-0" style={{ tableLayout: 'fixed' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '60px', fontSize: '0.75rem' }} className="text-center text-muted">Heure</th>
-                      {DAYS.map((day) => (
-                        <th key={day} className="text-center" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                          {DAY_OF_WEEK_LABELS[day].substring(0, 3)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {TIME_SLOTS.map((time) => (
-                      <tr key={time}>
-                        <td
-                          className="text-center text-muted"
-                          style={{
-                            fontSize: '0.7rem',
-                            padding: '2px 4px',
-                            verticalAlign: 'middle',
-                            backgroundColor: 'var(--neo-bg-light)',
-                          }}
-                        >
-                          {time.endsWith(':00') ? time : ''}
-                        </td>
-                        {DAYS.map((day) => {
-                          const key = slotKeyStr(day, time);
-                          const isActive = activeSlots.has(key);
-                          return (
-                            <td
-                              key={key}
-                              onMouseDown={() => handleMouseDown(day, time)}
-                              onMouseEnter={() => handleMouseEnter(day, time)}
-                              style={{
-                                padding: 0,
-                                height: '20px',
-                                cursor: 'pointer',
-                                backgroundColor: isActive ? 'var(--neo-primary)' : 'transparent',
-                                opacity: isActive ? 0.8 : 1,
-                                transition: 'background-color 0.1s',
-                                borderBottom: time.endsWith(':00') ? '1px solid var(--neo-border-color)' : '1px solid rgba(0,0,0,0.03)',
-                              }}
-                            ></td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Sidebar: Overrides & Summary */}
-        <div className="col-lg-3">
-          {/* Summary */}
-          <Card className="mb-4">
-            <CardHeader>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Résumé</span>
-            </CardHeader>
-            <CardBody>
-              {DAYS.map((day) => {
-                const daySlots = TIME_SLOTS.filter((t) => activeSlots.has(slotKeyStr(day, t)));
-                if (daySlots.length === 0) {
-                  return (
-                    <div key={day} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.8rem' }}>
-                      <span className="text-muted">{DAY_OF_WEEK_LABELS[day].substring(0, 3)}</span>
-                      <span className="text-muted">-</span>
-                    </div>
-                  );
-                }
-                const hoursCount = daySlots.length * 0.5;
-                return (
-                  <div key={day} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.8rem' }}>
-                    <span style={{ fontWeight: 500 }}>{DAY_OF_WEEK_LABELS[day].substring(0, 3)}</span>
-                    <span className="text-primary" style={{ fontWeight: 500 }}>{hoursCount}h</span>
-                  </div>
-                );
-              })}
-              <hr className="my-2" />
-              <div className="d-flex justify-content-between" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                <span>Total</span>
-                <span className="text-primary">
-                  {(Array.from(activeSlots).length * 0.5).toFixed(1)}h / semaine
-                </span>
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Exceptions */}
-          <Card>
-            <CardHeader>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Exceptions</span>
-            </CardHeader>
-            <CardBody>
-              <p className="text-muted mb-3" style={{ fontSize: '0.8rem' }}>
-                Ajoutez des exceptions pour des jours spécifiques (congés, indisponibilités ponctuelles).
-              </p>
-
-              <div className="mb-2">
-                <label className="form-label" style={{ fontSize: '0.8rem' }}>Date</label>
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={overrideDate}
-                  onChange={(e) => setOverrideDate(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-2">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="overrideAvailable"
-                    checked={overrideAvailable}
-                    onChange={(e) => setOverrideAvailable(e.target.checked)}
-                  />
-                  <label className="form-check-label" htmlFor="overrideAvailable" style={{ fontSize: '0.8rem' }}>
-                    {overrideAvailable ? 'Disponible (horaire spécifique)' : 'Indisponible'}
-                  </label>
-                </div>
-              </div>
-
-              {overrideAvailable && (
-                <div className="row g-2 mb-2">
-                  <div className="col-6">
-                    <label className="form-label" style={{ fontSize: '0.75rem' }}>De</label>
-                    <input
-                      type="time"
-                      className="form-control form-control-sm"
-                      value={overrideStartTime}
-                      onChange={(e) => setOverrideStartTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-6">
-                    <label className="form-label" style={{ fontSize: '0.75rem' }}>À</label>
-                    <input
-                      type="time"
-                      className="form-control form-control-sm"
-                      value={overrideEndTime}
-                      onChange={(e) => setOverrideEndTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="mb-2">
-                <label className="form-label" style={{ fontSize: '0.8rem' }}>Raison (optionnel)</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  value={overrideReason}
-                  onChange={(e) => setOverrideReason(e.target.value)}
-                  placeholder="Ex: Congé, Formation..."
-                />
-              </div>
-
-              <button
-                className="btn btn-sm btn-outline-primary w-100 mb-3"
-                onClick={handleAddOverride}
-                disabled={!overrideDate || addingOverride}
-              >
-                {addingOverride ? (
-                  <span className="spinner-border spinner-border-sm me-1"></span>
-                ) : (
-                  <i className="bi bi-plus-lg me-1"></i>
-                )}
-                Ajouter une exception
-              </button>
-
-              {/* Existing Overrides */}
-              {overrides.length > 0 && (
-                <div>
-                  <div className="text-muted small mb-2" style={{ fontWeight: 600 }}>Exceptions existantes</div>
-                  {overrides.map((override) => (
-                    <div
-                      key={override.id}
-                      className="d-flex justify-content-between align-items-center p-2 rounded mb-1"
-                      style={{ backgroundColor: 'var(--neo-bg-light)', fontSize: '0.8rem' }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 500 }}>
-                          {new Date(override.date).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                          })}
-                        </div>
-                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                          {override.isAvailable
-                            ? `${override.startTime} - ${override.endTime}`
-                            : 'Indisponible'}
-                          {override.reason && ` - ${override.reason}`}
-                        </div>
-                      </div>
-                      <button
-                        className="btn btn-sm btn-link text-danger p-0"
-                        onClick={() => handleDeleteOverride(override.id)}
-                        title="Supprimer"
-                      >
-                        <i className="bi bi-trash"></i>
-                      </button>
-                    </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 18, alignItems: 'start' }}>
+        <Card
+          head="Plage horaire hebdomadaire"
+          icon="clock"
+          action={
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Btn variant="ghost" size="sm" onClick={() => setPreset('weekdays')}>
+                Semaine standard
+              </Btn>
+              <Btn variant="ghost" size="sm" onClick={() => setPreset('fullweek')}>
+                Complète
+              </Btn>
+              <Btn variant="danger-ghost" size="sm" onClick={() => setPreset('clear')}>
+                Effacer
+              </Btn>
+            </div>
+          }
+          flush
+        >
+          <p className="t-sub" style={{ fontSize: 12.5, padding: '12px 16px 4px', margin: 0 }}>
+            <Icon name="help" size={13} /> Cliquez et glissez pour sélectionner vos créneaux de disponibilité.
+          </p>
+          <div style={{ userSelect: 'none', padding: '4px 16px 16px' }}>
+            <table style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 54, fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textAlign: 'center' }}>Heure</th>
+                  {DAYS.map((day) => (
+                    <th key={day} style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', padding: '4px 0', color: 'var(--ink-2)' }}>
+                      {DAY_OF_WEEK_LABELS[day].substring(0, 3)}
+                    </th>
                   ))}
-                </div>
-              )}
+                </tr>
+              </thead>
+              <tbody>
+                {TIME_SLOTS.map((time) => (
+                  <tr key={time}>
+                    <td
+                      style={{
+                        fontSize: 10.5,
+                        padding: '2px 4px',
+                        verticalAlign: 'middle',
+                        textAlign: 'center',
+                        color: 'var(--ink-4)',
+                      }}
+                    >
+                      {time.endsWith(':00') ? time : ''}
+                    </td>
+                    {DAYS.map((day) => {
+                      const key = slotKeyStr(day, time);
+                      const isActive = activeSlots.has(key);
+                      return (
+                        <td
+                          key={key}
+                          onMouseDown={() => handleMouseDown(day, time)}
+                          onMouseEnter={() => handleMouseEnter(day, time)}
+                          style={{
+                            padding: 0,
+                            height: 20,
+                            cursor: 'pointer',
+                            background: isActive ? 'var(--komun)' : 'transparent',
+                            opacity: isActive ? 0.85 : 1,
+                            transition: 'background-color 0.1s',
+                            border: '1px solid var(--line)',
+                            borderBottom: time.endsWith(':00') ? '1px solid var(--line-2)' : '1px solid var(--line)',
+                          }}
+                        ></td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
-              {overrides.length === 0 && (
-                <div className="text-center text-muted py-2" style={{ fontSize: '0.8rem' }}>
-                  <i className="bi bi-calendar-x d-block mb-1"></i>
-                  Aucune exception
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Résumé" icon="chart">
+            {DAYS.map((day) => {
+              const daySlots = TIME_SLOTS.filter((t) => activeSlots.has(slotKeyStr(day, t)));
+              const hoursCount = daySlots.length * 0.5;
+              return (
+                <div key={day} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 13 }}>
+                  <span style={{ color: daySlots.length ? 'var(--ink)' : 'var(--ink-4)', fontWeight: daySlots.length ? 500 : 400 }}>
+                    {DAY_OF_WEEK_LABELS[day].substring(0, 3)}
+                  </span>
+                  <span style={{ color: daySlots.length ? 'var(--komun)' : 'var(--ink-4)', fontWeight: 500 }}>
+                    {daySlots.length ? `${hoursCount}h` : '—'}
+                  </span>
                 </div>
-              )}
-            </CardBody>
+              );
+            })}
+            <div style={{ borderTop: '1px solid var(--line)', margin: '10px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, fontWeight: 600 }}>
+              <span>Total</span>
+              <span style={{ color: 'var(--komun)' }}>{(Array.from(activeSlots).length * 0.5).toFixed(1)}h / semaine</span>
+            </div>
+          </Card>
+
+          <Card head="Exceptions" icon="calendar">
+            <p className="t-sub" style={{ fontSize: 12.5, marginTop: 0, marginBottom: 14 }}>
+              Ajoutez des exceptions pour des jours spécifiques (congés, indisponibilités ponctuelles).
+            </p>
+
+            <div className="field-label">Date</div>
+            <input
+              type="date"
+              className="neo-field"
+              value={overrideDate}
+              onChange={(e) => setOverrideDate(e.target.value)}
+            />
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0', fontSize: 13, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={overrideAvailable}
+                onChange={(e) => setOverrideAvailable(e.target.checked)}
+                style={{ accentColor: 'var(--komun)', margin: 0 }}
+              />
+              {overrideAvailable ? 'Disponible (horaire spécifique)' : 'Indisponible'}
+            </label>
+
+            {overrideAvailable && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <div>
+                  <div className="field-label">De</div>
+                  <input type="time" className="neo-field" value={overrideStartTime} onChange={(e) => setOverrideStartTime(e.target.value)} />
+                </div>
+                <div>
+                  <div className="field-label">À</div>
+                  <input type="time" className="neo-field" value={overrideEndTime} onChange={(e) => setOverrideEndTime(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            <div className="field-label" style={{ marginTop: 8 }}>Raison (optionnel)</div>
+            <input
+              type="text"
+              className="neo-field"
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="Ex: Congé, Formation..."
+            />
+
+            <Btn
+              variant="ghost"
+              icon="plus"
+              size="sm"
+              onClick={handleAddOverride}
+              disabled={!overrideDate || addingOverride}
+              style={{ width: '100%', marginTop: 12, marginBottom: 14 }}
+            >
+              Ajouter une exception
+            </Btn>
+
+            {overrides.length > 0 ? (
+              <div>
+                <div className="field-label">Exceptions existantes</div>
+                {overrides.map((override) => (
+                  <div
+                    key={override.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: 8,
+                      borderRadius: 8,
+                      marginBottom: 5,
+                      background: 'var(--paper-2)',
+                      fontSize: 12.5,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        {new Date(override.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </div>
+                      <div className="t-sub" style={{ fontSize: 11.5 }}>
+                        {override.isAvailable ? `${override.startTime} - ${override.endTime}` : 'Indisponible'}
+                        {override.reason && ` - ${override.reason}`}
+                      </div>
+                    </div>
+                    <button
+                      className="icon-btn"
+                      onClick={() => handleDeleteOverride(override.id)}
+                      aria-label="Supprimer"
+                    >
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="t-sub" style={{ textAlign: 'center', fontSize: 12.5, padding: '8px 0' }}>
+                Aucune exception
+              </div>
+            )}
           </Card>
         </div>
       </div>

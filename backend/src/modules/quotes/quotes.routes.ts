@@ -60,7 +60,22 @@ function toPdfInput(quote: Awaited<ReturnType<typeof quotesService.getQuoteWithP
 
 const quotesRouter = new Hono();
 
-quotesRouter.use('*', authMiddleware, requireCRMAccess());
+// Garde limite aux chemins que CE routeur sert.
+//
+// Monte sur `/api`, un `use('*')` s'applique a TOUTES les requetes `/api/*`,
+// y compris celles d'autres modules : c'est ainsi que l'auditeur se voyait
+// refuser la synchro, l'agenda et le support, qui n'ont rien a voir ici.
+for (const chemin of [
+  '/devis',
+  '/devis/:id',
+  '/devis/:id/dependances-manquantes',
+  '/devis/:id/envoyer',
+  '/devis/:id/pdf',
+  '/projets/:projectId/devis',
+  '/projets/:projectId/devis/from-checklist',
+]) {
+  quotesRouter.use(chemin, authMiddleware, requireCRMAccess());
+}
 
 // Global quote list for the staff back-office (admin / commercial / integrateur)
 quotesRouter.get(

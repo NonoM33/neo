@@ -321,6 +321,9 @@ export const ProjectDetailPage: FC<ProjectDetailPageProps> = ({
             <a href="/backoffice/projects" class="btn btn-outline-light btn-sm">
               <i class="bi bi-arrow-left me-1"></i>Retour
             </a>
+            <a href={`/backoffice/projects/${project.id}/edit`} class="btn btn-light btn-sm">
+              <i class="bi bi-pencil me-1"></i>Modifier
+            </a>
             <button
               type="button"
               class="btn btn-outline-danger btn-sm"

@@ -10,6 +10,7 @@ import {
   permissionForPath,
   groupedPermissions,
 } from './permissions';
+import { SYSTEM_ROLES } from './system-roles';
 
 describe('permission catalog', () => {
   it('has unique keys and paths', () => {
@@ -102,5 +103,48 @@ describe('groupedPermissions', () => {
     const groups = groupedPermissions();
     const flat = groups.flatMap((g) => g.permissions);
     expect(flat.length).toBe(PERMISSIONS.length);
+  });
+});
+
+// Avant l'ajout de `devis.manage`, /backoffice/quotes n'etait rattache a
+// AUCUNE permission : permissionForPath renvoyait null, donc n'importe quel
+// utilisateur du back-office pouvait lire tous les devis et leurs montants.
+describe('permission Devis', () => {
+  it('protege la section devis', () => {
+    expect(permissionForPath('/backoffice/quotes')).toBe('devis.manage');
+    expect(permissionForPath('/backoffice/quotes/new')).toBe('devis.manage');
+    expect(permissionForPath('/backoffice/quotes/abc/edit')).toBe('devis.manage');
+  });
+
+  it('ne deborde pas sur la section projets', () => {
+    expect(permissionForPath('/backoffice/projects')).toBe('projets.manage');
+    expect(permissionForPath('/backoffice/projects/new')).toBe('projets.manage');
+  });
+
+  it('est refusee a qui ne l a pas, accordee au super-admin', () => {
+    expect(hasPermission(['support.manage'], 'devis.manage')).toBe(false);
+    expect(hasPermission(['devis.manage'], 'devis.manage')).toBe(true);
+    expect(hasPermission([], 'devis.manage', true)).toBe(true);
+  });
+});
+
+// Les roles systeme livres doivent pouvoir travailler : un commercial sans
+// acces aux devis n'a plus de metier.
+describe('roles systeme', () => {
+  it('donne les devis a l integrateur et au commercial', () => {
+    const byName = new Map(SYSTEM_ROLES.map((r) => [r.name, r.permissions]));
+    expect(byName.get('integrateur')).toContain('devis.manage');
+    expect(byName.get('commercial')).toContain('devis.manage');
+    expect(byName.get('auditeur')).not.toContain('devis.manage');
+  });
+
+  it('ne declare que des permissions du catalogue', () => {
+    // sanitizePermissions reordonne selon le catalogue : c'est l'ENSEMBLE qui
+    // doit survivre, pas l'ordre de declaration.
+    for (const role of SYSTEM_ROLES) {
+      expect([...sanitizePermissions(role.permissions)].sort()).toEqual(
+        [...role.permissions].sort()
+      );
+    }
   });
 });

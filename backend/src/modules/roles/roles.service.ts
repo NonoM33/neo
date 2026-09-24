@@ -53,18 +53,25 @@ export async function createRole(input: {
   name: unknown;
   description?: unknown;
   permissions: unknown;
-}): Promise<void> {
+}): Promise<RoleRecord> {
   const name = normalizeRoleName(input.name);
   const description = typeof input.description === 'string' ? input.description.trim() || null : null;
   const permissions = normalizePermissionInput(input.permissions);
 
-  await db.insert(roles).values({ name, description, permissions, isSystem: false });
+  const [created] = await db
+    .insert(roles)
+    .values({ name, description, permissions, isSystem: false })
+    .returning();
+  if (!created) {
+    throw new RoleValidationError('Création du rôle impossible');
+  }
+  return created;
 }
 
 export async function updateRole(
   id: string,
   input: { name: unknown; description?: unknown; permissions: unknown }
-): Promise<void> {
+): Promise<RoleRecord> {
   const existing = await getRole(id);
   if (!existing) {
     throw new RoleValidationError('Rôle introuvable');
@@ -77,7 +84,15 @@ export async function updateRole(
   // column and by bootstrap); only its description and permissions can change.
   const name = existing.isSystem ? existing.name : normalizeRoleName(input.name);
 
-  await db.update(roles).set({ name, description, permissions }).where(eq(roles.id, id));
+  const [updated] = await db
+    .update(roles)
+    .set({ name, description, permissions })
+    .where(eq(roles.id, id))
+    .returning();
+  if (!updated) {
+    throw new RoleValidationError('Rôle introuvable');
+  }
+  return updated;
 }
 
 /**

@@ -3,11 +3,17 @@ import { zValidator } from '@hono/zod-validator';
 import { createDeviceSchema, updateDeviceSchema } from './devices.schema';
 import * as devicesService from './devices.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireAuditeur } from '../../middleware/rbac.middleware';
 
 const devicesRouter = new Hono();
 
-devicesRouter.use('*', authMiddleware, requireIntegrateurOrAdmin());
+for (const chemin of [
+  '/devices/:id',
+  '/pieces/:roomId/devices',
+  '/projets/:projectId/devices',
+]) {
+  devicesRouter.use(chemin, authMiddleware, requireAuditeur());
+}
 
 // Get devices by project
 devicesRouter.get('/projets/:projectId/devices', async (c) => {

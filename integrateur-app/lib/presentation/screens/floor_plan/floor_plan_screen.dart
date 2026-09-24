@@ -444,7 +444,9 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
       context: context,
       showDragHandle: true,
       constraints: AppSpacing.bottomSheetConstraints,
-      builder: (ctx) => Padding(
+      // Defilant par principe : une feuille figee coupe son contenu des que
+      // l'ecran raccourcit (clavier ouvert, paysage, petit iPad).
+      builder: (ctx) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -616,7 +618,9 @@ class _FloorPlanScreenState extends ConsumerState<FloorPlanScreen> {
       context: context,
       constraints: AppSpacing.bottomSheetConstraints,
       showDragHandle: true,
-      builder: (ctx) => Padding(
+      // Defilant par principe : une feuille figee coupe son contenu des que
+      // l'ecran raccourcit (clavier ouvert, paysage, petit iPad).
+      builder: (ctx) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,

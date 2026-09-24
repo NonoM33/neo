@@ -171,6 +171,10 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
   error,
   user,
 }) => {
+  // On n'affiche pas un bouton qui renverrait l'utilisateur sur un refus :
+  // chaque carte suit la permission de sa propre section.
+  const canManageProjects = user.isSuperAdmin || user.permissions.includes('projets.manage');
+  const canManageQuotes = user.isSuperAdmin || user.permissions.includes('devis.manage');
   const totalDevisTTC = quotes.reduce((sum, q) => sum + parseFloat(q.totalTTC || '0'), 0);
   const acceptedQuotes = quotes.filter(q => q.status === 'accepte');
   const totalAcceptedTTC = acceptedQuotes.reduce((sum, q) => sum + parseFloat(q.totalTTC || '0'), 0);
@@ -207,12 +211,22 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
           <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span><i class="bi bi-folder me-2"></i>Projets ({projects.length})</span>
+              {canManageProjects && (
+                <a href={`/backoffice/projects/new?clientId=${client.id}`} class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-plus-lg me-1"></i>Ajouter
+                </a>
+              )}
             </div>
             <div class="card-body p-0">
               {projects.length === 0 ? (
                 <div class="p-4 text-center text-muted">
                   <i class="bi bi-inbox display-4"></i>
-                  <p class="mt-2 mb-0">Aucun projet</p>
+                  <p class="mt-2 mb-2">Aucun projet</p>
+                  {canManageProjects && (
+                    <a href={`/backoffice/projects/new?clientId=${client.id}`} class="btn btn-sm btn-primary">
+                      <i class="bi bi-plus-lg me-1"></i>Creer un projet
+                    </a>
+                  )}
                 </div>
               ) : (
                 <table class="table table-hover mb-0">
@@ -261,12 +275,22 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
           <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span><i class="bi bi-file-text me-2"></i>Devis ({quotes.length})</span>
+              {canManageQuotes && (
+                <a href={`/backoffice/quotes/new?clientId=${client.id}`} class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-plus-lg me-1"></i>Ajouter
+                </a>
+              )}
             </div>
             <div class="card-body p-0">
               {quotes.length === 0 ? (
                 <div class="p-4 text-center text-muted">
                   <i class="bi bi-inbox display-4"></i>
-                  <p class="mt-2 mb-0">Aucun devis</p>
+                  <p class="mt-2 mb-2">Aucun devis</p>
+                  {canManageQuotes && (
+                    <a href={`/backoffice/quotes/new?clientId=${client.id}`} class="btn btn-sm btn-primary">
+                      <i class="bi bi-plus-lg me-1"></i>Creer un devis
+                    </a>
+                  )}
                 </div>
               ) : (
                 <table class="table table-hover mb-0">
@@ -278,6 +302,7 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
                       <th class="text-end">Total HT</th>
                       <th class="text-end">Total TTC</th>
                       <th>Date</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -298,6 +323,11 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
                         <td class="text-end fw-medium">{parseFloat(quote.totalTTC).toFixed(2)} EUR</td>
                         <td class="text-muted">
                           {new Date(quote.createdAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td class="text-end">
+                          <a href={`/backoffice/quotes/${quote.id}`} class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                          </a>
                         </td>
                       </tr>
                     ))}
@@ -568,6 +598,16 @@ export const ClientDetailPage: FC<ClientDetailPageProps> = ({
             </div>
             <div class="card-body">
               <div class="d-grid gap-2">
+                {canManageQuotes && (
+                  <a href={`/backoffice/quotes/new?clientId=${client.id}`} class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-file-earmark-plus me-2"></i>Nouveau devis
+                  </a>
+                )}
+                {canManageProjects && (
+                  <a href={`/backoffice/projects/new?clientId=${client.id}`} class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-folder-plus me-2"></i>Nouveau projet
+                  </a>
+                )}
                 <a href={`/backoffice/activities/new?clientId=${client.id}`} class="btn btn-outline-primary btn-sm">
                   <i class="bi bi-calendar-plus me-2"></i>Nouvelle activite
                 </a>

@@ -1,0 +1,20 @@
+// Politique du mesh Neo (format `acls` : le seul que headscale 0.26 applique ;
+// `grants` n'arrive qu'avec les versions suivantes et etait ignore -> deny total).
+//
+// Regle unique : les postes de l'utilisateur `ops` (l'equipe Neo) ou tagues
+// `tag:ops` atteignent toutes les box (`tag:box`), sur tous les ports. Rien
+// d'autre : une box ne voit ni les autres box ni les postes ops. Le tag d'une
+// box est pose par la cle pre-auth que le backend genere a l'enrolement.
+{
+  "tagOwners": {
+    "tag:box": ["ops@"],
+    "tag:ops": ["ops@"],
+  },
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["ops@", "tag:ops"],
+      "dst": ["tag:box:*"],
+    },
+  ],
+}

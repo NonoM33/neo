@@ -2,6 +2,8 @@ import 'dart:developer' as developer;
 
 import '../../core/errors/exceptions.dart';
 import '../../core/errors/failures.dart';
+import '../../domain/services/outbox_replay.dart';
+import '../../domain/entities/outbox_entry.dart';
 import '../../domain/entities/quote.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/quote_repository.dart';
@@ -12,8 +14,15 @@ import '../models/quote_model.dart';
 class QuoteRepositoryImpl implements QuoteRepository {
   final QuoteRemoteDataSource _remoteDataSource;
 
-  QuoteRepositoryImpl({required QuoteRemoteDataSource remoteDataSource})
-      : _remoteDataSource = remoteDataSource;
+  QuoteRepositoryImpl({
+    required QuoteRemoteDataSource remoteDataSource,
+    OutboxStore? outbox,
+  })  : _remoteDataSource = remoteDataSource,
+        _outbox = outbox;
+
+  /// File d'attente locale : un devis se chiffre souvent chez le client,
+  /// dans une maison sans reseau.
+  final OutboxStore? _outbox;
 
   @override
   Future<Result<List<Quote>>> getQuotesForProject(String projectId) async {
@@ -89,21 +98,36 @@ class QuoteRepositoryImpl implements QuoteRepository {
 
   /// Send only lines to backend (without changing status/notes)
   Future<Result<Quote>> _updateLines(String quoteId, List<QuoteLine> lines, {double? discount}) async {
+    final linesJson = lines
+        .map((l) => QuoteLineModel.fromEntity(l).toApiJson())
+        .toList();
+
+    final data = <String, dynamic>{
+      'lines': linesJson,
+      if (discount != null) 'discount': discount,
+    };
+
     try {
-      final linesJson = lines
-          .map((l) => QuoteLineModel.fromEntity(l).toApiJson())
-          .toList();
-
-      final data = <String, dynamic>{
-        'lines': linesJson,
-        if (discount != null) 'discount': discount,
-      };
-
       final updated = await _remoteDataSource.updateQuote(quoteId, data);
       return Success(updated);
     } on NotFoundException {
       return const Error(NotFoundFailure(message: 'Devis non trouvé'));
     } catch (e, st) {
+      // Coupure reseau ou panne serveur : la saisie attend son tour. Le corps
+      // porte TOUTES les lignes, car l'API remplace la liste entiere — n'en
+      // renvoyer qu'une effacerait les autres au moment du rejeu.
+      final outbox = _outbox;
+      if (outbox != null && (e is NetworkException || e is ServerException)) {
+        await outbox.add(OutboxEntry(
+          id: 'quoteLinesUpdate:$quoteId:${DateTime.now().microsecondsSinceEpoch}',
+          operation: OutboxOperation.quoteLinesUpdate,
+          targetId: quoteId,
+          payload: data,
+          queuedAt: DateTime.now(),
+        ));
+        return const Error(OfflineQueuedFailure());
+      }
+
       developer.log('_updateLines error: $e', name: 'QuoteRepo', error: e, stackTrace: st);
       return Error(UnknownFailure(message: 'Erreur: $e', originalError: e));
     }

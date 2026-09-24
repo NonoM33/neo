@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardHeader, CardBody, Spinner, Button, Input, Textarea } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon } from '../../components/neo';
 import { productsService } from '../../services';
 import type { CreateProductInput } from '../../types';
 
@@ -137,125 +138,132 @@ export function ProductFormPage() {
   }
 
   return (
-    <div className="product-form">
-      <div className="mb-4">
-        <button className="btn btn-link text-secondary p-0 mb-2" onClick={() => navigate('/produits')}>
-          <i className="bi bi-arrow-left me-1"></i>
-          Retour au catalogue
-        </button>
-        <h2 className="mb-0">{isEditing ? 'Modifier le produit' : 'Nouveau produit'}</h2>
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/produits')}>
+            <Icon name="arrowLeft" size={15} /> Retour au catalogue
+          </button>
+          <h1>{isEditing ? 'Modifier le produit' : 'Nouveau produit'}</h1>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="row g-4">
-          <div className="col-lg-8">
-            <Card className="mb-4">
-              <CardHeader>Informations</CardHeader>
-              <CardBody>
-                <div className="row">
-                  <div className="col-md-6">
-                    <Input
-                      label="Référence"
-                      name="reference"
-                      value={form.reference}
-                      onChange={handleChange}
-                      error={errors.reference}
-                      required
-                    />
+        <div className="lead-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <Card head="Informations" icon="package">
+              <div className="card-body">
+                <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                  <div>
+                    <div className="field-label">Référence *</div>
+                    <input className="neo-field" name="reference" value={form.reference} onChange={handleChange} />
+                    {errors.reference && <div className="field-error">{errors.reference}</div>}
                   </div>
-                  <div className="col-md-6">
-                    <Input
-                      label="Nom"
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                      error={errors.name}
-                      required
-                    />
+                  <div>
+                    <div className="field-label">Nom *</div>
+                    <input className="neo-field" name="name" value={form.name} onChange={handleChange} />
+                    {errors.name && <div className="field-error">{errors.name}</div>}
                   </div>
                 </div>
-                <Textarea label="Description" name="description" value={form.description} onChange={handleChange} />
-                <div className="row">
-                  <div className="col-md-6">
-                    <Input
-                      label="Catégorie"
-                      name="category"
-                      value={form.category}
-                      onChange={handleChange}
-                      error={errors.category}
-                      required
-                    />
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Description</div>
+                  <textarea
+                    className="neo-field"
+                    name="description"
+                    rows={4}
+                    value={form.description}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="field-grid">
+                  <div>
+                    <div className="field-label">Catégorie *</div>
+                    <input className="neo-field" name="category" value={form.category} onChange={handleChange} />
+                    {errors.category && <div className="field-error">{errors.category}</div>}
                   </div>
-                  <div className="col-md-6">
-                    <Input label="Marque" name="brand" value={form.brand} onChange={handleChange} />
+                  <div>
+                    <div className="field-label">Marque</div>
+                    <input className="neo-field" name="brand" value={form.brand} onChange={handleChange} />
                   </div>
                 </div>
-                <Input
-                  label="URL image"
-                  name="imageUrl"
-                  type="url"
-                  value={form.imageUrl}
-                  onChange={handleChange}
-                  error={errors.imageUrl}
-                  placeholder="https://…"
-                />
-              </CardBody>
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">URL image</div>
+                  <input
+                    className="neo-field"
+                    name="imageUrl"
+                    type="url"
+                    value={form.imageUrl}
+                    onChange={handleChange}
+                    placeholder="https://…"
+                  />
+                  {errors.imageUrl && <div className="field-error">{errors.imageUrl}</div>}
+                </div>
+              </div>
             </Card>
           </div>
 
-          <div className="col-lg-4">
-            <Card className="mb-4">
-              <CardHeader>Tarif & stock</CardHeader>
-              <CardBody>
-                <Input
-                  label="Prix HT (€)"
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <Card head="Tarif & stock" icon="euro">
+              <div className="card-body">
+                <div className="field-label">Prix HT (€) *</div>
+                <input
+                  className="neo-field"
                   name="priceHT"
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.priceHT}
                   onChange={handleChange}
-                  error={errors.priceHT}
-                  required
                 />
-                <Input
-                  label="TVA (%)"
-                  name="tvaRate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={form.tvaRate}
-                  onChange={handleChange}
-                  error={errors.tvaRate}
-                />
-                <Input label="Stock" name="stock" type="number" min="0" value={form.stock} onChange={handleChange} />
-                <div className="form-check form-switch mt-2">
+                {errors.priceHT && <div className="field-error">{errors.priceHT}</div>}
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">TVA (%)</div>
                   <input
-                    className="form-check-input"
+                    className="neo-field"
+                    name="tvaRate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={form.tvaRate}
+                    onChange={handleChange}
+                  />
+                  {errors.tvaRate && <div className="field-error">{errors.tvaRate}</div>}
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Stock</div>
+                  <input
+                    className="neo-field"
+                    name="stock"
+                    type="number"
+                    min="0"
+                    value={form.stock}
+                    onChange={handleChange}
+                  />
+                </div>
+                <label
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, cursor: 'pointer', fontSize: 14 }}
+                >
+                  <input
                     type="checkbox"
-                    id="isActive"
                     checked={form.isActive}
                     onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    style={{ accentColor: 'var(--komun)', width: 16, height: 16 }}
                   />
-                  <label className="form-check-label" htmlFor="isActive">
-                    Produit actif
-                  </label>
-                </div>
-              </CardBody>
+                  Produit actif
+                </label>
+              </div>
             </Card>
 
             <Card>
-              <CardBody>
-                <div className="d-grid gap-2">
-                  <Button type="submit" loading={submitting} icon="bi-check-lg">
-                    {isEditing ? 'Enregistrer' : 'Créer le produit'}
-                  </Button>
-                  <Button type="button" variant="outline-secondary" onClick={() => navigate('/produits')}>
-                    Annuler
-                  </Button>
-                </div>
-              </CardBody>
+              <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Btn type="submit" icon="check" disabled={submitting}>
+                  {submitting ? 'Enregistrement…' : isEditing ? 'Enregistrer' : 'Créer le produit'}
+                </Btn>
+                <Btn type="button" variant="subtle" onClick={() => navigate('/produits')}>
+                  Annuler
+                </Btn>
+              </div>
             </Card>
           </div>
         </div>

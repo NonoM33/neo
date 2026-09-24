@@ -65,6 +65,13 @@ bun lint       # Linter
 
 # Design System Neo Domotique
 
+> ⚠️ **LE DESIGN SYSTEM DE RÉFÉRENCE EST `DESIGN_SYSTEM.md`** (warm paper · navy
+> ink · komun blue + ochre · Geist / Instrument Serif / JetBrains Mono). Il est
+> **OBLIGATOIRE** pour toute nouvelle page ou tout nouveau composant. Implémenté
+> dans `src/styles/neo-ds.css` (scopé sous `.neo-ds`) et illustré à la route
+> `/design-system`. La section Bootstrap ci-dessous décrit la **coque legacy**
+> encore en place : ne pas s'en servir comme référence DA pour du neuf.
+
 ## Philosophie
 
 - **Clean & Professionnel**: Interface epuree, focus sur les donnees

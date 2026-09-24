@@ -238,3 +238,73 @@ InstanceDriver (interface)
 | MinIO (S3) | ♻️ Stockage snapshots |
 | argon2 (auth) | ♻️ Hash des provisioning tokens |
 | `docker create` central (cloud-instances) | ➡️ Conservé pour le chemin cloud-hosted uniquement |
+
+---
+
+## 14. La box physique — decisions du 2026-09-03
+
+Materiel retenu (Renaud) :
+
+| Element | Choix |
+|---|---|
+| Calculateur | Raspberry Pi 4 modele B |
+| Radio | antenne/dongle Zigbee **coordinateur** en USB, pilote par **ZHA** (natif HA, pas de broker MQTT, inclus dans les snapshots) |
+| Ecran | e-ink **Waveshare 2.13" HAT** (250 x 122, SPI). Le HAT n'a pas de boutons |
+| Commandes | croix directionnelle + OK + Retour = **6 boutons tactiles sur GPIO** (broches BCM configurables) |
+| Boitier | impression 3D |
+
+Logiciel : le dossier `neo-box/` est un **depot d'add-ons HA OS** ; l'add-on `neo_box`
+(Python 3.12, domaine pur + adaptateurs) pilote l'ecran et les boutons :
+
+- **Installation** : QR `NEO:<jeton>` (20 caracteres Crockford, corrige O/I/L a la
+  saisie) + code en clair, scanne par l'app installateur pour le `claim` (§6).
+- **Statut** : Internet / Cloud / Home Assistant / Zigbee, IP, nom d'hote.
+- **Erreur** : un code stable `Exx` (catalogue dans `features/errors/domain/catalogue.py`,
+  jamais renomme), libelle, QR vers `https://neo-domotique.fr/aide/Exx`. Une seule
+  erreur affichee, la plus bloquante d'abord (`features/status/domain/diagnosis.py`).
+- **Menu** : appairage Zigbee (`zha.permit` 120 s), assistance a distance, reseau,
+  redemarrage (Supervisor `/host/reboot`).
+
+Tous les ecrans sont mesures avec les vraies metriques de police (tests de layout)
+et rendus en PNG par `tools/render_screens.py` : on les regarde avant de livrer.
+
+**Non verifie sur materiel** (pas de carte SD ni d'ecran au 2026-09-03) : driver
+Waveshare, boutons GPIO, `devices` du `config.yaml`, `Dockerfile`.
+
+Fait le 2026-09-03, tout verifie en simulateur (`neo-box/neo_box/tools/simulator.py`)
+contre le backend local :
+
+- backend `boxes` : `POST /api/boxes/announce` (box, sans cle) -> `POST /api/boxes/claim`
+  (installateur) -> cle `neo_box_...` livree UNE fois a l'annonce suivante ->
+  `POST /api/boxes/me/heartbeat` (telemetrie + code erreur) et
+  `POST /api/boxes/me/support-requests` (menu de la box). Migration 0022.
+- back-office `/backoffice/boxes` (permission `box.manage`) : flotte, stats,
+  rattachement par code, demandes d'assistance, detail telemetrie, revocation.
+- app integrateur : fiche projet > Box > scan du QR (ou code) > claim.
+
+### Acces distant : Headscale remplace NetBird (decision du 2026-09-03)
+
+Le §5 retenait NetBird. A l'implementation, NetBird impose 5 services (management,
+signal, relay, dashboard) PLUS un IdP (Zitadel) et un proxy Caddy qui entre en
+conflit avec le Traefik de Coolify. **Headscale** (serveur de controle Tailscale,
+cite au §5 comme equivalent) tient dans un conteneur avec SQLite, sans IdP, avec
+les relais DERP publics pour le NAT, et une politique d'acces par tags. Deploye :
+`https://mesh.neo.157.180.43.90.sslip.io` (`neo-cloud/headscale/`, uuids dans COOLIFY.md).
+
+- **Cote box** : `tailscaled` en mode userspace DANS l'add-on `neo_box` (pas l'add-on
+  Tailscale communautaire, qui ne prend pas de cle pre-auth en configuration).
+  `host_network: true` fait que l'adresse mesh de la box, port 8123, = Home Assistant.
+- **Enrolement** : au claim, le backend cree un utilisateur headscale `neo-box-<id>`
+  et une cle pre-auth a usage unique (`tag:box`, 7 jours), livree avec la cle API
+  a l'annonce suivante ; la box fait `tailscale up` une fois et garde un marqueur.
+- **Isolation** : `policy.hujson` — `ops@` / `tag:ops` vers `tag:box`, rien d'autre.
+  Un utilisateur PAR box est aussi le filtre de recherche du noeud.
+- **Session d'assistance** : back-office > Box > « Localiser la box » interroge
+  headscale et affiche `http://100.64.x.y:8123`, joignable depuis un poste ops
+  (`neo-cloud/headscale/OPS.md`).
+- Le mesh en panne n'empeche pas un rattachement : la box est enrolee sans acces
+  distant, et le back-office le signale.
+
+Reste a faire : premier boot sur le Pi (carte SD + ecran, valider tailscale
+userspace + host_network) ; snapshots vers MinIO ; app client = fork companion
+(`neo-apps/neo-android`).

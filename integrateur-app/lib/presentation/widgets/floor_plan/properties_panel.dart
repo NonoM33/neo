@@ -1004,7 +1004,10 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
-        child: Column(
+        // Defilant par principe : une feuille figee coupe son contenu des que
+        // l'ecran raccourcit (clavier ouvert, paysage, petit iPad).
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
@@ -1018,6 +1021,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
+          ),
         ),
       ),
     );

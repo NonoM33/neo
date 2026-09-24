@@ -1,6 +1,9 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/product.dart';
+import '../../../domain/entities/product_query.dart';
+import '../../../domain/services/product_search.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/usecases/catalogue_usecases.dart';
 
@@ -25,14 +28,13 @@ final class CatalogueSearchRequested extends CatalogueEvent {
   List<Object?> get props => [query];
 }
 
-final class CatalogueFilterChanged extends CatalogueEvent {
-  final ProductCategory? category;
-  final bool? favoritesOnly;
+final class CatalogueQueryChanged extends CatalogueEvent {
+  final ProductQuery query;
 
-  const CatalogueFilterChanged({this.category, this.favoritesOnly});
+  const CatalogueQueryChanged(this.query);
 
   @override
-  List<Object?> get props => [category, favoritesOnly];
+  List<Object?> get props => [query];
 }
 
 final class CatalogueToggleFavoriteRequested extends CatalogueEvent {
@@ -81,45 +83,40 @@ final class CatalogueLoaded extends CatalogueState {
   /// All products from API (unfiltered)
   final List<Product> allProducts;
   final List<String> brands;
-  final ProductCategory? activeCategory;
-  final String searchQuery;
-  final bool favoritesOnly;
+  final ProductQuery query;
   final Product? selectedProduct;
   final bool isSyncing;
 
   const CatalogueLoaded({
     required this.allProducts,
     this.brands = const [],
-    this.activeCategory,
-    this.searchQuery = '',
-    this.favoritesOnly = false,
+    this.query = const ProductQuery(),
     this.selectedProduct,
     this.isSyncing = false,
   });
 
-  /// Filtered products for display
-  List<Product> get products {
-    var result = allProducts.toList();
+  /// Produits filtres et ordonnes pour l'affichage.
+  List<Product> get products => ProductSearch.apply(allProducts, query);
 
-    if (activeCategory != null) {
-      result = result.where((p) => p.category == activeCategory).toList();
+  /// Marques reellement presentes dans le catalogue charge.
+  List<String> get availableBrands =>
+      brands.isNotEmpty ? brands : ProductSearch.brandsOf(allProducts);
+
+  /// Protocoles reellement presents dans le catalogue charge.
+  List<Protocol> get availableProtocols {
+    final protocols = <Protocol>{};
+    for (final product in allProducts) {
+      protocols.addAll(product.protocols);
     }
-
-    if (favoritesOnly) {
-      result = result.where((p) => p.isFavorite).toList();
-    }
-
-    if (searchQuery.isNotEmpty) {
-      final q = searchQuery.toLowerCase();
-      result = result.where((p) =>
-          p.name.toLowerCase().contains(q) ||
-          p.brand.toLowerCase().contains(q) ||
-          p.reference.toLowerCase().contains(q) ||
-          p.description.toLowerCase().contains(q)).toList();
-    }
-
-    return result;
+    final ordered = protocols.toList()
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    return ordered;
   }
+
+  /// Borne haute des prix du catalogue, pour calibrer le filtre de prix.
+  double get maxCataloguePrice => allProducts.isEmpty
+      ? 0
+      : allProducts.map((p) => p.salePrice).reduce((a, b) => a > b ? a : b);
 
   List<Product> get favorites =>
       allProducts.where((p) => p.isFavorite).toList();
@@ -127,13 +124,16 @@ final class CatalogueLoaded extends CatalogueState {
   int countForCategory(ProductCategory category) =>
       allProducts.where((p) => p.category == category).length;
 
+  int countForBrand(String brand) =>
+      allProducts.where((p) => p.brand == brand).length;
+
+  int countForProtocol(Protocol protocol) =>
+      allProducts.where((p) => p.protocols.contains(protocol)).length;
+
   CatalogueLoaded copyWith({
     List<Product>? allProducts,
     List<String>? brands,
-    ProductCategory? activeCategory,
-    bool clearActiveCategory = false,
-    String? searchQuery,
-    bool? favoritesOnly,
+    ProductQuery? query,
     Product? selectedProduct,
     bool clearSelectedProduct = false,
     bool? isSyncing,
@@ -141,12 +141,10 @@ final class CatalogueLoaded extends CatalogueState {
     return CatalogueLoaded(
       allProducts: allProducts ?? this.allProducts,
       brands: brands ?? this.brands,
-      activeCategory:
-          clearActiveCategory ? null : (activeCategory ?? this.activeCategory),
-      searchQuery: searchQuery ?? this.searchQuery,
-      favoritesOnly: favoritesOnly ?? this.favoritesOnly,
-      selectedProduct:
-          clearSelectedProduct ? null : (selectedProduct ?? this.selectedProduct),
+      query: query ?? this.query,
+      selectedProduct: clearSelectedProduct
+          ? null
+          : (selectedProduct ?? this.selectedProduct),
       isSyncing: isSyncing ?? this.isSyncing,
     );
   }
@@ -155,9 +153,7 @@ final class CatalogueLoaded extends CatalogueState {
   List<Object?> get props => [
         allProducts,
         brands,
-        activeCategory,
-        searchQuery,
-        favoritesOnly,
+        query,
         selectedProduct,
         isSyncing,
       ];
@@ -178,6 +174,12 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
   final GetBrandsUseCase _getBrandsUseCase;
   final SyncCatalogueUseCase _syncCatalogueUseCase;
 
+  /// Controleur du champ de recherche.
+  ///
+  /// Porte par le bloc pour qu'un retrait de critere depuis la barre de
+  /// filtres actifs vide aussi le texte affiche, et non seulement l'etat.
+  final TextEditingController searchController = TextEditingController();
+
   CatalogueBloc({
     required GetProductsUseCase getProductsUseCase,
     required SearchProductsUseCase searchProductsUseCase,
@@ -190,7 +192,7 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
         super(const CatalogueInitial()) {
     on<CatalogueLoadRequested>(_onLoadRequested);
     on<CatalogueSearchRequested>(_onSearchRequested);
-    on<CatalogueFilterChanged>(_onFilterChanged);
+    on<CatalogueQueryChanged>(_onQueryChanged);
     on<CatalogueToggleFavoriteRequested>(_onToggleFavorite);
     on<CatalogueSyncRequested>(_onSyncRequested);
     on<CatalogueProductSelected>(_onProductSelected);
@@ -223,16 +225,10 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
         emit(CatalogueLoaded(
           allProducts: products,
           brands: brands,
-          // Preserve current filters if reloading
-          activeCategory: currentState is CatalogueLoaded
-              ? currentState.activeCategory
-              : null,
-          searchQuery: currentState is CatalogueLoaded
-              ? currentState.searchQuery
-              : '',
-          favoritesOnly: currentState is CatalogueLoaded
-              ? currentState.favoritesOnly
-              : false,
+          // Les criteres en cours survivent a un rechargement.
+          query: currentState is CatalogueLoaded
+              ? currentState.query
+              : const ProductQuery(),
         ));
       case Error(failure: final failure):
         if (state is! CatalogueLoaded) {
@@ -248,32 +244,20 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
     final currentState = state;
     if (currentState is! CatalogueLoaded) return;
 
+    // Le texte n'annule aucun filtre : les criteres se cumulent.
     emit(currentState.copyWith(
-      searchQuery: event.query,
-      favoritesOnly: false,
+      query: currentState.query.copyWith(text: event.query),
     ));
   }
 
-  void _onFilterChanged(
-    CatalogueFilterChanged event,
+  void _onQueryChanged(
+    CatalogueQueryChanged event,
     Emitter<CatalogueState> emit,
   ) {
     final currentState = state;
     if (currentState is! CatalogueLoaded) return;
 
-    if (event.favoritesOnly == true) {
-      emit(currentState.copyWith(
-        favoritesOnly: true,
-        clearActiveCategory: true,
-        searchQuery: '',
-      ));
-    } else {
-      emit(currentState.copyWith(
-        activeCategory: event.category,
-        clearActiveCategory: event.category == null,
-        favoritesOnly: false,
-      ));
-    }
+    emit(currentState.copyWith(query: event.query));
   }
 
   void _onToggleFavorite(
@@ -301,9 +285,7 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
     emit(CatalogueLoaded(
       allProducts: updatedProducts,
       brands: currentState.brands,
-      activeCategory: currentState.activeCategory,
-      searchQuery: currentState.searchQuery,
-      favoritesOnly: currentState.favoritesOnly,
+      query: currentState.query,
       selectedProduct: updatedSelected,
       isSyncing: currentState.isSyncing,
     ));
@@ -347,5 +329,10 @@ class CatalogueBloc extends Bloc<CatalogueEvent, CatalogueState> {
     if (currentState is CatalogueLoaded) {
       emit(currentState.copyWith(clearSelectedProduct: true));
     }
+  }
+  @override
+  Future<void> close() {
+    searchController.dispose();
+    return super.close();
   }
 }

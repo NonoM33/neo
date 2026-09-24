@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Button, Spinner } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon } from '../../components/neo';
 import { usersService } from '../../services';
 import {
   staffRoleLabels,
@@ -50,7 +51,7 @@ export function UserFormPage() {
           lastName: user.lastName,
           phone: user.phone ?? '',
           role: user.role,
-        })
+        }),
       )
       .catch(() => {
         toast.error('Utilisateur introuvable');
@@ -99,79 +100,84 @@ export function UserFormPage() {
   };
 
   if (loading) {
-    return (
-      <div className="content-area">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="content-area">
-      <div className="d-flex align-items-center gap-2 mb-4">
-        <Button variant="outline-secondary" size="sm" icon="bi-arrow-left" onClick={() => navigate('/users')}>
-          Retour
-        </Button>
-        <h1 className="page-title mb-0">{isEdit ? 'Modifier' : 'Nouvel'} utilisateur</h1>
+    <div style={{ padding: 28, maxWidth: 820, margin: '0 auto' }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/users')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux utilisateurs
+          </button>
+          <h1>{isEdit ? "Modifier l'utilisateur" : 'Nouvel utilisateur'}</h1>
+        </div>
       </div>
 
-      <Card>
-        <CardBody>
-          <form onSubmit={handleSubmit}>
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label className="form-label">Prénom</label>
+      <form onSubmit={handleSubmit}>
+        <Card head="Compte" icon="user">
+          <div className="card-body">
+            <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+              <div>
+                <div className="field-label">Prénom *</div>
                 <input
-                  className="form-control"
+                  className="neo-field"
                   required
                   value={form.firstName}
                   onChange={(e) => update('firstName', e.target.value)}
                 />
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Nom</label>
+              <div>
+                <div className="field-label">Nom *</div>
                 <input
-                  className="form-control"
+                  className="neo-field"
                   required
                   value={form.lastName}
                   onChange={(e) => update('lastName', e.target.value)}
                 />
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Email</label>
+            </div>
+            <div className="field-grid">
+              <div>
+                <div className="field-label">Email *</div>
                 <input
                   type="email"
-                  className="form-control"
+                  className="neo-field"
                   required
                   value={form.email}
                   onChange={(e) => update('email', e.target.value)}
                 />
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Téléphone</label>
+              <div>
+                <div className="field-label">Téléphone</div>
                 <input
-                  className="form-control"
+                  className="neo-field"
                   value={form.phone}
                   onChange={(e) => update('phone', e.target.value)}
                 />
               </div>
-              <div className="col-md-6">
-                <label className="form-label">
-                  Mot de passe {isEdit && <span className="text-secondary">(laisser vide pour conserver)</span>}
-                </label>
+            </div>
+            <div className="field-grid">
+              <div>
+                <div className="field-label">
+                  Mot de passe{' '}
+                  {isEdit && (
+                    <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>(laisser vide pour conserver)</span>
+                  )}
+                </div>
                 <input
                   type="password"
-                  className="form-control"
+                  className="neo-field"
                   required={!isEdit}
                   minLength={6}
                   value={form.password}
                   onChange={(e) => update('password', e.target.value)}
                 />
               </div>
-              <div className="col-md-6">
-                <label className="form-label">Rôle</label>
+              <div>
+                <div className="field-label">Rôle</div>
                 <select
-                  className="form-select"
+                  className="neo-field"
                   value={form.role}
                   onChange={(e) => update('role', e.target.value as StaffRole)}
                 >
@@ -183,18 +189,18 @@ export function UserFormPage() {
                 </select>
               </div>
             </div>
+          </div>
+        </Card>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
-              <Button type="button" variant="outline-secondary" onClick={() => navigate('/users')}>
-                Annuler
-              </Button>
-              <Button type="submit" loading={saving} icon="bi-check-lg">
-                {isEdit ? 'Enregistrer' : 'Créer'}
-              </Button>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+          <Btn type="button" variant="subtle" onClick={() => navigate('/users')}>
+            Annuler
+          </Btn>
+          <Btn type="submit" icon="check" disabled={saving}>
+            {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer'}
+          </Btn>
+        </div>
+      </form>
     </div>
   );
 }

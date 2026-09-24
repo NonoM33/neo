@@ -1,14 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardBody, Spinner, StatCard } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 import { cloudService } from '../../services/cloud.service';
 import { useUIStore } from '../../stores';
 import type { CloudInstance, CloudInstanceStatus, CloudStats, CreateInstanceInput } from '../../types/cloud.types';
 
-const STATUS_BADGE_MAP: Record<CloudInstanceStatus, string> = {
+const STATUS_TONE: Record<CloudInstanceStatus, PillTone> = {
   provisioning: 'info',
   running: 'success',
-  stopped: 'secondary',
+  stopped: 'neutral',
   error: 'danger',
   destroying: 'warning',
 };
@@ -144,271 +146,276 @@ export function CloudInstancesPage() {
   }
 
   return (
-    <div className="cloud-instances-page">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="page-title mb-0">
-          <i className="bi bi-cloud-arrow-up me-2"></i>
-          Cloud Instances
-        </h1>
-        <button className="btn btn-primary" onClick={() => setShowProvisionModal(true)}>
-          <i className="bi bi-plus-lg me-2"></i>
-          Nouvelle instance
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-6 col-lg-3">
-          <StatCard label="Total" value={stats.total} icon="bi-cloud" color="primary" />
+    <div className="cloud-instances-page" style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Cloud Instances</h1>
+          <p>Infrastructure Home Assistant — {instances.length} instance{instances.length > 1 ? 's' : ''}</p>
         </div>
-        <div className="col-6 col-lg-3">
-          <StatCard label="En cours" value={stats.running} icon="bi-play-circle" color="success" />
-        </div>
-        <div className="col-6 col-lg-3">
-          <StatCard label="En ligne" value={stats.online} icon="bi-wifi" color="info" />
-        </div>
-        <div className="col-6 col-lg-3">
-          <StatCard label="Erreurs" value={stats.errors} icon="bi-exclamation-triangle" color="danger" />
+        <div className="page-actions">
+          <Btn icon="plus" onClick={() => setShowProvisionModal(true)}>
+            Nouvelle instance
+          </Btn>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <Card className="mb-4">
-        <CardBody>
-          <div className="row g-3 align-items-center">
-            <div className="col-md-6">
-              <div className="input-group">
-                <span className="input-group-text" style={{ background: 'var(--neo-bg-card)', borderColor: 'var(--neo-border-color)', color: 'var(--neo-text-secondary)' }}>
-                  <i className="bi bi-search"></i>
-                </span>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Rechercher par client, domaine..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                />
-              </div>
-            </div>
-            <div className="col-md-3">
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              >
-                <option value="">Tous les statuts</option>
-                <option value="provisioning">Provisioning</option>
-                <option value="running">En cours</option>
-                <option value="stopped">Arrêtée</option>
-                <option value="error">Erreur</option>
-                <option value="destroying">Suppression</option>
-              </select>
-            </div>
-            <div className="col-md-3 text-end">
-              <span style={{ color: 'var(--neo-text-secondary)', fontSize: '0.875rem' }}>
-                {instances.length} instance{instances.length > 1 ? 's' : ''}
-              </span>
-            </div>
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        <div className="stat">
+          <div className="st-val">{stats.total}</div>
+          <div className="st-label">Total</div>
+        </div>
+        <div className="stat">
+          <div className="st-val" style={{ color: 'var(--success)' }}>{stats.running}</div>
+          <div className="st-label">En cours</div>
+        </div>
+        <div className="stat">
+          <div className="st-val" style={{ color: 'var(--komun)' }}>{stats.online}</div>
+          <div className="st-label">En ligne</div>
+        </div>
+        <div className="stat">
+          <div className="st-val" style={{ color: 'var(--danger)' }}>{stats.errors}</div>
+          <div className="st-label">Erreurs</div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="fbar">
+          <div className="fbar-search">
+            <Icon name="search" size={16} />
+            <input
+              type="search"
+              className="neo-field"
+              placeholder="Rechercher par client, domaine…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
           </div>
-        </CardBody>
-      </Card>
+          <select
+            className="neo-field"
+            style={{ maxWidth: 220 }}
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">Tous les statuts</option>
+            <option value="provisioning">Provisioning</option>
+            <option value="running">En cours</option>
+            <option value="stopped">Arrêtée</option>
+            <option value="error">Erreur</option>
+            <option value="destroying">Suppression</option>
+          </select>
+        </div>
+      </div>
 
-      {/* Instances Table */}
-      <Card>
-        <CardBody className="p-0">
-          <div className="table-responsive">
-            <table className="table table-hover mb-0">
-              <thead>
+      <Card flush>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Domaine</th>
+                <th>Statut</th>
+                <th>En ligne</th>
+                <th>Entités</th>
+                <th>Dernier heartbeat</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {instances.length === 0 ? (
                 <tr>
-                  <th>Client</th>
-                  <th>Domaine</th>
-                  <th>Statut</th>
-                  <th>En ligne</th>
-                  <th>Entités</th>
-                  <th>Dernier heartbeat</th>
-                  <th></th>
+                  <td colSpan={7}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="cloud" size={22} />
+                      </span>
+                      <b>Aucune instance trouvée</b>
+                      <p>Ajustez vos filtres ou provisionnez une nouvelle instance.</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {instances.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-5" style={{ color: 'var(--neo-text-secondary)' }}>
-                      <i className="bi bi-cloud-slash fs-1 d-block mb-2"></i>
-                      Aucune instance trouvée
+              ) : (
+                instances.map((instance) => (
+                  <tr
+                    key={instance.id}
+                    onClick={() => navigate(`/cloud/${instance.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td>
+                      <div className="t-main">{instance.client.firstName} {instance.client.lastName}</div>
+                      {instance.client.city && <div className="t-sub">{instance.client.city}</div>}
+                    </td>
+                    <td>
+                      <code className="t-mono">{instance.domain}</code>
+                    </td>
+                    <td>
+                      <Pill tone={STATUS_TONE[instance.status]} dot>
+                        {STATUS_LABELS[instance.status]}
+                      </Pill>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: instance.isOnline ? 'var(--success)' : 'var(--danger)',
+                          boxShadow: instance.isOnline ? '0 0 6px var(--success)' : 'none',
+                        }}
+                        title={instance.isOnline ? 'En ligne' : 'Hors ligne'}
+                      />
+                    </td>
+                    <td className="t-sub">{instance.entityCount}</td>
+                    <td className="t-sub">{formatRelativeTime(instance.lastHeartbeat)}</td>
+                    <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        {instance.status === 'stopped' && (
+                          <Btn
+                            variant="success"
+                            size="sm"
+                            icon="zap"
+                            disabled={actionLoading === instance.id}
+                            onClick={() => handleAction(instance.id, 'start')}
+                          >
+                            Démarrer
+                          </Btn>
+                        )}
+                        {instance.status === 'running' && (
+                          <>
+                            <Btn
+                              variant="ghost"
+                              size="sm"
+                              disabled={actionLoading === instance.id}
+                              onClick={() => handleAction(instance.id, 'stop')}
+                            >
+                              Arrêter
+                            </Btn>
+                            <Btn
+                              variant="ghost"
+                              size="sm"
+                              icon="activity"
+                              disabled={actionLoading === instance.id}
+                              onClick={() => handleAction(instance.id, 'restart')}
+                            >
+                              Redémarrer
+                            </Btn>
+                          </>
+                        )}
+                        <Btn
+                          variant="danger-ghost"
+                          size="sm"
+                          icon="trash"
+                          disabled={actionLoading === instance.id}
+                          onClick={() => handleAction(instance.id, 'destroy')}
+                        />
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  instances.map((instance) => (
-                    <tr
-                      key={instance.id}
-                      onClick={() => navigate(`/cloud/${instance.id}`)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td>
-                        <strong>{instance.client.firstName} {instance.client.lastName}</strong>
-                        {instance.client.city && (
-                          <div style={{ fontSize: '0.8rem', color: 'var(--neo-text-secondary)' }}>
-                            {instance.client.city}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <code style={{ color: 'var(--neo-text-primary)', background: 'var(--neo-bg-light, rgba(0,0,0,0.05))', padding: '2px 6px', borderRadius: '4px', fontSize: '0.85rem' }}>
-                          {instance.domain}
-                        </code>
-                      </td>
-                      <td>
-                        <span className={`badge bg-${STATUS_BADGE_MAP[instance.status]}`}>
-                          {STATUS_LABELS[instance.status]}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: instance.isOnline ? 'var(--neo-success)' : 'var(--neo-danger)',
-                            boxShadow: instance.isOnline ? '0 0 6px var(--neo-success)' : 'none',
-                          }}
-                          title={instance.isOnline ? 'En ligne' : 'Hors ligne'}
-                        />
-                      </td>
-                      <td style={{ color: 'var(--neo-text-secondary)' }}>{instance.entityCount}</td>
-                      <td style={{ color: 'var(--neo-text-secondary)', fontSize: '0.85rem' }}>
-                        {formatRelativeTime(instance.lastHeartbeat)}
-                      </td>
-                      <td>
-                        <div className="dropdown" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className="btn btn-sm btn-outline-secondary"
-                            data-bs-toggle="dropdown"
-                            disabled={actionLoading === instance.id}
-                          >
-                            {actionLoading === instance.id ? (
-                              <span className="spinner-border spinner-border-sm" role="status" />
-                            ) : (
-                              <i className="bi bi-three-dots-vertical"></i>
-                            )}
-                          </button>
-                          <ul className="dropdown-menu dropdown-menu-end">
-                            <li>
-                              <button className="dropdown-item" onClick={() => navigate(`/cloud/${instance.id}`)}>
-                                <i className="bi bi-eye me-2"></i>Voir détails
-                              </button>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-                            {instance.status === 'stopped' && (
-                              <li>
-                                <button className="dropdown-item" onClick={() => handleAction(instance.id, 'start')}>
-                                  <i className="bi bi-play-fill me-2 text-success"></i>Démarrer
-                                </button>
-                              </li>
-                            )}
-                            {instance.status === 'running' && (
-                              <>
-                                <li>
-                                  <button className="dropdown-item" onClick={() => handleAction(instance.id, 'stop')}>
-                                    <i className="bi bi-stop-fill me-2 text-warning"></i>Arrêter
-                                  </button>
-                                </li>
-                                <li>
-                                  <button className="dropdown-item" onClick={() => handleAction(instance.id, 'restart')}>
-                                    <i className="bi bi-arrow-clockwise me-2 text-info"></i>Redémarrer
-                                  </button>
-                                </li>
-                              </>
-                            )}
-                            <li><hr className="dropdown-divider" /></li>
-                            <li>
-                              <button className="dropdown-item text-danger" onClick={() => handleAction(instance.id, 'destroy')}>
-                                <i className="bi bi-trash me-2"></i>Supprimer
-                              </button>
-                            </li>
-                          </ul>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardBody>
+                ))
+              )}
+            </tbody>
+          </table>
+
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 16px',
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                Page {page} / {totalPages}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn
+                  variant="subtle"
+                  size="sm"
+                  icon="arrowLeft"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  Précédent
+                </Btn>
+                <Btn
+                  variant="subtle"
+                  size="sm"
+                  iconRight="arrowRight"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Suivant
+                </Btn>
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="d-flex justify-content-center mt-4">
-          <nav>
-            <ul className="pagination">
-              <li className={`page-item ${page <= 1 ? 'disabled' : ''}`}>
-                <button className="page-link" onClick={() => setPage(page - 1)}>
-                  <i className="bi bi-chevron-left"></i>
-                </button>
-              </li>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <li key={p} className={`page-item ${p === page ? 'active' : ''}`}>
-                  <button className="page-link" onClick={() => setPage(p)}>{p}</button>
-                </li>
-              ))}
-              <li className={`page-item ${page >= totalPages ? 'disabled' : ''}`}>
-                <button className="page-link" onClick={() => setPage(page + 1)}>
-                  <i className="bi bi-chevron-right"></i>
-                </button>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      )}
-
-      {/* Provision Modal */}
       {showProvisionModal && (
         <>
-          <div className="modal-backdrop fade show" onClick={() => setShowProvisionModal(false)} />
-          <div className="modal fade show d-block" tabIndex={-1}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content" style={{ background: 'var(--neo-bg-card)', color: 'var(--neo-text-primary)' }}>
-                <div className="modal-header" style={{ borderColor: 'var(--neo-border-color)' }}>
-                  <h5 className="modal-title">
-                    <i className="bi bi-cloud-plus me-2"></i>
-                    Nouvelle instance Cloud
-                  </h5>
-                  <button type="button" className="btn-close" onClick={() => setShowProvisionModal(false)} />
-                </div>
+          <div
+            onClick={() => setShowProvisionModal(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.4)',
+              zIndex: 1050,
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1055,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20,
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ width: '100%', maxWidth: 520, pointerEvents: 'auto' }}>
+              <Card
+                head="Nouvelle instance Cloud"
+                icon="cloud"
+                action={
+                  <Btn variant="subtle" size="sm" icon="x" onClick={() => setShowProvisionModal(false)} />
+                }
+              >
                 <form onSubmit={handleProvision}>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label className="form-label">ID Client *</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="UUID du client"
-                        value={provisionForm.clientId}
-                        onChange={(e) => setProvisionForm({ ...provisionForm, clientId: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Domaine</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="ex: client.neo-cloud.fr"
-                        value={provisionForm.domain || ''}
-                        onChange={(e) => setProvisionForm({ ...provisionForm, domain: e.target.value })}
-                      />
-                      <div className="form-text" style={{ color: 'var(--neo-text-secondary)' }}>
-                        Laisser vide pour générer automatiquement
+                  <div className="card-body">
+                    <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                      <div>
+                        <div className="field-label">ID Client *</div>
+                        <input
+                          className="neo-field"
+                          placeholder="UUID du client"
+                          value={provisionForm.clientId}
+                          onChange={(e) => setProvisionForm({ ...provisionForm, clientId: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <div className="field-label">Domaine</div>
+                        <input
+                          className="neo-field"
+                          placeholder="ex: client.neo-cloud.fr"
+                          value={provisionForm.domain || ''}
+                          onChange={(e) => setProvisionForm({ ...provisionForm, domain: e.target.value })}
+                        />
+                        <div style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 4 }}>
+                          Laisser vide pour générer automatiquement
+                        </div>
                       </div>
                     </div>
-                    <div className="row g-3">
-                      <div className="col-6">
-                        <label className="form-label">Mémoire (Mo)</label>
+                    <div className="field-grid">
+                      <div>
+                        <div className="field-label">Mémoire (Mo)</div>
                         <select
-                          className="form-select"
+                          className="neo-field"
                           value={provisionForm.memoryLimitMb}
                           onChange={(e) => setProvisionForm({ ...provisionForm, memoryLimitMb: Number(e.target.value) })}
                         >
@@ -418,10 +425,10 @@ export function CloudInstancesPage() {
                           <option value={2048}>2 Go</option>
                         </select>
                       </div>
-                      <div className="col-6">
-                        <label className="form-label">CPU Limit</label>
+                      <div>
+                        <div className="field-label">CPU Limit</div>
                         <select
-                          className="form-select"
+                          className="neo-field"
                           value={provisionForm.cpuLimit}
                           onChange={(e) => setProvisionForm({ ...provisionForm, cpuLimit: e.target.value })}
                         >
@@ -431,29 +438,26 @@ export function CloudInstancesPage() {
                         </select>
                       </div>
                     </div>
-                    <div className="mt-3">
-                      <label className="form-label">Version HA</label>
+                    <div style={{ marginTop: 14 }}>
+                      <div className="field-label">Version HA</div>
                       <input
-                        type="text"
-                        className="form-control"
+                        className="neo-field"
                         placeholder="ex: 2024.1.0 (défaut: latest)"
                         value={provisionForm.haVersion || ''}
                         onChange={(e) => setProvisionForm({ ...provisionForm, haVersion: e.target.value })}
                       />
                     </div>
-                  </div>
-                  <div className="modal-footer" style={{ borderColor: 'var(--neo-border-color)' }}>
-                    <button type="button" className="btn btn-outline-secondary" onClick={() => setShowProvisionModal(false)}>
-                      Annuler
-                    </button>
-                    <button type="submit" className="btn btn-primary" disabled={provisioning}>
-                      {provisioning && <span className="spinner-border spinner-border-sm me-2" role="status" />}
-                      <i className="bi bi-cloud-plus me-1"></i>
-                      Provisionner
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+                      <Btn type="submit" icon="cloud" disabled={provisioning}>
+                        {provisioning ? 'Provisionnement…' : 'Provisionner'}
+                      </Btn>
+                      <Btn type="button" variant="subtle" onClick={() => setShowProvisionModal(false)}>
+                        Annuler
+                      </Btn>
+                    </div>
                   </div>
                 </form>
-              </div>
+              </Card>
             </div>
           </div>
         </>

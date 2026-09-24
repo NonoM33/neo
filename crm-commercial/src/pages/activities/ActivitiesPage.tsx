@@ -1,11 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardBody, Spinner, Button, Table } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Icon, Pill } from '../../components/neo';
+import type { IconName, PillTone } from '../../components/neo';
 import { activitiesService } from '../../services';
 import type { Activity, ActivityType, ActivityStatus } from '../../types';
-import { ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from '../../types';
+import { ACTIVITY_TYPE_LABELS } from '../../types';
 import { useGamificationStore } from '../../stores';
 import { XPIndicator } from '../../components/gamification';
+
+const TYPE_ICON: Record<ActivityType, IconName> = {
+  appel: 'phone',
+  email: 'mail',
+  reunion: 'users',
+  visite: 'building',
+  note: 'fileText',
+  tache: 'check',
+};
+
+const STATUS_TONE: Record<ActivityStatus, PillTone> = {
+  planifie: 'info',
+  termine: 'success',
+  annule: 'neutral',
+};
+
+const STATUS_LABEL: Record<ActivityStatus, string> = {
+  planifie: 'Planifié',
+  termine: 'Terminé',
+  annule: 'Annulé',
+};
+
+const TYPE_XP: Record<ActivityType, number> = {
+  appel: 20,
+  email: 15,
+  reunion: 60,
+  visite: 50,
+  note: 10,
+  tache: 10,
+};
 
 export function ActivitiesPage() {
   const navigate = useNavigate();
@@ -16,30 +48,33 @@ export function ActivitiesPage() {
   const [filterType, setFilterType] = useState<ActivityType | ''>('');
   const [filterStatus, setFilterStatus] = useState<ActivityStatus | ''>('');
 
-  useEffect(() => {
-    loadActivities();
-  }, [filterType, filterStatus]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     try {
-      const response = await activitiesService.getActivities({
-        type: filterType || undefined,
-        status: filterStatus || undefined,
-        leadId: searchParams.get('leadId') || undefined,
-      }, 1, 50);
+      const response = await activitiesService.getActivities(
+        {
+          type: filterType || undefined,
+          status: filterStatus || undefined,
+          leadId: searchParams.get('leadId') || undefined,
+        },
+        1,
+        50
+      );
       setActivities(response.data);
     } catch (error) {
       console.error('Failed to load activities:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterType, filterStatus, searchParams]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
 
   const handleComplete = async (activity: Activity) => {
     try {
       await activitiesService.completeActivity(activity.id);
 
-      // Award XP based on activity type
       gamification.awardXP('activity_completed');
       switch (activity.type) {
         case 'appel':
@@ -63,7 +98,7 @@ export function ActivitiesPage() {
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
+    if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
@@ -73,52 +108,44 @@ export function ActivitiesPage() {
     });
   };
 
-  const getStatusBadge = (status: ActivityStatus) => {
-    const variants: Record<ActivityStatus, string> = {
-      planifie: 'bg-info',
-      termine: 'bg-success',
-      annule: 'bg-secondary',
-    };
-    return variants[status];
-  };
-
-  const getXPForType = (type: ActivityType) => {
-    const xp: Record<ActivityType, number> = {
-      appel: 20,
-      email: 15,
-      reunion: 60,
-      visite: 50,
-      note: 10,
-      tache: 10,
-    };
-    return xp[type] || 10;
-  };
-
   if (loading) {
     return <Spinner />;
   }
 
   return (
     <div className="activities-page">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex gap-2">
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Activités</h1>
+          <p>Appels, emails, réunions et tâches</p>
+        </div>
+        <div className="page-actions">
+          <Btn icon="plus" onClick={() => navigate('/activities/new')}>
+            Nouvelle activité
+          </Btn>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="fbar">
           <select
-            className="form-select form-select-sm"
+            className="neo-field"
+            style={{ maxWidth: 200 }}
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as ActivityType | '')}
-            style={{ width: '150px' }}
           >
             <option value="">Tous les types</option>
             {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
           </select>
           <select
-            className="form-select form-select-sm"
+            className="neo-field"
+            style={{ maxWidth: 200 }}
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as ActivityStatus | '')}
-            style={{ width: '150px' }}
           >
             <option value="">Tous les statuts</option>
             <option value="planifie">Planifié</option>
@@ -126,87 +153,90 @@ export function ActivitiesPage() {
             <option value="annule">Annulé</option>
           </select>
         </div>
-
-        <Button icon="bi-plus-lg" onClick={() => navigate('/activities/new')}>
-          Nouvelle activité
-        </Button>
       </div>
 
-      {/* Activities List */}
-      <Card>
-        <CardBody className="p-0">
-          <Table
-            columns={[
-              {
-                key: 'type',
-                header: 'Type',
-                render: (activity: Activity) => (
-                  <span className={`badge badge-${activity.type}`}>
-                    <i className={`bi ${ACTIVITY_TYPE_ICONS[activity.type]} me-1`}></i>
+      <div className="tbl-wrap">
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Sujet</th>
+              <th>Date planifiée</th>
+              <th>Durée</th>
+              <th>Statut</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {activities.map((activity) => (
+              <tr
+                key={activity.id}
+                onClick={() => navigate(`/activities/${activity.id}/edit`)}
+                style={{ cursor: 'pointer' }}
+              >
+                <td>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      fontWeight: 600,
+                      fontSize: 13,
+                    }}
+                  >
+                    <Icon name={TYPE_ICON[activity.type]} size={15} />
                     {ACTIVITY_TYPE_LABELS[activity.type]}
                   </span>
-                ),
-              },
-              { key: 'subject', header: 'Sujet' },
-              {
-                key: 'scheduledAt',
-                header: 'Date planifiée',
-                render: (activity: Activity) => formatDate(activity.scheduledAt),
-              },
-              {
-                key: 'duration',
-                header: 'Durée',
-                render: (activity: Activity) => activity.duration ? `${activity.duration} min` : '-',
-              },
-              {
-                key: 'status',
-                header: 'Statut',
-                render: (activity: Activity) => (
-                  <span className={`badge ${getStatusBadge(activity.status)}`}>
-                    {activity.status}
-                  </span>
-                ),
-              },
-              {
-                key: 'actions',
-                header: '',
-                render: (activity: Activity) => (
-                  <div className="d-flex gap-1 align-items-center">
+                </td>
+                <td className="t-main">{activity.subject}</td>
+                <td className="t-sub">{formatDate(activity.scheduledAt)}</td>
+                <td className="t-sub">{activity.duration ? `${activity.duration} min` : '—'}</td>
+                <td>
+                  <Pill tone={STATUS_TONE[activity.status]} dot>
+                    {STATUS_LABEL[activity.status]}
+                  </Pill>
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
                     {activity.status === 'planifie' && (
                       <>
                         <button
-                          className="btn btn-sm btn-outline-success"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleComplete(activity);
-                          }}
-                          title="Marquer comme terminé"
+                          className="icon-btn"
+                          aria-label="Marquer comme terminé"
+                          onClick={() => handleComplete(activity)}
                         >
-                          <i className="bi bi-check-lg"></i>
+                          <Icon name="check" size={16} />
                         </button>
-                        <XPIndicator xp={getXPForType(activity.type)} size="sm" />
+                        <XPIndicator xp={TYPE_XP[activity.type]} size="sm" />
                       </>
                     )}
                     <button
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/activities/${activity.id}/edit`);
-                      }}
-                      title="Modifier"
+                      className="icon-btn"
+                      aria-label="Modifier"
+                      onClick={() => navigate(`/activities/${activity.id}/edit`)}
                     >
-                      <i className="bi bi-pencil"></i>
+                      <Icon name="edit" size={16} />
                     </button>
                   </div>
-                ),
-              },
-            ]}
-            data={activities}
-            keyExtractor={(activity) => activity.id}
-            emptyMessage="Aucune activité"
-          />
-        </CardBody>
-      </Card>
+                </td>
+              </tr>
+            ))}
+            {activities.length === 0 && (
+              <tr>
+                <td colSpan={6}>
+                  <div className="empty">
+                    <span className="em-ic">
+                      <Icon name="calendar" size={22} />
+                    </span>
+                    <b>Aucune activité</b>
+                    <p>Ajustez vos filtres ou planifiez une activité.</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

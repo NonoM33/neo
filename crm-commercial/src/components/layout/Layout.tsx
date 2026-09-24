@@ -1,41 +1,56 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { useUIStore } from '../../stores';
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { RewardOverlay } from '../gamification/RewardOverlay';
 
-const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/leads': 'Pipeline',
-  '/activities': 'Activités',
-  '/kpis': 'KPIs',
-  '/objectives': 'Objectifs',
-  '/leaderboard': 'Classement',
-  '/profile': 'Mon Profil',
-  '/prospection': 'Prospection',
+interface PageMeta {
+  title: string;
+  section?: string;
+}
+
+const pageMeta: Record<string, PageMeta> = {
+  '/': { title: 'Dashboard', section: 'Tableau de bord' },
+  '/leads': { title: 'Pipeline', section: 'Commercial' },
+  '/prospection': { title: 'Prospection', section: 'Commercial' },
+  '/activities': { title: 'Activités', section: 'Commercial' },
+  '/calendar': { title: 'Agenda', section: 'Commercial' },
+  '/kpis': { title: 'KPIs', section: 'Commercial' },
+  '/objectives': { title: 'Objectifs', section: 'Commercial' },
+  '/produits': { title: 'Produits', section: 'Catalogue' },
+  '/leaderboard': { title: 'Classement', section: 'Gamification' },
+  '/profile': { title: 'Mon Profil', section: 'Gamification' },
+  '/clients': { title: 'Clients', section: 'Gestion' },
+  '/projets': { title: 'Projets', section: 'Gestion' },
+  '/devis': { title: 'Devis', section: 'Gestion' },
+  '/tickets': { title: 'Tickets', section: 'Support' },
+  '/cloud': { title: 'Cloud HA', section: 'Infrastructure' },
+  '/marketing': { title: 'Marketing', section: 'Administration' },
+  '/templates': { title: 'Templates', section: 'Administration' },
+  '/design-system': { title: 'Design System', section: 'Administration' },
+  '/users': { title: 'Utilisateurs', section: 'Administration' },
 };
 
 export function Layout() {
-  const { sidebarOpen } = useUIStore();
+  const { sidebarOpen, setSidebarOpen } = useUIStore();
   const location = useLocation();
-  const [title, setTitle] = useState('Dashboard');
-
-  useEffect(() => {
-    const basePath = '/' + location.pathname.split('/')[1];
-    setTitle(pageTitles[basePath] || pageTitles[location.pathname] || 'Neo CRM');
-  }, [location.pathname]);
+  const basePath = '/' + location.pathname.split('/')[1];
+  const meta = pageMeta[basePath] || pageMeta[location.pathname] || { title: 'Neo CRM' };
 
   return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
-        <TopBar title={title} />
-        <div className="content-area">
-          <Outlet />
+    <div className="neo-ds">
+      <div className={`app${sidebarOpen ? ' sb-open' : ''}`}>
+        <div className="sb-scrim" onClick={() => setSidebarOpen(false)} />
+        <Sidebar />
+        <div className="main">
+          <TopBar title={meta.title} section={meta.section} />
+          <div className="content">
+            <div className="content-in">
+              <Outlet />
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
       <RewardOverlay />
     </div>
   );

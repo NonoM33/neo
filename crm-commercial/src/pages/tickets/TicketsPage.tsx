@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Card, CardBody, Table, Button } from '../../components';
+import { Spinner } from '../../components';
+import { Btn, Icon, Pill } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 import { ticketsService } from '../../services';
 import {
   ticketPriorityLabels,
@@ -15,18 +17,18 @@ import { assigneeLabel } from './ticket-display';
 
 const PAGE_SIZE = 20;
 
-const STATUS_VARIANT: Record<TicketStatus, string> = {
+const STATUS_TONE: Record<TicketStatus, PillTone> = {
   nouveau: 'info',
-  ouvert: 'primary',
+  ouvert: 'ochre',
   en_attente_client: 'warning',
-  en_attente_interne: 'secondary',
+  en_attente_interne: 'neutral',
   escalade: 'danger',
   resolu: 'success',
   ferme: 'dark',
 };
 
-const PRIORITY_VARIANT: Record<TicketPriority, string> = {
-  basse: 'secondary',
+const PRIORITY_TONE: Record<TicketPriority, PillTone> = {
+  basse: 'neutral',
   normale: 'info',
   haute: 'warning',
   urgente: 'danger',
@@ -92,190 +94,189 @@ export function TicketsPage() {
   }, [loadTickets]);
 
   return (
-    <div className="content-area">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="page-title">Tickets</h1>
-          <p className="text-secondary mb-0">{total} tickets</p>
+    <div className="tickets-page">
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Tickets</h1>
+          <p>
+            {total} ticket{total > 1 ? 's' : ''} — support client
+          </p>
         </div>
-        <Button icon="bi-plus-lg" onClick={() => navigate('/tickets/new')}>
-          Nouveau ticket
-        </Button>
+        <div className="page-actions">
+          <Btn icon="plus" onClick={() => navigate('/tickets/new')}>
+            Nouveau ticket
+          </Btn>
+        </div>
       </div>
 
       {stats && (
-        <div className="row g-3 mb-4">
-          <div className="col-sm-6 col-lg-3">
-            <Card>
-              <CardBody>
-                <div className="text-secondary small">Tickets ouverts</div>
-                <div className="h3 mb-0">{stats.totalOpen}</div>
-              </CardBody>
-            </Card>
+        <div className="stat-grid mb-22" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="stat">
+            <div className="st-val">{stats.totalOpen}</div>
+            <div className="st-label">Tickets ouverts</div>
           </div>
-          <div className="col-sm-6 col-lg-3">
-            <Card>
-              <CardBody>
-                <div className="text-secondary small">SLA dépassés</div>
-                <div className="h3 mb-0 text-danger">{stats.slaBreached}</div>
-              </CardBody>
-            </Card>
+          <div className="stat">
+            <div className="st-val" style={{ color: 'var(--danger)' }}>
+              {stats.slaBreached}
+            </div>
+            <div className="st-label">SLA dépassés</div>
           </div>
-          <div className="col-sm-6 col-lg-3">
-            <Card>
-              <CardBody>
-                <div className="text-secondary small">Résolution moyenne</div>
-                <div className="h3 mb-0">
-                  {stats.avgResolutionHours != null ? `${stats.avgResolutionHours} h` : '—'}
-                </div>
-              </CardBody>
-            </Card>
+          <div className="stat">
+            <div className="st-val">
+              {stats.avgResolutionHours != null ? `${stats.avgResolutionHours} h` : '—'}
+            </div>
+            <div className="st-label">Résolution moyenne</div>
           </div>
-          <div className="col-sm-6 col-lg-3">
-            <Card>
-              <CardBody>
-                <div className="text-secondary small">Total</div>
-                <div className="h3 mb-0">{total}</div>
-              </CardBody>
-            </Card>
+          <div className="stat">
+            <div className="st-val">{total}</div>
+            <div className="st-label">Total</div>
           </div>
         </div>
       )}
 
-      <Card className="mb-4">
-        <CardBody>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <div className="input-group">
-                <span className="input-group-text bg-transparent">
-                  <i className="bi bi-search"></i>
-                </span>
-                <input
-                  type="search"
-                  className="form-control"
-                  placeholder="Rechercher par titre ou description…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-md-3">
-              <select
-                className="form-select"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as '' | TicketStatus)}
-              >
-                <option value="">Tous les statuts</option>
-                {(Object.keys(ticketStatusLabels) as TicketStatus[]).map((s) => (
-                  <option key={s} value={s}>
-                    {ticketStatusLabels[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-3">
-              <select
-                className="form-select"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as '' | TicketPriority)}
-              >
-                <option value="">Toutes les priorités</option>
-                {(Object.keys(ticketPriorityLabels) as TicketPriority[]).map((p) => (
-                  <option key={p} value={p}>
-                    {ticketPriorityLabels[p]}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="fbar">
+          <div className="fbar-search">
+            <Icon name="search" size={16} />
+            <input
+              type="search"
+              className="neo-field"
+              placeholder="Rechercher par titre ou description…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        </CardBody>
-      </Card>
+          <select
+            className="neo-field"
+            style={{ maxWidth: 200 }}
+            value={status}
+            onChange={(e) => setStatus(e.target.value as '' | TicketStatus)}
+          >
+            <option value="">Tous les statuts</option>
+            {(Object.keys(ticketStatusLabels) as TicketStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {ticketStatusLabels[s]}
+              </option>
+            ))}
+          </select>
+          <select
+            className="neo-field"
+            style={{ maxWidth: 200 }}
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as '' | TicketPriority)}
+          >
+            <option value="">Toutes les priorités</option>
+            {(Object.keys(ticketPriorityLabels) as TicketPriority[]).map((p) => (
+              <option key={p} value={p}>
+                {ticketPriorityLabels[p]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-      <Card>
-        <CardBody>
-          <Table<TicketListItem>
-            loading={loading}
-            data={tickets}
-            keyExtractor={(t) => t.id}
-            emptyMessage="Aucun ticket"
-            onRowClick={(t) => navigate(`/tickets/${t.id}`)}
-            columns={[
-              {
-                key: 'number',
-                header: 'Numéro',
-                render: (t) => <span className="fw-semibold">{t.number}</span>,
-              },
-              {
-                key: 'title',
-                header: 'Titre',
-                render: (t) => (
-                  <div>
-                    <div>{t.title}</div>
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Numéro</th>
+                <th>Titre</th>
+                <th>Client</th>
+                <th>Priorité</th>
+                <th>Statut</th>
+                <th>Assigné à</th>
+                <th>Créé le</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tickets.map((t) => (
+                <tr
+                  key={t.id}
+                  onClick={() => navigate(`/tickets/${t.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td className="t-mono">{t.number}</td>
+                  <td>
+                    <div className="t-main">{t.title}</div>
                     {t.slaBreached && (
-                      <span className="badge bg-danger mt-1">SLA dépassé</span>
+                      <Pill tone="danger" dot>
+                        SLA dépassé
+                      </Pill>
                     )}
-                  </div>
-                ),
-              },
-              {
-                key: 'client',
-                header: 'Client',
-                render: (t) => `${t.client.firstName} ${t.client.lastName}`,
-              },
-              {
-                key: 'priority',
-                header: 'Priorité',
-                render: (t) => (
-                  <span className={`badge bg-${PRIORITY_VARIANT[t.priority]}`}>
-                    {ticketPriorityLabels[t.priority]}
-                  </span>
-                ),
-              },
-              {
-                key: 'status',
-                header: 'Statut',
-                render: (t) => (
-                  <span className={`badge bg-${STATUS_VARIANT[t.status]}`}>
-                    {ticketStatusLabels[t.status]}
-                  </span>
-                ),
-              },
-              {
-                key: 'assignedTo',
-                header: 'Assigné à',
-                render: (t) => assigneeLabel(t.assignedTo),
-              },
-              { key: 'createdAt', header: 'Créé le', render: (t) => formatDate(t.createdAt) },
-            ]}
-          />
+                  </td>
+                  <td className="t-sub">
+                    {t.client.firstName} {t.client.lastName}
+                  </td>
+                  <td>
+                    <Pill tone={PRIORITY_TONE[t.priority]} dot>
+                      {ticketPriorityLabels[t.priority]}
+                    </Pill>
+                  </td>
+                  <td>
+                    <Pill tone={STATUS_TONE[t.status]} dot>
+                      {ticketStatusLabels[t.status]}
+                    </Pill>
+                  </td>
+                  <td className="t-sub">{assigneeLabel(t.assignedTo)}</td>
+                  <td className="t-sub">{formatDate(t.createdAt)}</td>
+                </tr>
+              ))}
+              {tickets.length === 0 && (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="empty">
+                      <span className="em-ic">
+                        <Icon name="ticket" size={22} />
+                      </span>
+                      <b>Aucun ticket</b>
+                      <p>Ajustez vos filtres ou créez un nouveau ticket.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
 
           {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <span className="text-secondary small">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 16px',
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
                 Page {page} / {totalPages}
               </span>
-              <div className="btn-group">
-                <Button
-                  variant="outline-secondary"
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn
+                  variant="subtle"
                   size="sm"
+                  icon="arrowLeft"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Précédent
-                </Button>
-                <Button
-                  variant="outline-secondary"
+                </Btn>
+                <Btn
+                  variant="subtle"
                   size="sm"
+                  iconRight="arrowRight"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   Suivant
-                </Button>
+                </Btn>
               </div>
             </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

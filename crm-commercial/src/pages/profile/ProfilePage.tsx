@@ -1,5 +1,6 @@
 import { useGamificationStore, useAuthStore } from '../../stores';
-import { Card, CardHeader, CardBody } from '../../components';
+import { Card, Avatar, Icon } from '../../components/neo';
+import type { IconName } from '../../components/neo';
 import { AnimatedCounter } from '../../components/ui/AnimatedCounter';
 import { XPProgressBar, BadgeGrid, StreakDisplay } from '../../components/gamification';
 // computeLevelProgress used by XPProgressBar internally
@@ -10,9 +11,7 @@ export function ProfilePage() {
   const { user } = useAuthStore();
   const { profile } = useGamificationStore();
 
-  const initials = user
-    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
-    : '?';
+  const fullName = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() : '';
 
   // Level index for progression display
 
@@ -31,145 +30,123 @@ export function ProfilePage() {
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 
   return (
-    <div className="profile-page">
-      <div className="row g-4">
+    <div style={{ padding: 28 }}>
+      <div className="lead-grid">
         {/* Left: Profile Card */}
-        <div className="col-lg-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* User Card */}
-          <div className="glass-card text-center mb-4" style={{ padding: '24px' }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, var(--neo-accent), ${profile.level.color})`,
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.8rem',
-              fontWeight: 700,
-              margin: '0 auto 12px',
-              border: `3px solid ${profile.level.color}`,
-            }}>
-              {initials}
-            </div>
-            <h4 style={{ margin: '0 0 4px', color: 'var(--neo-text-primary)' }}>
-              {user?.firstName} {user?.lastName}
-            </h4>
-            <div style={{ color: 'var(--neo-text-secondary)', marginBottom: '12px' }}>
-              {user?.role}
-            </div>
+          <Card>
+            <div className="card-body" style={{ textAlign: 'center' }}>
+              <Avatar
+                name={fullName}
+                size={80}
+                tone="grad"
+                style={{ margin: '0 auto 12px', border: `3px solid ${profile.level.color}` }}
+              />
+              <h4 style={{ margin: '0 0 4px', color: 'var(--ink)' }}>{fullName}</h4>
+              <div style={{ color: 'var(--ink-3)', marginBottom: 12 }}>{user?.role}</div>
 
-            {/* Level badge */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 16px',
-              borderRadius: '20px',
-              background: `${profile.level.color}22`,
-              color: profile.level.color,
-              fontWeight: 600,
-              marginBottom: '16px',
-            }}>
-              <i className={`bi ${profile.level.icon}`}></i>
-              {profile.level.label}
-            </div>
+              {/* Level badge */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 16px',
+                  borderRadius: 'var(--r-pill)',
+                  background: `${profile.level.color}22`,
+                  color: profile.level.color,
+                  fontWeight: 600,
+                  marginBottom: 16,
+                }}
+              >
+                <i className={`bi ${profile.level.icon}`}></i>
+                {profile.level.label}
+              </div>
 
-            {/* XP */}
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: 700,
-              color: 'var(--neo-xp-color)',
-              lineHeight: 1.2,
-            }}>
-              <AnimatedCounter value={profile.totalXP} /> XP
+              {/* XP */}
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--ochre)', lineHeight: 1.2 }}>
+                <AnimatedCounter value={profile.totalXP} /> XP
+              </div>
             </div>
-          </div>
+          </Card>
 
           {/* Streak */}
-          <div className="mb-4">
-            <StreakDisplay />
-          </div>
+          <StreakDisplay />
 
           {/* Stats Summary */}
-          <Card>
-            <CardHeader>Statistiques</CardHeader>
-            <CardBody>
-              <div className="d-flex flex-column gap-3">
-                <StatRow label="Leads créés" value={profile.stats.leadsCreated} icon="bi-person-plus" />
-                <StatRow label="Deals gagnés" value={profile.stats.leadsWon} icon="bi-trophy" color="var(--neo-success)" />
-                <StatRow label="Deals perdus" value={profile.stats.leadsLost} icon="bi-x-circle" color="var(--neo-danger)" />
-                <StatRow label="Activités complétées" value={profile.stats.activitiesCompleted} icon="bi-check-circle" />
-                <StatRow label="Appels passés" value={profile.stats.callsMade} icon="bi-telephone" />
-                <StatRow label="Emails envoyés" value={profile.stats.emailsSent} icon="bi-envelope" />
-                <StatRow label="Réunions" value={profile.stats.meetingsHeld} icon="bi-people" />
-                <StatRow label="Visites" value={profile.stats.visitsDone} icon="bi-geo-alt" />
-                <hr style={{ borderColor: 'var(--neo-border-color)' }} />
-                <StatRow label="CA généré" value={formatCurrency(profile.stats.totalRevenue)} icon="bi-currency-euro" color="var(--neo-xp-color)" />
+          <Card head="Statistiques" icon="chart">
+            <div className="card-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <StatRow label="Leads créés" value={profile.stats.leadsCreated} icon="user" />
+                <StatRow label="Deals gagnés" value={profile.stats.leadsWon} icon="trophy" color="var(--success)" />
+                <StatRow label="Deals perdus" value={profile.stats.leadsLost} icon="x" color="var(--danger)" />
+                <StatRow label="Activités complétées" value={profile.stats.activitiesCompleted} icon="checkCircle" />
+                <StatRow label="Appels passés" value={profile.stats.callsMade} icon="phone" />
+                <StatRow label="Emails envoyés" value={profile.stats.emailsSent} icon="mail" />
+                <StatRow label="Réunions" value={profile.stats.meetingsHeld} icon="users" />
+                <StatRow label="Visites" value={profile.stats.visitsDone} icon="building" />
+                <hr style={{ borderColor: 'var(--line)', margin: 0 }} />
+                <StatRow label="CA généré" value={formatCurrency(profile.stats.totalRevenue)} icon="euro" color="var(--ochre)" />
               </div>
-            </CardBody>
+            </div>
           </Card>
         </div>
 
         {/* Right: XP history + Badges */}
-        <div className="col-lg-8">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* XP Progress */}
-          <div className="mb-4">
-            <XPProgressBar />
-          </div>
+          <XPProgressBar />
 
           {/* XP History Chart */}
-          <Card className="mb-4">
-            <CardHeader>Progression XP (7 derniers jours)</CardHeader>
-            <CardBody>
-              <div style={{ height: '200px' }}>
+          <Card head="Progression XP (7 derniers jours)" icon="activity">
+            <div className="card-body">
+              <div style={{ height: 200 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={xpHistory}>
                     <defs>
                       <linearGradient id="xpGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--neo-accent)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="var(--neo-accent)" stopOpacity={0} />
+                        <stop offset="5%" stopColor="var(--komun)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--komun)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <XAxis
                       dataKey="day"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: 'var(--neo-text-muted)', fontSize: 12 }}
+                      tick={{ fill: 'var(--ink-4)', fontSize: 12 }}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: 'var(--neo-text-muted)', fontSize: 12 }}
+                      tick={{ fill: 'var(--ink-4)', fontSize: 12 }}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: 'var(--neo-bg-card)',
-                        border: '1px solid var(--neo-border-color)',
-                        borderRadius: '8px',
-                        color: 'var(--neo-text-primary)',
+                        background: 'var(--card)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                        color: 'var(--ink)',
                       }}
                       formatter={(value) => [`${Number(value).toLocaleString('fr-FR')} XP`, 'XP Total']}
                     />
                     <Area
                       type="monotone"
                       dataKey="xp"
-                      stroke="var(--neo-accent)"
+                      stroke="var(--komun)"
                       strokeWidth={2}
                       fill="url(#xpGradient)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </CardBody>
+            </div>
           </Card>
 
           {/* Level Progress */}
-          <Card className="mb-4">
-            <CardHeader>Progression des niveaux</CardHeader>
-            <CardBody>
-              <div className="d-flex flex-wrap gap-2">
+          <Card head="Progression des niveaux" icon="medal">
+            <div className="card-body">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {LEVELS.map((level) => {
                   const isReached = profile.totalXP >= level.minXP;
                   const isCurrent = profile.level.tier === level.tier;
@@ -178,57 +155,55 @@ export function ProfilePage() {
                       key={level.tier}
                       style={{
                         flex: '1 1 120px',
-                        padding: '12px',
-                        borderRadius: '10px',
-                        background: isCurrent ? `${level.color}22` : 'var(--neo-bg-light)',
-                        border: isCurrent ? `2px solid ${level.color}` : '1px solid var(--neo-border-color)',
+                        padding: 12,
+                        borderRadius: 'var(--r-md)',
+                        background: isCurrent ? `${level.color}22` : 'var(--paper)',
+                        border: isCurrent ? `2px solid ${level.color}` : '1px solid var(--line)',
                         textAlign: 'center',
                         opacity: isReached ? 1 : 0.4,
                       }}
                     >
-                      <i className={`bi ${level.icon}`} style={{
-                        color: isReached ? level.color : 'var(--neo-text-muted)',
-                        fontSize: '1.3rem',
-                        display: 'block',
-                        marginBottom: '4px',
-                      }}></i>
-                      <div style={{
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: isReached ? level.color : 'var(--neo-text-muted)',
-                      }}>
+                      <i
+                        className={`bi ${level.icon}`}
+                        style={{
+                          color: isReached ? level.color : 'var(--ink-4)',
+                          fontSize: '1.3rem',
+                          display: 'block',
+                          marginBottom: 4,
+                        }}
+                      ></i>
+                      <div
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: isReached ? level.color : 'var(--ink-4)',
+                        }}
+                      >
                         {level.label}
                       </div>
-                      <div style={{
-                        fontSize: '0.7rem',
-                        color: 'var(--neo-text-muted)',
-                      }}>
+                      <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>
                         {level.minXP.toLocaleString('fr-FR')} XP
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </CardBody>
+            </div>
           </Card>
 
           {/* Badge Collection */}
-          <Card>
-            <CardHeader>
-              <div className="d-flex align-items-center justify-content-between">
-                <span>Collection de badges</span>
-                <span style={{
-                  fontSize: '0.8rem',
-                  color: 'var(--neo-accent)',
-                  fontWeight: 600,
-                }}>
-                  {profile.badges.length} débloqués
-                </span>
-              </div>
-            </CardHeader>
-            <CardBody>
+          <Card
+            head="Collection de badges"
+            icon="star"
+            action={
+              <span style={{ fontSize: 12.5, color: 'var(--komun)', fontWeight: 600 }}>
+                {profile.badges.length} débloqués
+              </span>
+            }
+          >
+            <div className="card-body">
               <BadgeGrid />
-            </CardBody>
+            </div>
           </Card>
         </div>
       </div>
@@ -236,14 +211,26 @@ export function ProfilePage() {
   );
 }
 
-function StatRow({ label, value, icon, color }: { label: string; value: string | number; icon: string; color?: string }) {
+function StatRow({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: IconName;
+  color?: string;
+}) {
   return (
-    <div className="d-flex align-items-center justify-content-between">
-      <div className="d-flex align-items-center gap-2">
-        <i className={`bi ${icon}`} style={{ color: color || 'var(--neo-text-secondary)', fontSize: '0.9rem' }}></i>
-        <span style={{ fontSize: '0.85rem', color: 'var(--neo-text-secondary)' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: color || 'var(--ink-3)', display: 'inline-flex' }}>
+          <Icon name={icon} size={15} />
+        </span>
+        <span style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>{label}</span>
       </div>
-      <span style={{ fontWeight: 600, color: color || 'var(--neo-text-primary)' }}>{value}</span>
+      <span style={{ fontWeight: 600, color: color || 'var(--ink)' }}>{value}</span>
     </div>
   );
 }

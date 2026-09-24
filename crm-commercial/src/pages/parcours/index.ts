@@ -1,0 +1,1 @@
+export { ParcoursPage } from './ParcoursPage';

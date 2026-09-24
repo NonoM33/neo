@@ -35,6 +35,13 @@ const envSchema = z.object({
   // Meilleur modèle pour un chatbot de conversion (FR chaleureux + tool-calling).
   OPENROUTER_MODEL: z.string().default('anthropic/claude-sonnet-4.5'),
 
+  // Mesh d'acces distant aux box (Headscale, neo-cloud/headscale). Absents = pas de mesh.
+  HEADSCALE_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional()
+  ),
+  HEADSCALE_API_KEY: z.string().optional(),
+
   // Whisper (Speech-to-Text)
   WHISPER_URL: z.string().default('http://localhost:8000'),
   WHISPER_API_KEY: z.string().optional(),
@@ -110,6 +117,24 @@ const envSchema = z.object({
   // Le back-office reste accessible via le domaine staff (proxy). Vide = aucun filtrage.
   API_ONLY_HOSTS: z.string().default(''),
 
+  // Stripe (paiement en ligne via Checkout). Clés par environnement :
+  // test (sk_test_/pk_test_) en staging, live (sk_live_/pk_live_) en prod.
+  // Secrets : jamais commités, fournis via les variables d'env Coolify.
+  STRIPE_SECRET_KEY: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().optional()
+  ),
+  STRIPE_PUBLISHABLE_KEY: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().optional()
+  ),
+  STRIPE_WEBHOOK_SECRET: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().optional()
+  ),
+  // Durée de validité d'un lien de paiement public (jours).
+  PAYMENT_LINK_TTL_DAYS: z.coerce.number().default(30),
+
   // DocuSeal (signature electronique)
   DOCUSEAL_API_KEY: z.string().optional(),
   DOCUSEAL_BASE_URL: z.string().default('https://api.docuseal.com'),
@@ -169,6 +194,9 @@ export const isMattermostBotEnabled = Boolean(
 
 // Le chatbot du site vitrine ne répond automatiquement que si une clé OpenRouter est fournie.
 export const isChatbotEnabled = Boolean(env.OPENROUTER_API_KEY);
+
+// Le paiement en ligne n'est actif que si une clé secrète Stripe est fournie.
+export const isStripeEnabled = Boolean(env.STRIPE_SECRET_KEY);
 
 // Hôtes servant uniquement l'API : les interfaces HTML y sont masquées (404).
 export const apiOnlyHosts = new Set(

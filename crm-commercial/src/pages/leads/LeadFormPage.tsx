@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, Button, Input, Select, Textarea } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn } from '../../components/neo';
 import { leadsService } from '../../services';
 import type { CreateLeadInput } from '../../types';
 import { LEAD_STATUS_LABELS, LEAD_SOURCE_LABELS } from '../../types';
@@ -36,13 +37,7 @@ export function LeadFormPage() {
     expectedCloseDate: '',
   });
 
-  useEffect(() => {
-    if (isEditing && id) {
-      loadLead();
-    }
-  }, [id]);
-
-  const loadLead = async () => {
+  const loadLead = useCallback(async () => {
     try {
       const lead = await leadsService.getLead(id!);
       setFormData({
@@ -68,9 +63,17 @@ export function LeadFormPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  useEffect(() => {
+    if (isEditing && id) {
+      loadLead();
+    }
+  }, [isEditing, id, loadLead]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -81,11 +84,9 @@ export function LeadFormPage() {
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.firstName.trim()) newErrors.firstName = 'Le prénom est requis';
     if (!formData.lastName.trim()) newErrors.lastName = 'Le nom est requis';
     if (!formData.title.trim()) newErrors.title = 'Le titre du projet est requis';
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -110,70 +111,66 @@ export function LeadFormPage() {
     }
   };
 
-  const statusOptions = Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => ({ value, label }));
-  const sourceOptions = Object.entries(LEAD_SOURCE_LABELS).map(([value, label]) => ({ value, label }));
-
   if (loading) {
     return <Spinner />;
   }
 
   return (
-    <div className="lead-form">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <button className="btn btn-link text-muted p-0 mb-2" onClick={() => navigate('/leads')}>
-            <i className="bi bi-arrow-left me-1"></i>
-            Retour aux leads
+    <div style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/leads')}>
+            ← Retour aux leads
           </button>
-          <div className="d-flex align-items-center gap-2">
-            <h2 className="mb-0">{isEditing ? 'Modifier le lead' : 'Nouveau lead'}</h2>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isEditing ? 'Modifier le lead' : 'Nouveau lead'}
             {!isEditing && <XPIndicator xp={15} />}
-          </div>
+          </h1>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="row g-4">
-          <div className="col-lg-8">
-            {/* Contact Info */}
-            <Card className="mb-4">
-              <CardHeader>Informations de contact</CardHeader>
-              <CardBody>
-                <div className="row">
-                  <div className="col-md-6">
-                    <Input
-                      label="Prénom"
+        <div className="lead-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <Card head="Informations de contact" icon="user">
+              <div className="card-body">
+                <div className="field-grid" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                  <div>
+                    <div className="field-label">Prénom *</div>
+                    <input
+                      className="neo-field"
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleChange}
-                      error={errors.firstName}
-                      required
                     />
+                    {errors.firstName && <div className="field-error">{errors.firstName}</div>}
                   </div>
-                  <div className="col-md-6">
-                    <Input
-                      label="Nom"
+                  <div>
+                    <div className="field-label">Nom *</div>
+                    <input
+                      className="neo-field"
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleChange}
-                      error={errors.lastName}
-                      required
                     />
+                    {errors.lastName && <div className="field-error">{errors.lastName}</div>}
                   </div>
                 </div>
-                <div className="row">
-                  <div className="col-md-6">
-                    <Input
-                      label="Email"
+                <div className="field-grid">
+                  <div>
+                    <div className="field-label">Email</div>
+                    <input
+                      className="neo-field"
                       name="email"
                       type="email"
                       value={formData.email}
                       onChange={handleChange}
                     />
                   </div>
-                  <div className="col-md-6">
-                    <Input
-                      label="Téléphone"
+                  <div>
+                    <div className="field-label">Téléphone</div>
+                    <input
+                      className="neo-field"
                       name="phone"
                       type="tel"
                       value={formData.phone}
@@ -181,46 +178,58 @@ export function LeadFormPage() {
                     />
                   </div>
                 </div>
-                <Input
-                  label="Entreprise"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleChange}
-                />
-              </CardBody>
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Entreprise</div>
+                  <input
+                    className="neo-field"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
             </Card>
 
-            {/* Project Info */}
-            <Card className="mb-4">
-              <CardHeader>Projet</CardHeader>
-              <CardBody>
-                <Input
-                  label="Titre du projet"
+            <Card head="Projet" icon="target">
+              <div className="card-body">
+                <div className="field-label">Titre du projet *</div>
+                <input
+                  className="neo-field"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  error={errors.title}
-                  required
                 />
-                <Textarea
-                  label="Description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                />
-                <div className="row">
-                  <div className="col-md-6">
-                    <Select
-                      label="Source"
+                {errors.title && <div className="field-error">{errors.title}</div>}
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Description</div>
+                  <textarea
+                    className="neo-field"
+                    name="description"
+                    rows={4}
+                    value={formData.description}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="field-grid">
+                  <div>
+                    <div className="field-label">Source</div>
+                    <select
+                      className="neo-field"
                       name="source"
                       value={formData.source}
                       onChange={handleChange}
-                      options={sourceOptions}
-                    />
+                    >
+                      {Object.entries(LEAD_SOURCE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="col-md-6">
-                    <Input
-                      label="Date de clôture prévue"
+                  <div>
+                    <div className="field-label">Date de clôture prévue</div>
+                    <input
+                      className="neo-field"
                       name="expectedCloseDate"
                       type="date"
                       value={formData.expectedCloseDate}
@@ -228,98 +237,105 @@ export function LeadFormPage() {
                     />
                   </div>
                 </div>
-              </CardBody>
+              </div>
             </Card>
 
-            {/* Address */}
-            <Card className="mb-4">
-              <CardHeader>Adresse du projet</CardHeader>
-              <CardBody>
-                <Input
-                  label="Adresse"
+            <Card head="Adresse du projet" icon="building">
+              <div className="card-body">
+                <div className="field-label">Adresse</div>
+                <input
+                  className="neo-field"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                 />
-                <div className="row">
-                  <div className="col-md-4">
-                    <Input
-                      label="Code postal"
+                <div className="field-grid">
+                  <div>
+                    <div className="field-label">Code postal</div>
+                    <input
+                      className="neo-field"
                       name="postalCode"
                       value={formData.postalCode}
                       onChange={handleChange}
                     />
                   </div>
-                  <div className="col-md-8">
-                    <Input
-                      label="Ville"
+                  <div>
+                    <div className="field-label">Ville</div>
+                    <input
+                      className="neo-field"
                       name="city"
                       value={formData.city}
                       onChange={handleChange}
                     />
                   </div>
                 </div>
-                <Input
-                  label="Surface (m²)"
-                  name="surface"
-                  type="number"
-                  value={formData.surface || ''}
-                  onChange={handleChange}
-                />
-              </CardBody>
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Surface (m²)</div>
+                  <input
+                    className="neo-field"
+                    name="surface"
+                    type="number"
+                    value={formData.surface || ''}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div className="col-lg-4">
-            {/* Status & Value */}
-            <Card className="mb-4">
-              <CardHeader>Qualification</CardHeader>
-              <CardBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <Card head="Qualification" icon="crosshair">
+              <div className="card-body">
                 {isEditing && (
-                  <Select
-                    label="Statut"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    options={statusOptions}
-                  />
+                  <div style={{ marginBottom: 14 }}>
+                    <div className="field-label">Statut</div>
+                    <select
+                      className="neo-field"
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                    >
+                      {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
-                <Input
-                  label="Valeur estimée (€)"
+                <div className="field-label">Valeur estimée (€)</div>
+                <input
+                  className="neo-field"
                   name="estimatedValue"
                   type="number"
                   value={formData.estimatedValue || ''}
                   onChange={handleChange}
                 />
-                <div className="mb-3">
-                  <label className="form-label">Probabilité: {formData.probability}%</label>
+                <div style={{ marginTop: 14 }}>
+                  <div className="field-label">Probabilité : {formData.probability}%</div>
                   <input
                     type="range"
-                    className="form-range"
                     name="probability"
                     min="0"
                     max="100"
                     step="5"
                     value={formData.probability || 0}
                     onChange={handleChange}
+                    style={{ width: '100%', accentColor: 'var(--komun)' }}
                   />
                 </div>
-              </CardBody>
+              </div>
             </Card>
 
-            {/* Actions */}
             <Card>
-              <CardBody>
-                <div className="d-grid gap-2">
-                  <Button type="submit" loading={submitting} icon="bi-check-lg">
-                    {isEditing ? 'Enregistrer' : 'Créer le lead'}
-                  </Button>
-                  <Button type="button" variant="outline-secondary" onClick={() => navigate('/leads')}>
-                    Annuler
-                  </Button>
-                </div>
-              </CardBody>
+              <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Btn type="submit" icon="check" disabled={submitting}>
+                  {submitting ? 'Enregistrement…' : isEditing ? 'Enregistrer' : 'Créer le lead'}
+                </Btn>
+                <Btn type="button" variant="subtle" onClick={() => navigate('/leads')}>
+                  Annuler
+                </Btn>
+              </div>
             </Card>
           </div>
         </div>

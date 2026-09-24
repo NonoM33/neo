@@ -13,16 +13,19 @@ export type Feature =
   | 'kpis'
   | 'catalogue'
   | 'availability'
+  | 'creneaux'
   | 'leaderboard'
   | 'profile'
   | 'clients'
   | 'projets'
+  | 'parcours'
   | 'devis'
   | 'commandes'
   | 'stock'
   | 'commandes-fournisseurs'
   | 'fournisseurs'
   | 'factures'
+  | 'paiements'
   | 'signatures'
   | 'support'
   | 'newsletter'
@@ -31,6 +34,9 @@ export type Feature =
   | 'objectives'
   | 'templates'
   | 'marketing'
+  | 'design-system'
+  | 'roles'
+  | 'api-tokens'
   | 'users';
 
 const ALL_ROLES: RoleType[] = ['admin', 'integrateur', 'auditeur', 'commercial'];
@@ -45,6 +51,7 @@ export const featureRoles: Record<Feature, RoleType[]> = {
   catalogue: ALL_ROLES,
   availability: ALL_ROLES,
   profile: ALL_ROLES,
+  'design-system': ALL_ROLES,
 
   // Pôle commercial
   prospection: ['admin', 'commercial'],
@@ -55,6 +62,7 @@ export const featureRoles: Record<Feature, RoleType[]> = {
   leaderboard: ['admin', 'commercial'],
   devis: ['admin', 'commercial'],
   clients: ['admin', 'commercial', 'integrateur'],
+  parcours: ['admin', 'integrateur', 'commercial'],
 
   // Pôle intégration / opérations
   projets: ['admin', 'integrateur', 'auditeur'],
@@ -63,6 +71,7 @@ export const featureRoles: Record<Feature, RoleType[]> = {
   'commandes-fournisseurs': ['admin', 'integrateur'],
   fournisseurs: ['admin', 'integrateur'],
   factures: ['admin', 'integrateur'],
+  paiements: ['admin', 'commercial', 'integrateur'],
   support: ['admin', 'integrateur', 'commercial'],
   cloud: ['admin', 'integrateur'],
 
@@ -71,8 +80,11 @@ export const featureRoles: Record<Feature, RoleType[]> = {
   newsletter: ['admin'],
   recette: ['admin', 'auditeur'],
   objectives: ['admin'],
+  creneaux: ['admin'],
   templates: ['admin'],
   marketing: ['admin'],
+  roles: ['admin'],
+  'api-tokens': ['admin'],
   users: ['admin'],
 };
 

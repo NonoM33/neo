@@ -8,11 +8,20 @@ import {
 } from './rooms.schema';
 import * as roomsService from './rooms.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { requireIntegrateurOrAdmin } from '../../middleware/rbac.middleware';
+import { requireAuditeur } from '../../middleware/rbac.middleware';
 
 const roomsRouter = new Hono();
 
-roomsRouter.use('*', authMiddleware, requireIntegrateurOrAdmin());
+// Limite aux chemins de ce routeur : monte sur `/api`, un `use('*')`
+// imposerait ce garde a tous les autres modules.
+for (const chemin of [
+  '/pieces/:id',
+  '/pieces/:roomId/checklist',
+  '/checklist/:id',
+  '/projets/:projectId/pieces',
+]) {
+  roomsRouter.use(chemin, authMiddleware, requireAuditeur());
+}
 
 // Get rooms by project
 roomsRouter.get('/projets/:projectId/pieces', async (c) => {

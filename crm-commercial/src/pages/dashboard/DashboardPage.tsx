@@ -1,44 +1,49 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, Table } from '../../components';
+import { Spinner } from '../../components';
 import { kpisService, leadsService, activitiesService } from '../../services';
 import { appointmentsService } from '../../services/appointments.service';
-import type { DashboardData, Lead, Activity, PipelineAnalysis } from '../../types';
+import type { DashboardData, Lead, Activity, PipelineAnalysis, LeadStatus } from '../../types';
 import type { Appointment } from '../../types/appointment.types';
 import {
   APPOINTMENT_TYPE_LABELS,
   APPOINTMENT_TYPE_COLORS,
-  APPOINTMENT_TYPE_ICONS,
   APPOINTMENT_STATUS_LABELS,
-  APPOINTMENT_STATUS_COLORS,
   LOCATION_TYPE_LABELS,
 } from '../../types/appointment.types';
 import { LEAD_STATUS_LABELS, ACTIVITY_TYPE_LABELS } from '../../types';
 import { useAuthStore, useGamificationStore } from '../../stores';
-import {
-  XPProgressBar,
-  StreakDisplay,
-  DailyChallenges,
-  MiniLeaderboard,
-  RecentAchievements,
-  QuickStats,
-} from '../../components/gamification';
+import { computeLevelProgress } from '../../services/gamification.engine';
+import { Icon, Avatar, Pill, Btn, Card, type IconName } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 
-// Preparation steps for an appointment
 interface PrepStep {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName;
   description: string;
 }
 
 const PREP_STEPS: PrepStep[] = [
-  { id: 'review_client', label: 'Revoir le dossier client', icon: 'bi-person-lines-fill', description: 'Relisez les infos du lead/client et l\'historique des échanges' },
-  { id: 'prepare_docs', label: 'Préparer les documents', icon: 'bi-file-earmark-text', description: 'Devis, brochures, contrats à jour' },
-  { id: 'check_route', label: 'Vérifier l\'itinéraire', icon: 'bi-map', description: 'Estimez le temps de trajet et planifiez le départ' },
-  { id: 'confirm_rdv', label: 'Confirmer le RDV', icon: 'bi-telephone', description: 'Rappelez le client pour confirmer l\'heure et le lieu' },
-  { id: 'prepare_pitch', label: 'Préparer l\'argumentaire', icon: 'bi-chat-square-text', description: 'Points clés à aborder, objections anticipées' },
+  { id: 'review_client', label: 'Revoir le dossier client', icon: 'user', description: "Relisez les infos du lead/client et l'historique des échanges" },
+  { id: 'prepare_docs', label: 'Préparer les documents', icon: 'fileText', description: 'Devis, brochures, contrats à jour' },
+  { id: 'check_route', label: "Vérifier l'itinéraire", icon: 'target', description: 'Estimez le temps de trajet et planifiez le départ' },
+  { id: 'confirm_rdv', label: 'Confirmer le RDV', icon: 'phone', description: "Rappelez le client pour confirmer l'heure et le lieu" },
+  { id: 'prepare_pitch', label: "Préparer l'argumentaire", icon: 'message', description: 'Points clés à aborder, objections anticipées' },
 ];
+
+const LEAD_TONE: Record<LeadStatus, PillTone> = {
+  prospect: 'neutral',
+  qualifie: 'info',
+  proposition: 'ochre',
+  negociation: 'warning',
+  gagne: 'success',
+  perdu: 'danger',
+};
+
+function leadTone(status: LeadStatus): PillTone {
+  return LEAD_TONE[status] ?? 'neutral';
+}
 
 function getGoogleMapsDirectionsUrl(address: string): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
@@ -48,18 +53,14 @@ function getTimeUntil(dateStr: string): string {
   const now = new Date();
   const target = new Date(dateStr);
   const diffMs = target.getTime() - now.getTime();
-
   if (diffMs < 0) return 'Maintenant';
-
   const diffMin = Math.floor(diffMs / 60000);
   if (diffMin < 60) return `Dans ${diffMin} min`;
-
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) {
     const remainMin = diffMin % 60;
     return remainMin > 0 ? `Dans ${diffH}h${String(remainMin).padStart(2, '0')}` : `Dans ${diffH}h`;
   }
-
   const diffDays = Math.floor(diffH / 24);
   if (diffDays === 1) return 'Demain';
   return `Dans ${diffDays} jours`;
@@ -67,8 +68,7 @@ function getTimeUntil(dateStr: string): string {
 
 function isToday(dateStr: string): boolean {
   const d = new Date(dateStr);
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
+  return d.toDateString() === new Date().toDateString();
 }
 
 function isTomorrow(dateStr: string): boolean {
@@ -78,10 +78,17 @@ function isTomorrow(dateStr: string): boolean {
   return d.toDateString() === tomorrow.toDateString();
 }
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
+
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const gamification = useGamificationStore();
+  const { profile, challenges, leaderboard } = gamification;
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [pipeline, setPipeline] = useState<PipelineAnalysis | null>(null);
@@ -91,10 +98,59 @@ export function DashboardPage() {
   const [checkedSteps, setCheckedSteps] = useState<Record<string, Set<string>>>({});
 
   useEffect(() => {
+    let cancelled = false;
+    const loadData = async () => {
+      try {
+        const now = new Date();
+        const fromDate = now.toISOString().split('T')[0];
+        const toDate = new Date(now.getTime() + 14 * 86400000).toISOString().split('T')[0];
+
+        const [dashboardData, pipelineData, leadsData, activitiesData, appointmentsData] = await Promise.all([
+          kpisService.getDashboard(),
+          kpisService.getPipeline(),
+          leadsService.getLeads({}, 1, 100),
+          activitiesService.getUpcoming(),
+          appointmentsService.getAppointments({ fromDate, toDate }).catch(() => [] as Appointment[]),
+        ]);
+        if (cancelled) return;
+
+        setDashboard(dashboardData);
+        setPipeline(pipelineData);
+        setRecentLeads(leadsData.data);
+
+        const allActivities = await activitiesService.getActivities({}, 1, 100);
+        if (cancelled) return;
+        setUpcomingActivities(activitiesData.slice(0, 5));
+
+        const upcoming = appointmentsData
+          .filter(
+            (a) =>
+              a.status !== 'annule' &&
+              a.status !== 'no_show' &&
+              a.status !== 'termine' &&
+              new Date(a.scheduledAt) >= new Date(now.getTime() - 3600000),
+          )
+          .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+        setUpcomingAppointments(upcoming);
+
+        const currentUser = useAuthStore.getState().user;
+        const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Utilisateur';
+        const userInitials = currentUser
+          ? `${currentUser.firstName?.[0] || ''}${currentUser.lastName?.[0] || ''}`.toUpperCase()
+          : '?';
+        useGamificationStore.getState().initialize(leadsData.data, allActivities.data, dashboardData, userName, userInitials);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
     loadData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Load saved preparation progress from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('neo-prep-steps');
@@ -106,7 +162,9 @@ export function DashboardPage() {
         }
         setCheckedSteps(restored);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const saveCheckedSteps = (steps: Record<string, Set<string>>) => {
@@ -118,88 +176,73 @@ export function DashboardPage() {
   };
 
   const toggleStep = (appointmentId: string, stepId: string) => {
-    setCheckedSteps(prev => {
+    setCheckedSteps((prev) => {
       const updated = { ...prev };
       const set = new Set(prev[appointmentId] || []);
-      if (set.has(stepId)) {
-        set.delete(stepId);
-      } else {
-        set.add(stepId);
-      }
+      if (set.has(stepId)) set.delete(stepId);
+      else set.add(stepId);
       updated[appointmentId] = set;
       saveCheckedSteps(updated);
       return updated;
     });
   };
 
-  const loadData = async () => {
-    try {
-      // Load all data in parallel, including appointments
-      const now = new Date();
-      const fromDate = now.toISOString().split('T')[0];
-      const toDate = new Date(now.getTime() + 14 * 86400000).toISOString().split('T')[0];
-
-      const [dashboardData, pipelineData, leadsData, activitiesData, appointmentsData] = await Promise.all([
-        kpisService.getDashboard(),
-        kpisService.getPipeline(),
-        leadsService.getLeads({}, 1, 100),
-        activitiesService.getUpcoming(),
-        appointmentsService.getAppointments({ fromDate, toDate }).catch(() => [] as Appointment[]),
-      ]);
-
-      setDashboard(dashboardData);
-      setPipeline(pipelineData);
-      setRecentLeads(leadsData.data);
-
-      const allActivities = await activitiesService.getActivities({}, 1, 100);
-      setUpcomingActivities(activitiesData.slice(0, 5));
-
-      // Filter appointments: only future, non-canceled, sorted by date
-      const upcoming = appointmentsData
-        .filter(a => a.status !== 'annule' && a.status !== 'no_show' && a.status !== 'termine' && new Date(a.scheduledAt) >= new Date(now.getTime() - 3600000))
-        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-      setUpcomingAppointments(upcoming);
-
-      // Initialize gamification with real data
-      const userName = user ? `${user.firstName} ${user.lastName}` : 'Utilisateur';
-      const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() : '?';
-      gamification.initialize(leadsData.data, allActivities.data, dashboardData, userName, userInitials);
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-    });
-  };
-
-  // The next appointment (most important one)
-  const nextAppointment = upcomingAppointments[0] || null;
-  // Other upcoming appointments (next 3)
-  const otherAppointments = upcomingAppointments.slice(1, 4);
-
   if (loading) {
     return <Spinner />;
   }
 
+  const nextAppointment = upcomingAppointments[0] || null;
+  const otherAppointments = upcomingAppointments.slice(1, 4);
+
+  const firstName = user?.firstName || 'vous';
+  const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const levelProgress = computeLevelProgress(profile.totalXP);
+  const nextLevelXP = Number.isFinite(profile.level.maxXP) ? profile.level.maxXP + 1 : null;
+  const xpToNext = nextLevelXP ? nextLevelXP - profile.totalXP : 0;
+
+  const stats: { icon: IconName; tone: string; val: string; label: string }[] = [
+    { icon: 'filter', tone: 'blue', val: String(dashboard?.leads.open ?? 0), label: 'Leads ouverts' },
+    { icon: 'trophy', tone: 'green', val: String(dashboard?.leads.won ?? 0), label: 'Leads gagnés' },
+    { icon: 'chart', tone: 'ink', val: `${dashboard?.leads.conversionRate ?? 0}%`, label: 'Taux conversion' },
+    { icon: 'euro', tone: 'ochre', val: formatCurrency(dashboard?.revenue.weightedValue ?? 0), label: 'CA potentiel' },
+  ];
+
   return (
-    <div className="dashboard">
-      {/* PRIORITY: Next Client Appointment */}
+    <div className="screen">
+      <div className="page-head">
+        <div className="ph-l">
+          <h1>Bonjour, {firstName} 👋</h1>
+          <p>Voici ce qui se passe chez Neo aujourd'hui — {todayLabel}.</p>
+        </div>
+        <div className="page-actions">
+          <Btn variant="ghost" icon="calendar" onClick={() => navigate('/activities')}>
+            Cette semaine
+          </Btn>
+          <Btn icon="plus" onClick={() => navigate('/leads')}>
+            Nouveau lead
+          </Btn>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="stat-grid mb-22">
+        {stats.map((s) => (
+          <div className="stat" key={s.label}>
+            <div className="st-top">
+              <span className={'st-ic ' + s.tone}>
+                <Icon name={s.icon} size={19} />
+              </span>
+            </div>
+            <div className="st-val">{s.val}</div>
+            <div className="st-label">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Next appointment */}
       {nextAppointment && (
-        <div className="mb-4">
+        <div className="mb-22">
           <NextAppointmentCard
             appointment={nextAppointment}
             checkedSteps={checkedSteps[nextAppointment.id] || new Set()}
@@ -209,187 +252,203 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Other upcoming appointments (compact) */}
       {otherAppointments.length > 0 && (
-        <div className="row g-3 mb-4">
-          {otherAppointments.map(apt => (
-            <div key={apt.id} className="col-lg-4">
-              <CompactAppointmentCard appointment={apt} navigate={navigate} />
-            </div>
+        <div className="chart-grid mb-22" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          {otherAppointments.map((apt) => (
+            <CompactAppointmentCard key={apt.id} appointment={apt} navigate={navigate} />
           ))}
         </div>
       )}
 
-      {/* XP Progress Bar */}
-      <div className="mb-4">
-        <XPProgressBar />
-      </div>
-
-      {/* Gamification Row: Streak | Challenges | Leaderboard */}
-      <div className="row g-3 mb-4">
-        <div className="col-lg-3">
-          <StreakDisplay />
-        </div>
-        <div className="col-lg-5">
-          <DailyChallenges />
-        </div>
-        <div className="col-lg-4">
-          <MiniLeaderboard />
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="mb-4">
-        <QuickStats
-          stats={[
-            {
-              label: 'Leads ouverts',
-              value: dashboard?.leads.open || 0,
-              icon: 'bi-funnel',
-              color: 'var(--neo-primary)',
-            },
-            {
-              label: 'Leads gagnés',
-              value: dashboard?.leads.won || 0,
-              icon: 'bi-trophy',
-              color: 'var(--neo-success)',
-            },
-            {
-              label: 'Taux conversion',
-              value: dashboard?.leads.conversionRate || 0,
-              icon: 'bi-graph-up-arrow',
-              color: 'var(--neo-info)',
-              suffix: '%',
-            },
-            {
-              label: 'CA potentiel',
-              value: dashboard?.revenue.weightedValue || 0,
-              icon: 'bi-currency-euro',
-              color: 'var(--neo-xp-color)',
-              formatter: (v) => formatCurrency(v),
-            },
-          ]}
-        />
-      </div>
-
-      <div className="row g-4 mb-4">
-        {/* Pipeline Overview */}
-        <div className="col-lg-8">
-          <Card>
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>Pipeline</span>
-                <button className="btn btn-sm btn-outline-primary" onClick={() => navigate('/leads')}>
-                  Voir tout
-                </button>
+      {/* Gamification: XP + challenges/leaderboard */}
+      <div className="chart-grid mb-22">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="xp-card">
+            <div className="xp-top">
+              <Avatar name={profile.stats ? `${firstName}` : 'Neo'} size={46} tone="ochre" />
+              <div>
+                <div className="xp-lvl">{profile.level.label}</div>
+                <div className="xp-name">{profile.totalXP.toLocaleString('fr-FR')} XP</div>
               </div>
-            </CardHeader>
-            <CardBody>
-              <div className="row g-3">
-                {pipeline?.stages.map((stage) => (
-                  <div key={stage.status} className="col-md-3">
-                    <div className="text-center p-3 rounded" style={{ background: 'var(--neo-bg-light)' }}>
-                      <div className="h4 mb-1">{stage.count}</div>
-                      <div className="text-muted mb-2">{LEAD_STATUS_LABELS[stage.status as keyof typeof LEAD_STATUS_LABELS] || stage.status}</div>
-                      <div className="small text-muted">{formatCurrency(stage.weightedValue)}</div>
-                    </div>
-                  </div>
+              <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    color: '#ffd089',
+                    fontWeight: 700,
+                    fontSize: 15,
+                  }}
+                >
+                  <Icon name="flame" size={17} /> {profile.streak}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)' }}>jours de série</div>
+              </div>
+            </div>
+            <div className="xp-bar">
+              <i style={{ width: `${Math.round(levelProgress * 100)}%` }} />
+            </div>
+            <div className="xp-meta">
+              <span>{profile.totalXP.toLocaleString('fr-FR')} XP</span>
+              <span>
+                {nextLevelXP
+                  ? `Niveau suivant dans ${xpToNext.toLocaleString('fr-FR')} XP`
+                  : 'Niveau maximum atteint'}
+              </span>
+            </div>
+            {profile.badges.length > 0 && (
+              <div className="badges-row">
+                {profile.badges.slice(0, 6).map((b) => (
+                  <span className="badge-chip" key={b.badgeId} title={b.badgeId}>
+                    <Icon name="medal" size={20} />
+                  </span>
                 ))}
               </div>
-            </CardBody>
+            )}
+          </div>
+
+          <Card head="Classement" icon="trophy" action={<a className="contact-link" style={{ fontSize: 13, cursor: 'pointer' }} onClick={() => navigate('/leaderboard')}>Voir tout</a>} flush>
+            <div style={{ padding: '4px 18px 12px' }}>
+              {leaderboard.slice(0, 5).map((e) => (
+                <div className="lrow" key={e.userId}>
+                  <span className="cell-id" style={{ width: 22, textAlign: 'center' }}>{e.rank}</span>
+                  <Avatar name={e.name} size={32} tone={e.isCurrentUser ? 'blue' : 'ink'} />
+                  <div className="lr-main">
+                    <b>{e.name}</b>
+                    <small>{e.level.label}</small>
+                  </div>
+                  {e.isCurrentUser && <Pill tone="info">Vous</Pill>}
+                  <span className="lr-val">{e.xp.toLocaleString('fr-FR')} XP</span>
+                </div>
+              ))}
+              {leaderboard.length === 0 && <div className="empty">Classement indisponible</div>}
+            </div>
           </Card>
         </div>
 
-        {/* Recent Achievements */}
-        <div className="col-lg-4">
-          <RecentAchievements />
-        </div>
+        <Card head="Défis du jour" icon="zap" action={<Pill tone="info">{challenges.filter((c) => !c.completed).length} en cours</Pill>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {challenges.slice(0, 4).map((c) => {
+              const pct = Math.min(100, Math.round((c.current / c.target) * 100));
+              return (
+                <div key={c.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span className={'st-ic ' + (c.completed ? 'green' : 'blue')} style={{ width: 30, height: 30, borderRadius: 8 }}>
+                      <Icon name={c.completed ? 'check' : 'target'} size={15} />
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <b style={{ fontSize: 13.5 }}>{c.title}</b>
+                      <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{c.description}</div>
+                    </div>
+                    <Pill tone={c.completed ? 'success' : 'ochre'}>+{c.xpReward} XP</Pill>
+                  </div>
+                  <div className="xp-bar" style={{ background: 'var(--line)' }}>
+                    <i style={{ width: `${pct}%`, background: c.completed ? 'var(--success)' : 'linear-gradient(90deg,var(--komun),#6f8dff)' }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 3, textAlign: 'right' }}>
+                    {c.current}/{c.target}
+                  </div>
+                </div>
+              );
+            })}
+            {challenges.length === 0 && <div className="empty">Aucun défi disponible</div>}
+          </div>
+        </Card>
       </div>
 
-      <div className="row g-4">
-        {/* Recent Leads */}
-        <div className="col-lg-6">
-          <Card>
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>Leads récents</span>
-                <button className="btn btn-sm btn-outline-primary" onClick={() => navigate('/leads')}>
-                  Voir tout
-                </button>
+      {/* Pipeline */}
+      <div className="mb-22">
+        <Card
+          head="Pipeline"
+          icon="filter"
+          action={
+            <a className="contact-link" style={{ fontSize: 13, cursor: 'pointer' }} onClick={() => navigate('/leads')}>
+              Voir tout
+            </a>
+          }
+        >
+          <div className="stat-grid" style={{ gridTemplateColumns: `repeat(${Math.max(pipeline?.stages.length ?? 4, 1)}, 1fr)` }}>
+            {pipeline?.stages.map((stage) => (
+              <div className="stat" key={stage.status} style={{ textAlign: 'center' }}>
+                <div className="st-val" style={{ fontSize: 26 }}>{stage.count}</div>
+                <div className="st-label">
+                  {LEAD_STATUS_LABELS[stage.status as keyof typeof LEAD_STATUS_LABELS] || stage.status}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+                  {formatCurrency(stage.weightedValue)}
+                </div>
               </div>
-            </CardHeader>
-            <CardBody className="p-0">
-              <Table
-                columns={[
-                  { key: 'name', header: 'Nom', render: (lead: Lead) => `${lead.firstName} ${lead.lastName}` },
-                  { key: 'title', header: 'Projet' },
-                  {
-                    key: 'status',
-                    header: 'Statut',
-                    render: (lead: Lead) => (
-                      <span className={`badge badge-${lead.status}`}>
-                        {LEAD_STATUS_LABELS[lead.status]}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'estimatedValue',
-                    header: 'Valeur',
-                    render: (lead: Lead) => lead.estimatedValue ? formatCurrency(parseFloat(lead.estimatedValue)) : '-',
-                  },
-                ]}
-                data={recentLeads.slice(0, 5)}
-                keyExtractor={(lead) => lead.id}
-                onRowClick={(lead) => navigate(`/leads/${lead.id}`)}
-                emptyMessage="Aucun lead récent"
-              />
-            </CardBody>
-          </Card>
-        </div>
+            ))}
+            {!pipeline?.stages.length && <div className="empty">Pipeline vide</div>}
+          </div>
+        </Card>
+      </div>
 
-        {/* Upcoming Activities */}
-        <div className="col-lg-6">
-          <Card>
-            <CardHeader>
-              <div className="d-flex justify-content-between align-items-center">
-                <span>Activités à venir</span>
-                <button className="btn btn-sm btn-outline-primary" onClick={() => navigate('/activities')}>
-                  Voir tout
-                </button>
+      {/* Recent leads + activities */}
+      <div className="chart-grid">
+        <Card
+          head="Leads récents"
+          icon="users"
+          action={
+            <a className="contact-link" style={{ fontSize: 13, cursor: 'pointer' }} onClick={() => navigate('/leads')}>
+              Voir tout
+            </a>
+          }
+          flush
+        >
+          <div style={{ padding: '4px 18px 12px' }}>
+            {recentLeads.slice(0, 5).map((lead, i) => (
+              <div className="lrow" key={lead.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/leads/${lead.id}`)}>
+                <Avatar name={`${lead.firstName} ${lead.lastName}`} size={36} tone={(['ochre', 'blue', 'green', 'ink', 'ochre'] as const)[i % 5]} />
+                <div className="lr-main">
+                  <b>{lead.firstName} {lead.lastName}</b>
+                  <small>{lead.title || '—'}</small>
+                </div>
+                <Pill tone={leadTone(lead.status)} dot>
+                  {LEAD_STATUS_LABELS[lead.status]}
+                </Pill>
+                <span className="lr-val">
+                  {lead.estimatedValue ? formatCurrency(parseFloat(lead.estimatedValue)) : '—'}
+                </span>
               </div>
-            </CardHeader>
-            <CardBody className="p-0">
-              <Table
-                columns={[
-                  {
-                    key: 'type',
-                    header: 'Type',
-                    render: (activity: Activity) => (
-                      <span className={`badge badge-${activity.type}`}>
-                        {ACTIVITY_TYPE_LABELS[activity.type]}
-                      </span>
-                    ),
-                  },
-                  { key: 'subject', header: 'Sujet' },
-                  {
-                    key: 'scheduledAt',
-                    header: 'Date',
-                    render: (activity: Activity) => activity.scheduledAt ? formatDate(activity.scheduledAt) : '-',
-                  },
-                ]}
-                data={upcomingActivities}
-                keyExtractor={(activity) => activity.id}
-                emptyMessage="Aucune activité planifiée"
-              />
-            </CardBody>
-          </Card>
-        </div>
+            ))}
+            {recentLeads.length === 0 && <div className="empty">Aucun lead récent</div>}
+          </div>
+        </Card>
+
+        <Card
+          head="Activités à venir"
+          icon="calendar"
+          action={
+            <a className="contact-link" style={{ fontSize: 13, cursor: 'pointer' }} onClick={() => navigate('/activities')}>
+              Voir tout
+            </a>
+          }
+          flush
+        >
+          <div style={{ padding: '4px 18px 12px' }}>
+            {upcomingActivities.map((activity) => (
+              <div className="lrow" key={activity.id}>
+                <span className="st-ic blue" style={{ width: 34, height: 34, borderRadius: 9 }}>
+                  <Icon name="activity" size={16} />
+                </span>
+                <div className="lr-main">
+                  <b>{activity.subject}</b>
+                  <small>{ACTIVITY_TYPE_LABELS[activity.type]}</small>
+                </div>
+                <span className="lr-val">{activity.scheduledAt ? formatDate(activity.scheduledAt) : '—'}</span>
+              </div>
+            ))}
+            {upcomingActivities.length === 0 && <div className="empty">Aucune activité planifiée</div>}
+          </div>
+        </Card>
       </div>
     </div>
   );
 }
 
-// ---------- Next Appointment Card (prominent) ----------
+// ---------- Next Appointment Card ----------
 
 function NextAppointmentCard({
   appointment,
@@ -403,265 +462,206 @@ function NextAppointmentCard({
   navigate: ReturnType<typeof useNavigate>;
 }) {
   const typeColor = APPOINTMENT_TYPE_COLORS[appointment.type];
-  const statusColor = APPOINTMENT_STATUS_COLORS[appointment.status];
   const timeLabel = getTimeUntil(appointment.scheduledAt);
   const todayFlag = isToday(appointment.scheduledAt);
   const tomorrowFlag = isTomorrow(appointment.scheduledAt);
-  const hasSiteLocation = (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && appointment.location;
+  const hasSiteLocation =
+    (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && appointment.location;
 
   const completedSteps = checkedSteps.size;
   const totalSteps = PREP_STEPS.length;
   const progressPct = Math.round((completedSteps / totalSteps) * 100);
 
-  const urgencyBg = todayFlag
-    ? 'linear-gradient(135deg, rgba(220, 53, 69, 0.08), rgba(220, 53, 69, 0.02))'
-    : tomorrowFlag
-    ? 'linear-gradient(135deg, rgba(255, 193, 7, 0.08), rgba(255, 193, 7, 0.02))'
-    : 'var(--neo-bg-card)';
-
-  const urgencyBorder = todayFlag
-    ? '2px solid rgba(220, 53, 69, 0.3)'
-    : tomorrowFlag
-    ? '2px solid rgba(255, 193, 7, 0.3)'
-    : '2px solid var(--neo-primary)';
+  const locationIcon: IconName =
+    appointment.locationType === 'visio'
+      ? 'message'
+      : appointment.locationType === 'telephone'
+        ? 'phone'
+        : appointment.locationType === 'bureau'
+          ? 'building'
+          : 'target';
 
   return (
-    <Card style={{ border: urgencyBorder, background: urgencyBg }}>
-      <CardBody className="p-0">
-        <div className="row g-0">
-          {/* Left: Appointment Info */}
-          <div className="col-lg-7 p-4">
-            <div className="d-flex align-items-center gap-2 mb-3">
-              {todayFlag && (
-                <span className="badge bg-danger" style={{ fontSize: '0.75rem', animation: 'pulse 2s infinite' }}>
-                  <i className="bi bi-exclamation-circle me-1"></i>
-                  AUJOURD'HUI
-                </span>
-              )}
-              {tomorrowFlag && (
-                <span className="badge bg-warning text-dark" style={{ fontSize: '0.75rem' }}>
-                  <i className="bi bi-clock me-1"></i>
-                  DEMAIN
-                </span>
-              )}
-              <span className="badge" style={{ backgroundColor: statusColor, color: '#fff', fontSize: '0.75rem' }}>
-                {APPOINTMENT_STATUS_LABELS[appointment.status]}
-              </span>
-              <span className="text-muted" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                {timeLabel}
-              </span>
-            </div>
+    <Card flush>
+      <div className="rdv-split">
+        <div className="rdv-main">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+            {todayFlag && <Pill tone="danger" dot>Aujourd'hui</Pill>}
+            {tomorrowFlag && <Pill tone="warning" dot>Demain</Pill>}
+            <Pill tone="info">{APPOINTMENT_STATUS_LABELS[appointment.status]}</Pill>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>{timeLabel}</span>
+          </div>
 
-            <div className="d-flex align-items-center gap-3 mb-3">
-              <div
-                className="d-flex align-items-center justify-content-center rounded"
-                style={{
-                  width: 52,
-                  height: 52,
-                  backgroundColor: typeColor,
-                  color: '#fff',
-                  fontSize: '1.4rem',
-                  flexShrink: 0,
-                }}
-              >
-                <i className={`bi ${APPOINTMENT_TYPE_ICONS[appointment.type]}`}></i>
-              </div>
-              <div>
-                <h4 className="mb-1" style={{ fontWeight: 700, fontSize: '1.25rem' }}>
-                  {appointment.title}
-                </h4>
-                <div className="d-flex align-items-center gap-3 flex-wrap" style={{ fontSize: '0.9rem' }}>
-                  <span style={{ color: typeColor, fontWeight: 500 }}>
-                    {APPOINTMENT_TYPE_LABELS[appointment.type]}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 13,
+                background: typeColor,
+                color: '#fff',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="calendar" size={24} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.01em', marginBottom: 4 }}>
+                {appointment.title}
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 13.5 }}>
+                <span style={{ color: typeColor, fontWeight: 600 }}>{APPOINTMENT_TYPE_LABELS[appointment.type]}</span>
+                {appointment.lead && (
+                  <span
+                    className="contact-link"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/leads/${appointment.lead!.id}`)}
+                  >
+                    <Icon name="user" size={14} /> {appointment.lead.firstName} {appointment.lead.lastName}
                   </span>
-                  {appointment.lead && (
-                    <span
-                      className="d-flex align-items-center gap-1"
-                      style={{ cursor: 'pointer', color: 'var(--neo-primary)' }}
-                      onClick={() => navigate(`/leads/${appointment.lead!.id}`)}
-                    >
-                      <i className="bi bi-person"></i>
-                      {appointment.lead.firstName} {appointment.lead.lastName}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Date/Time/Location Row */}
-            <div className="d-flex flex-wrap gap-4 mb-3" style={{ fontSize: '0.9rem' }}>
-              <div className="d-flex align-items-center gap-2">
-                <i className="bi bi-calendar3" style={{ color: 'var(--neo-text-secondary)' }}></i>
-                <span style={{ fontWeight: 500 }}>
-                  {new Date(appointment.scheduledAt).toLocaleDateString('fr-FR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                  })}
-                </span>
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <i className="bi bi-clock" style={{ color: 'var(--neo-text-secondary)' }}></i>
-                <span style={{ fontWeight: 500 }}>
-                  {new Date(appointment.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  {' - '}
-                  {new Date(appointment.endAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <span className="text-muted">({appointment.duration} min)</span>
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <i className={`bi ${
-                  appointment.locationType === 'visio' ? 'bi-camera-video' :
-                  appointment.locationType === 'telephone' ? 'bi-telephone' :
-                  appointment.locationType === 'bureau' ? 'bi-building' : 'bi-geo-alt'
-                }`} style={{ color: 'var(--neo-text-secondary)' }}></i>
-                <span>{LOCATION_TYPE_LABELS[appointment.locationType]}</span>
-                {appointment.location && (
-                  <span className="text-muted">{appointment.location}</span>
                 )}
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="d-flex flex-wrap gap-2">
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => navigate(`/calendar/${appointment.id}`)}
-              >
-                <i className="bi bi-eye me-1"></i>
-                Voir le RDV
-              </button>
-
-              {hasSiteLocation && (
-                <a
-                  href={getGoogleMapsDirectionsUrl(appointment.location!)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-sm btn-outline-primary"
-                >
-                  <i className="bi bi-map me-1"></i>
-                  Itinéraire
-                </a>
-              )}
-
-              {appointment.lead && (
-                <button
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => navigate(`/leads/${appointment.lead!.id}`)}
-                >
-                  <i className="bi bi-person me-1"></i>
-                  Dossier client
-                </button>
-              )}
-            </div>
           </div>
 
-          {/* Right: Preparation Checklist */}
-          <div className="col-lg-5" style={{ borderLeft: '1px solid var(--neo-border-color)' }}>
-            <div className="p-4">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6 className="mb-0" style={{ fontWeight: 600 }}>
-                  <i className="bi bi-list-check me-2"></i>
-                  Préparation
-                </h6>
-                <span
-                  className="badge"
-                  style={{
-                    backgroundColor: progressPct === 100 ? 'var(--neo-success)' : 'var(--neo-primary)',
-                    color: '#fff',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  {completedSteps}/{totalSteps}
-                </span>
-              </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginBottom: 18, fontSize: 13.5, color: 'var(--ink-2)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Icon name="calendar" size={16} />
+              {new Date(appointment.scheduledAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Icon name="clock" size={16} />
+              {new Date(appointment.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              {' – '}
+              {new Date(appointment.endAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              <span style={{ color: 'var(--ink-4)' }}>({appointment.duration} min)</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Icon name={locationIcon} size={16} />
+              {LOCATION_TYPE_LABELS[appointment.locationType]}
+              {appointment.location && <span style={{ color: 'var(--ink-4)' }}>· {appointment.location}</span>}
+            </span>
+          </div>
 
-              {/* Progress bar */}
-              <div className="progress mb-3" style={{ height: 6 }}>
-                <div
-                  className="progress-bar"
-                  style={{
-                    width: `${progressPct}%`,
-                    backgroundColor: progressPct === 100 ? 'var(--neo-success)' : 'var(--neo-primary)',
-                    transition: 'width 0.3s ease',
-                  }}
-                />
-              </div>
-
-              {/* Steps */}
-              <div className="d-flex flex-column gap-2">
-                {PREP_STEPS.map(step => {
-                  const checked = checkedSteps.has(step.id);
-                  // For "check_route" step, add special behavior if we have a location
-                  const isRouteStep = step.id === 'check_route' && hasSiteLocation;
-
-                  return (
-                    <div
-                      key={step.id}
-                      className="d-flex align-items-start gap-2 rounded p-2"
-                      style={{
-                        cursor: 'pointer',
-                        background: checked ? 'rgba(25, 135, 84, 0.06)' : 'transparent',
-                        transition: 'background 0.2s',
-                      }}
-                      onClick={() => onToggleStep(step.id)}
-                    >
-                      <div className="flex-shrink-0 mt-1">
-                        <input
-                          type="checkbox"
-                          className="form-check-input"
-                          checked={checked}
-                          onChange={() => onToggleStep(step.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: 'pointer' }}
-                        />
-                      </div>
-                      <div className="flex-grow-1">
-                        <div
-                          style={{
-                            fontWeight: 500,
-                            fontSize: '0.875rem',
-                            textDecoration: checked ? 'line-through' : 'none',
-                            opacity: checked ? 0.6 : 1,
-                          }}
-                        >
-                          <i className={`bi ${step.icon} me-1`} style={{ fontSize: '0.8rem', color: 'var(--neo-text-secondary)' }}></i>
-                          {step.label}
-                        </div>
-                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                          {step.description}
-                        </div>
-                        {isRouteStep && !checked && (
-                          <a
-                            href={getGoogleMapsDirectionsUrl(appointment.location!)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-outline-primary btn-sm mt-1"
-                            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <i className="bi bi-map me-1"></i>
-                            Voir l'itinéraire
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {progressPct === 100 && (
-                <div className="text-center mt-3 p-2 rounded" style={{ background: 'rgba(25, 135, 84, 0.08)' }}>
-                  <i className="bi bi-check-circle-fill me-1" style={{ color: 'var(--neo-success)' }}></i>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--neo-success)' }}>
-                    Préparation terminée !
-                  </span>
-                </div>
-              )}
-            </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <Btn size="sm" icon="search" onClick={() => navigate(`/calendar/${appointment.id}`)}>
+              Voir le RDV
+            </Btn>
+            {hasSiteLocation && (
+              <a href={getGoogleMapsDirectionsUrl(appointment.location!)} target="_blank" rel="noopener noreferrer">
+                <Btn size="sm" variant="ghost" icon="target">
+                  Itinéraire
+                </Btn>
+              </a>
+            )}
+            {appointment.lead && (
+              <Btn size="sm" variant="subtle" icon="user" onClick={() => navigate(`/leads/${appointment.lead!.id}`)}>
+                Dossier client
+              </Btn>
+            )}
           </div>
         </div>
-      </CardBody>
+
+        <div className="rdv-side">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <h4 style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Icon name="checkCircle" size={16} /> Préparation
+            </h4>
+            <Pill tone={progressPct === 100 ? 'success' : 'info'}>
+              {completedSteps}/{totalSteps}
+            </Pill>
+          </div>
+
+          <div className="xp-bar" style={{ background: 'var(--line)', marginBottom: 14 }}>
+            <i style={{ width: `${progressPct}%`, background: progressPct === 100 ? 'var(--success)' : 'var(--komun)' }} />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {PREP_STEPS.map((step) => {
+              const checked = checkedSteps.has(step.id);
+              const isRouteStep = step.id === 'check_route' && hasSiteLocation;
+              return (
+                <div
+                  key={step.id}
+                  className="prep-row"
+                  style={{ cursor: 'pointer', background: checked ? 'var(--success-soft)' : 'transparent' }}
+                  onClick={() => onToggleStep(step.id)}
+                >
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 7,
+                      flex: 'none',
+                      display: 'grid',
+                      placeItems: 'center',
+                      border: '1.5px solid ' + (checked ? 'var(--success)' : 'var(--line-2)'),
+                      background: checked ? 'var(--success)' : 'transparent',
+                      color: '#fff',
+                    }}
+                  >
+                    {checked && <Icon name="check" size={14} />}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontWeight: 500,
+                        fontSize: 13,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        textDecoration: checked ? 'line-through' : 'none',
+                        color: checked ? 'var(--ink-3)' : 'var(--ink)',
+                      }}
+                    >
+                      <Icon name={step.icon} size={13} />
+                      {step.label}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{step.description}</div>
+                    {isRouteStep && !checked && (
+                      <a
+                        href={getGoogleMapsDirectionsUrl(appointment.location!)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: 'inline-block', marginTop: 4 }}
+                      >
+                        <Btn size="sm" variant="ghost" icon="target">
+                          Voir l'itinéraire
+                        </Btn>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {progressPct === 100 && (
+            <div
+              style={{
+                textAlign: 'center',
+                marginTop: 14,
+                padding: 10,
+                borderRadius: 10,
+                background: 'var(--success-soft)',
+                color: 'var(--success)',
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                justifyContent: 'center',
+                width: '100%',
+              }}
+            >
+              <Icon name="checkCircle" size={16} /> Préparation terminée !
+            </div>
+          )}
+        </div>
+      </div>
     </Card>
   );
 }
@@ -676,79 +676,55 @@ function CompactAppointmentCard({
   navigate: ReturnType<typeof useNavigate>;
 }) {
   const typeColor = APPOINTMENT_TYPE_COLORS[appointment.type];
-  const hasSiteLocation = (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && appointment.location;
+  const hasSiteLocation =
+    (appointment.locationType === 'sur_site' || appointment.locationType === 'bureau') && appointment.location;
   const todayFlag = isToday(appointment.scheduledAt);
 
   return (
-    <Card
-      style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
-      className="h-100"
-      onClick={() => navigate(`/calendar/${appointment.id}`)}
-    >
-      <CardBody className="p-3">
-        <div className="d-flex align-items-center gap-2 mb-2">
-          <div
-            className="d-flex align-items-center justify-content-center rounded"
-            style={{
-              width: 32,
-              height: 32,
-              backgroundColor: typeColor,
-              color: '#fff',
-              fontSize: '0.9rem',
-              flexShrink: 0,
-            }}
-          >
-            <i className={`bi ${APPOINTMENT_TYPE_ICONS[appointment.type]}`}></i>
-          </div>
-          <div className="flex-grow-1 overflow-hidden">
-            <div style={{ fontWeight: 600, fontSize: '0.9rem' }} className="text-truncate">
-              {appointment.title}
-            </div>
-          </div>
-          {todayFlag && (
-            <span className="badge bg-danger" style={{ fontSize: '0.65rem' }}>Auj.</span>
-          )}
+    <Card style={{ cursor: 'pointer' }} className="rdv-card" >
+      <div onClick={() => navigate(`/calendar/${appointment.id}`)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <span style={{ width: 32, height: 32, borderRadius: 9, background: typeColor, color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <Icon name="calendar" size={16} />
+          </span>
+          <b style={{ flex: 1, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {appointment.title}
+          </b>
+          {todayFlag && <Pill tone="danger">Auj.</Pill>}
         </div>
-
-        <div className="d-flex flex-column gap-1" style={{ fontSize: '0.8rem' }}>
-          <div className="d-flex align-items-center gap-2 text-muted">
-            <i className="bi bi-calendar3"></i>
-            <span>
-              {new Date(appointment.scheduledAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
-              {' '}
-              {new Date(appointment.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5, color: 'var(--ink-3)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="calendar" size={14} />
+            {new Date(appointment.scheduledAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+            {new Date(appointment.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
           {appointment.lead && (
-            <div className="d-flex align-items-center gap-2 text-muted">
-              <i className="bi bi-person"></i>
-              <span>{appointment.lead.firstName} {appointment.lead.lastName}</span>
-            </div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Icon name="user" size={14} />
+              {appointment.lead.firstName} {appointment.lead.lastName}
+            </span>
           )}
           {appointment.location && (
-            <div className="d-flex align-items-center gap-2 text-muted">
-              <i className="bi bi-geo-alt"></i>
-              <span className="text-truncate">{appointment.location}</span>
-            </div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Icon name="target" size={14} />
+              {appointment.location}
+            </span>
           )}
         </div>
-
-        {hasSiteLocation && (
-          <div className="mt-2">
-            <a
-              href={getGoogleMapsDirectionsUrl(appointment.location!)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline-primary btn-sm w-100"
-              style={{ fontSize: '0.75rem' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <i className="bi bi-map me-1"></i>
-              Itinéraire
-            </a>
-          </div>
-        )}
-      </CardBody>
+      </div>
+      {hasSiteLocation && (
+        <a
+          href={getGoogleMapsDirectionsUrl(appointment.location!)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: 'block', marginTop: 10 }}
+        >
+          <Btn size="sm" variant="ghost" icon="target" style={{ width: '100%', justifyContent: 'center' }}>
+            Itinéraire
+          </Btn>
+        </a>
+      )}
     </Card>
   );
 }

@@ -1,14 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardBody, Spinner, StatCard } from '../../components';
+import { Spinner } from '../../components';
+import { Card, Btn, Icon, Pill } from '../../components/neo';
+import type { PillTone } from '../../components/neo';
 import { cloudService } from '../../services/cloud.service';
 import { useUIStore } from '../../stores';
 import type { CloudInstance, CloudInstanceStatus } from '../../types/cloud.types';
 
-const STATUS_BADGE_MAP: Record<CloudInstanceStatus, string> = {
+const STATUS_TONE: Record<CloudInstanceStatus, PillTone> = {
   provisioning: 'info',
   running: 'success',
-  stopped: 'secondary',
+  stopped: 'neutral',
   error: 'danger',
   destroying: 'warning',
 };
@@ -159,284 +161,258 @@ export function CloudInstanceDetailPage() {
 
   if (!instance) {
     return (
-      <div className="text-center py-5" style={{ color: 'var(--neo-text-secondary)' }}>
-        <i className="bi bi-cloud-slash fs-1 d-block mb-3"></i>
-        <h4>Instance introuvable</h4>
-        <button className="btn btn-primary mt-3" onClick={() => navigate('/cloud')}>
-          <i className="bi bi-arrow-left me-2"></i>
-          Retour aux instances
-        </button>
+      <div style={{ padding: 28 }}>
+        <div className="empty">
+          <span className="em-ic">
+            <Icon name="cloud" size={22} />
+          </span>
+          <b>Instance introuvable</b>
+          <p>Cette instance n'existe pas ou a été supprimée.</p>
+          <div style={{ marginTop: 14 }}>
+            <Btn icon="arrowLeft" onClick={() => navigate('/cloud')}>
+              Retour aux instances
+            </Btn>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="cloud-instance-detail-page">
-      {/* Back button + Header */}
-      <div className="d-flex align-items-center gap-3 mb-4">
-        <button className="btn btn-outline-secondary btn-sm" onClick={() => navigate('/cloud')}>
-          <i className="bi bi-arrow-left"></i>
-        </button>
-        <div style={{ flex: 1 }}>
-          <h1 className="page-title mb-0 d-flex align-items-center gap-3">
-            <span>{instance.client.firstName} {instance.client.lastName}</span>
-            <span className={`badge bg-${STATUS_BADGE_MAP[instance.status]}`} style={{ fontSize: '0.65em' }}>
+    <div className="cloud-instance-detail-page" style={{ padding: 28 }}>
+      <div className="page-head">
+        <div className="ph-l">
+          <button className="back-link" onClick={() => navigate('/cloud')}>
+            <Icon name="arrowLeft" size={15} /> Retour aux instances
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1>{instance.client.firstName} {instance.client.lastName}</h1>
+            <Pill tone={STATUS_TONE[instance.status]} dot>
               {STATUS_LABELS[instance.status]}
-            </span>
+            </Pill>
             <span
               style={{
                 display: 'inline-block',
                 width: '10px',
                 height: '10px',
                 borderRadius: '50%',
-                background: instance.isOnline ? 'var(--neo-success)' : 'var(--neo-danger)',
-                boxShadow: instance.isOnline ? '0 0 8px var(--neo-success)' : 'none',
+                background: instance.isOnline ? 'var(--success)' : 'var(--danger)',
+                boxShadow: instance.isOnline ? '0 0 8px var(--success)' : 'none',
               }}
               title={instance.isOnline ? 'En ligne' : 'Hors ligne'}
             />
-          </h1>
-          <div style={{ color: 'var(--neo-text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-            <code style={{ color: 'var(--neo-text-primary)', background: 'var(--neo-bg-light, rgba(0,0,0,0.05))', padding: '2px 6px', borderRadius: '4px' }}>
-              {instance.domain}
-            </code>
+          </div>
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <code className="t-mono" style={{ color: 'var(--ink-2)' }}>{instance.domain}</code>
             {instance.port && (
-              <span className="ms-2">Port: {instance.port}</span>
+              <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>Port: {instance.port}</span>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div className="d-flex gap-2 mb-4 flex-wrap">
-        {instance.status === 'stopped' && (
-          <button
-            className="btn btn-success"
-            onClick={() => handleAction('start')}
-            disabled={!!actionLoading}
-          >
-            {actionLoading === 'start' ? (
-              <span className="spinner-border spinner-border-sm me-2" role="status" />
-            ) : (
-              <i className="bi bi-play-fill me-2"></i>
-            )}
-            Démarrer
-          </button>
-        )}
-        {instance.status === 'running' && (
-          <>
-            <button
-              className="btn btn-warning"
-              onClick={() => handleAction('stop')}
+        <div className="page-actions">
+          {instance.status === 'stopped' && (
+            <Btn
+              variant="success"
+              icon="zap"
               disabled={!!actionLoading}
+              onClick={() => handleAction('start')}
             >
-              {actionLoading === 'stop' ? (
-                <span className="spinner-border spinner-border-sm me-2" role="status" />
-              ) : (
-                <i className="bi bi-stop-fill me-2"></i>
-              )}
-              Arrêter
-            </button>
-            <button
-              className="btn btn-info"
-              onClick={() => handleAction('restart')}
-              disabled={!!actionLoading}
-            >
-              {actionLoading === 'restart' ? (
-                <span className="spinner-border spinner-border-sm me-2" role="status" />
-              ) : (
-                <i className="bi bi-arrow-clockwise me-2"></i>
-              )}
-              Redémarrer
-            </button>
-          </>
-        )}
-        <button
-          className="btn btn-outline-danger"
-          onClick={() => handleAction('destroy')}
-          disabled={!!actionLoading}
-        >
-          {actionLoading === 'destroy' ? (
-            <span className="spinner-border spinner-border-sm me-2" role="status" />
-          ) : (
-            <i className="bi bi-trash me-2"></i>
+              {actionLoading === 'start' ? 'Démarrage…' : 'Démarrer'}
+            </Btn>
           )}
-          Supprimer
-        </button>
-
-        {instance.domain && (
-          <a
-            href={`https://${instance.domain}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-outline-primary ms-auto"
+          {instance.status === 'running' && (
+            <>
+              <Btn
+                variant="ochre"
+                disabled={!!actionLoading}
+                onClick={() => handleAction('stop')}
+              >
+                {actionLoading === 'stop' ? 'Arrêt…' : 'Arrêter'}
+              </Btn>
+              <Btn
+                variant="ghost"
+                icon="activity"
+                disabled={!!actionLoading}
+                onClick={() => handleAction('restart')}
+              >
+                {actionLoading === 'restart' ? 'Redémarrage…' : 'Redémarrer'}
+              </Btn>
+            </>
+          )}
+          <Btn
+            variant="danger-ghost"
+            icon="trash"
+            disabled={!!actionLoading}
+            onClick={() => handleAction('destroy')}
           >
-            <i className="bi bi-box-arrow-up-right me-2"></i>
-            Ouvrir HA
-          </a>
-        )}
+            {actionLoading === 'destroy' ? 'Suppression…' : 'Supprimer'}
+          </Btn>
+          {instance.domain && (
+            <a
+              href={`https://${instance.domain}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn ghost"
+            >
+              <Icon name="arrowRight" size={17} />
+              Ouvrir HA
+            </a>
+          )}
+        </div>
       </div>
 
-      {/* Error message */}
       {instance.errorMessage && (
-        <div className="alert alert-danger d-flex align-items-center gap-2 mb-4">
-          <i className="bi bi-exclamation-triangle-fill"></i>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 16px',
+            marginBottom: 18,
+            borderRadius: 'var(--r-md)',
+            background: 'var(--danger-soft)',
+            color: 'var(--danger-ink)',
+            border: '1px solid var(--danger)',
+          }}
+        >
+          <Icon name="shield" size={18} />
           <span>{instance.errorMessage}</span>
         </div>
       )}
 
-      {/* Stats Row */}
-      <div className="row g-3 mb-4">
-        <div className="col-6 col-lg-3">
-          <StatCard label="Entités" value={instance.entityCount} icon="bi-diagram-3" color="primary" />
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        <div className="stat">
+          <div className="st-val">{instance.entityCount}</div>
+          <div className="st-label">Entités</div>
         </div>
-        <div className="col-6 col-lg-3">
-          <StatCard label="Automations" value={instance.automationCount} icon="bi-gear-wide-connected" color="info" />
+        <div className="stat">
+          <div className="st-val">{instance.automationCount}</div>
+          <div className="st-label">Automations</div>
         </div>
-        <div className="col-6 col-lg-3">
-          <StatCard label="Uptime" value={computeUptime(instance.provisionedAt, instance.status)} icon="bi-clock-history" color="success" />
+        <div className="stat">
+          <div className="st-val">{computeUptime(instance.provisionedAt, instance.status)}</div>
+          <div className="st-label">Uptime</div>
         </div>
-        <div className="col-6 col-lg-3">
-          <StatCard label="Mémoire" value={`${instance.memoryLimitMb} Mo`} icon="bi-memory" color="warning" />
+        <div className="stat">
+          <div className="st-val">{instance.memoryLimitMb} Mo</div>
+          <div className="st-label">Mémoire</div>
         </div>
       </div>
 
-      {/* Instance Details + Logs */}
-      <div className="row g-4">
-        {/* Instance Info */}
-        <div className="col-lg-4">
-          <Card>
-            <CardHeader>
-              <i className="bi bi-info-circle me-2"></i>
-              Informations
-            </CardHeader>
-            <CardBody className="p-0">
-              <table className="table table-borderless mb-0" style={{ fontSize: '0.9rem' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)', width: '40%' }}>Container</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{instance.containerName || '-'}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>Version HA</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{instance.haVersion || 'latest'}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>CPU</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{instance.cpuLimit} core(s)</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>Mémoire</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{instance.memoryLimitMb} Mo</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>Port</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{instance.port || '-'}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>Créée le</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{formatDateTime(instance.createdAt)}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>Provisionnée</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{formatDateTime(instance.provisionedAt)}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ color: 'var(--neo-text-secondary)' }}>Dernier heartbeat</td>
-                    <td style={{ color: 'var(--neo-text-primary)' }}>{formatDateTime(instance.lastHeartbeat)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </CardBody>
+      <div className="lead-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Logs" icon="activity" flush
+            action={
+              <Btn
+                variant="subtle"
+                size="sm"
+                icon="activity"
+                disabled={logsLoading}
+                onClick={loadLogs}
+              >
+                {logsLoading ? 'Chargement…' : 'Rafraîchir'}
+              </Btn>
+            }
+          >
+            <div
+              style={{
+                background: 'var(--ink)',
+                color: 'var(--paper)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+                lineHeight: '1.6',
+                padding: '16px',
+                margin: '0 16px 16px',
+                maxHeight: '500px',
+                overflowY: 'auto',
+                borderRadius: 'var(--r-md)',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+              }}
+            >
+              {logsLoading && !logs ? (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  Chargement des logs…
+                </div>
+              ) : logs ? (
+                <>
+                  {logs}
+                  <div ref={logsEndRef} />
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '24px 0', opacity: 0.5 }}>
+                  Aucun log disponible
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Card head="Informations" icon="settings">
+            <div className="card-body">
+              <dl className="detail-dl">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Container</dt>
+                  <dd className="t-mono">{instance.containerName || '-'}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Version HA</dt>
+                  <dd>{instance.haVersion || 'latest'}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>CPU</dt>
+                  <dd>{instance.cpuLimit} core(s)</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Mémoire</dt>
+                  <dd>{instance.memoryLimitMb} Mo</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Port</dt>
+                  <dd>{instance.port || '-'}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Créée le</dt>
+                  <dd>{formatDateTime(instance.createdAt)}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Provisionnée</dt>
+                  <dd>{formatDateTime(instance.provisionedAt)}</dd>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Dernier heartbeat</dt>
+                  <dd>{formatDateTime(instance.lastHeartbeat)}</dd>
+                </div>
+              </dl>
+            </div>
           </Card>
 
-          {/* Client info */}
-          <Card className="mt-4">
-            <CardHeader>
-              <i className="bi bi-person me-2"></i>
-              Client
-            </CardHeader>
-            <CardBody>
-              <div className="mb-2">
-                <strong style={{ color: 'var(--neo-text-primary)' }}>
-                  {instance.client.firstName} {instance.client.lastName}
-                </strong>
+          <Card head="Client" icon="user">
+            <div className="card-body">
+              <div style={{ fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
+                {instance.client.firstName} {instance.client.lastName}
               </div>
               {instance.client.email && (
-                <div className="mb-1" style={{ color: 'var(--neo-text-secondary)', fontSize: '0.9rem' }}>
-                  <i className="bi bi-envelope me-2"></i>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-3)', fontSize: 13, marginBottom: 4 }}>
+                  <Icon name="mail" size={15} />
                   {instance.client.email}
                 </div>
               )}
               {instance.client.phone && (
-                <div className="mb-1" style={{ color: 'var(--neo-text-secondary)', fontSize: '0.9rem' }}>
-                  <i className="bi bi-telephone me-2"></i>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-3)', fontSize: 13, marginBottom: 4 }}>
+                  <Icon name="phone" size={15} />
                   {instance.client.phone}
                 </div>
               )}
               {instance.client.address && (
-                <div style={{ color: 'var(--neo-text-secondary)', fontSize: '0.9rem' }}>
-                  <i className="bi bi-geo-alt me-2"></i>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-3)', fontSize: 13 }}>
+                  <Icon name="building" size={15} />
                   {instance.client.address}
                   {instance.client.city && `, ${instance.client.city}`}
                 </div>
               )}
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Logs Viewer */}
-        <div className="col-lg-8">
-          <Card>
-            <CardHeader className="d-flex justify-content-between align-items-center">
-              <span>
-                <i className="bi bi-terminal me-2"></i>
-                Logs
-              </span>
-              <button
-                className="btn btn-sm btn-outline-secondary"
-                onClick={loadLogs}
-                disabled={logsLoading}
-              >
-                {logsLoading ? (
-                  <span className="spinner-border spinner-border-sm" role="status" />
-                ) : (
-                  <i className="bi bi-arrow-clockwise"></i>
-                )}
-              </button>
-            </CardHeader>
-            <CardBody className="p-0">
-              <div
-                style={{
-                  background: 'var(--neo-sidebar-bg, #1a1d21)',
-                  color: 'var(--neo-sidebar-text, #adb5bd)',
-                  fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-                  fontSize: '0.8rem',
-                  lineHeight: '1.6',
-                  padding: '16px',
-                  maxHeight: '500px',
-                  overflowY: 'auto',
-                  borderRadius: '0 0 10px 10px',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {logsLoading && !logs ? (
-                  <div className="text-center py-4">
-                    <span className="spinner-border spinner-border-sm me-2" role="status" />
-                    Chargement des logs...
-                  </div>
-                ) : logs ? (
-                  <>
-                    {logs}
-                    <div ref={logsEndRef} />
-                  </>
-                ) : (
-                  <div className="text-center py-4" style={{ opacity: 0.5 }}>
-                    Aucun log disponible
-                  </div>
-                )}
-              </div>
-            </CardBody>
+            </div>
           </Card>
         </div>
       </div>
